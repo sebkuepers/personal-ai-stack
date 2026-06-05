@@ -1,71 +1,130 @@
 # crm-workflows
 
-A [Mistral Workflows](https://docs.mistral.ai/workflows/getting-started/introduction) project.
+A personal-CRM autopilot built on [Mistral Workflows](https://docs.mistral.ai/studio-api/workflows/getting-started/overview)
+— durable, multi-step AI processes that wire together a Studio **classification
+agent** and the **Notion** + **Gmail** connectors.
+
+The workflows *reuse* existing Studio assets — they trigger the agent and
+reference the connectors; nothing is recreated. Because the runtime is durable,
+every step is crash-safe, retried, and observable in Studio.
+
+- 📍 **Workflow map & how to run:** [CRM.md](CRM.md)
+- 🛠 **Engineering conventions & gotchas (for contributors / AI agents):** [CLAUDE.md](CLAUDE.md)
+
+---
+
+## What it does
+
+```
+ raw text / email ─► CRM Classification Agent (Studio, triggered as-is)
+                          │  structured JSON
+                          ▼
+                  deterministic mapping ─► Notion-shaped "intended writes"
+                          │
+        ┌─────────────────┼──────────────────┐
+        ▼ dry run          ▼ write             ▼ assistant
+  classify & report   write to Notion CRM   follow-up digest → Gmail drafts
+```
+
+| Workflow | Category | Connectors | Writes? | What it does |
+|---|---|---|---|---|
+| `crm-interaction-classifier` | core | none | dry run | Classify one interaction; show the exact Notion writes it *would* make |
+| `crm-notion-sync` | write | notion | **yes** | Classify, then find-or-create Contact + Org and create the Interaction |
+| `crm-email-triage` | inbox | gmail | dry run | Pull recent Gmail, classify each, return a triage report |
+| `crm-followup-digest` | assistant | notion + gmail | drafts only | Find due follow-ups in Notion, draft reminder emails (never sends) |
+
+---
 
 ## Setup
+
+Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
 ```
 
-## Commands
+Create a `.env` (already present locally, git-ignored) with:
 
-### Register workflows in AI Studio
+```
+MISTRAL_API_KEY=...        # from console.mistral.ai/api-keys
+SERVER_URL=https://api.mistral.ai
+DEPLOYMENT_NAME=<your-hostname>
+```
 
-Auto-discovers all workflow classes in `src/workflows/`, registers them with AI Studio, and starts polling for executions. The [deployment name](https://docs.mistral.ai/workflows/managing-workflows-in-production/deployments) is set to your hostname:
+---
+
+## Run
+
+Start the worker (auto-discovers every workflow in `src/workflows/`):
 
 ```bash
 make start-worker
 ```
 
-### Execute a workflow
-
-In a separate terminal, trigger a workflow execution by name:
+In another terminal, trigger one:
 
 ```bash
-make execute workflow=hello-world input='{"name": "World"}'
+make crm-classify        # core — no OAuth, safest first run
+make crm-sync            # writes to Notion (first run prompts Notion OAuth)
+make crm-triage-inbox    # reads Gmail   (first run prompts Gmail OAuth)
+make crm-digest          # Notion + Gmail; drafts reminders
 ```
 
-## Examples
-
-The `src/examples/` directory contains complete workflow cookbooks that demonstrate advanced patterns. They are **not** loaded by the default `make start-worker`.
-
-| Example | Description |
-|---|---|
-| [Insurance Claims Triage](src/examples/insurance_claims/) | Parallel vision analysis, retry policies, deterministic branching, structured LLM output |
-| [Cargo Release Compliance](src/examples/cargo_release/) | HITL `wait_for_input()`, child sub-workflows, retry policies, structured LLM output |
-| [Code Modernization](src/examples/code_modernization/) | Sub-workflow fan-out, sandboxed validation, retry-loop, HITL approval |
-
-### Start the examples worker
+With custom input:
 
 ```bash
-make start-examples
+make crm-classify input='{"text":"...","subject":"...","interaction_type":"Email"}'
 ```
 
-Then trigger an execution in a separate terminal:
+You can also trigger any workflow from the Studio Console (**Workflows** tab).
 
-```bash
-make execute-insurance-claims input='{"claim_id":"CLM-001","claimant_name":"Jane","description":"My car was hit.","photos":["src/examples/insurance_claims/sample_data/photos/claim_low_scratch_door.jpg"]}'
-```
+> **First connector run pauses for OAuth.** Connector workflows are
+> `on_behalf_of=True`; the first execution emits an auth URL (shown in the Studio
+> UI / worker logs). Authorise once — later runs are non-interactive.
+
+---
 
 ## Project layout
 
 ```
 src/
-├── entrypoints/ # Runnable modules, invoked via `python -m entrypoints.<module>`
-│   ├── worker.py   # `python -m entrypoints.worker` — discover and run workflows
-│   ├── start.py    # `python -m entrypoints.start`  — trigger a workflow execution
-│   └── dev.py      # `python -m entrypoints.dev`    — worker with file-watch auto-reload
-├── workflows/   # Your workflow classes (auto-discovered by `entrypoints.worker`)
-└── examples/    # Example workflow cookbooks (opt-in via `examples.worker`)
+├── entrypoints/            # python -m entrypoints.<module>
+│   ├── worker.py           #   discover + run workflows
+│   ├── start.py            #   trigger a workflow execution
+│   └── dev.py              #   worker with file-watch reload  (make start-worker)
+├── workflows/              # the personal-CRM workflows (auto-discovered)
+│   ├── crm/                #   shared package — config, models, classify, tools, notion
+│   ├── crm_interaction_classifier.py
+│   ├── crm_notion_sync.py
+│   ├── crm_email_triage.py
+│   └── crm_followup_digest.py
+└── examples/               # SDK cookbooks (opt-in: make start-examples)
 ```
+
+All IDs, connector slugs, model names, and vocabularies live in one file:
+[`src/workflows/crm/config.py`](src/workflows/crm/config.py).
+
+---
 
 ## Development
 
 ```bash
-# Format
-uv run ruff format .
+uv run ruff format .        # format
+uv run ruff check --fix .   # lint
 
-# Lint
-uv run ruff check --fix .
+# Offline sanity check — imports every workflow, no cloud needed:
+uv run python -c "from entrypoints.worker import discover_workflows as d; print('discovered', len(d()))"
 ```
+
+To **add a workflow**: drop a top-level module in `src/workflows/` and restart
+the worker. See [CLAUDE.md](CLAUDE.md) for the full recipe, the verified SDK
+cheat-sheet, and the gotchas (sandbox imports, connector slugs, agent-trigger vs
+overwrite, `on_behalf_of` + scheduling, …).
+
+---
+
+## SDK examples
+
+`src/examples/` ships Mistral's cookbooks (not loaded by `make start-worker`):
+Insurance Claims Triage, Cargo Release Compliance, Code Modernization. Run them
+with `make start-examples` + `make execute-insurance-claims` (etc.).
