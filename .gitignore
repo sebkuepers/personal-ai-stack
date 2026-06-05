@@ -1,9 +1,27 @@
-.venv/
+# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.egg-info/
 dist/
 build/
-*.egg-info/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Secrets / local env — never commit these
+.env
+.env.*
+!.env.example
+
+# Tooling caches
 .mypy_cache/
 .ruff_cache/
+.pytest_cache/
+*.log
+
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
