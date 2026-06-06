@@ -13,7 +13,8 @@ connector; the workflows *trigger* and *reference* what you already built.
 | `notion` connector | Your Notion CRM (Organizations / Contacts / Interactions / Projects) | Read + write via durable agent tools |
 | `gmail` connector | Your inbox | Read + **draft** (the connector cannot send) |
 
-Config lives in one place: [`src/workflows/crm/config.py`](src/workflows/crm/config.py).
+Config lives in one place: [`../shared/crm.json`](../shared/crm.json) (loaded by
+[`../workflows/src/workflows/crm/config.py`](../workflows/src/workflows/crm/config.py)).
 
 ## The four workflows
 

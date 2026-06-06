@@ -1,0 +1,63 @@
+{
+  "_comment": "Single source of truth for the personal-CRM system. Consumed by the Python workflows (workflows/src/workflows/crm/config.py) and the TypeScript MCP server (mcp-server). Edit here once; both sides read it. IDs confirmed against the live Studio account 2026-06-05/06.",
+  "agent": {
+    "crm_classification_agent_id": "ag_019e98ece5ab7083898098f84895ae79"
+  },
+  "models": {
+    "classify": "mistral-medium-latest",
+    "agent": "mistral-medium-latest",
+    "digest": "mistral-medium-latest"
+  },
+  "notion": {
+    "databases": {
+      "organizations": "0e98f520-be59-4c01-a493-4e0cf731d91f",
+      "contacts": "3a0b4200-0c34-491d-86dc-86de07c4916c",
+      "interactions": "a4c60162-2aa2-47de-8f7c-a1b57b669a26"
+    },
+    "urls": {
+      "organizations": "https://app.notion.com/p/905001b6311543e485a45e6a69074f74",
+      "contacts": "https://app.notion.com/p/191604fb680a4c98b4fe1f82c94414cf",
+      "interactions": "https://app.notion.com/p/d51513cd0fbf43c98f8e03d65603a120"
+    }
+  },
+  "connectors": {
+    "notion": { "name": "notion", "id": "0198f11d-493e-76a8-9c90-913b7462e7de" },
+    "gmail": { "name": "gmail", "id": "019df75b-9673-72be-ba4f-033723c972ea" }
+  },
+  "connector_tools": {
+    "notion": {
+      "search": "notion-search",
+      "fetch": "notion-fetch",
+      "create_pages": "notion-create-pages",
+      "update_page": "notion-update-page"
+    },
+    "gmail": {
+      "search": "search_gmail",
+      "open": "open_gmail_email",
+      "draft": "draft_gmail_email"
+    }
+  },
+  "vocab": {
+    "categories": [
+      "job_application", "business_opportunity", "personal", "networking",
+      "support", "collaboration", "sales", "follow_up", "unknown"
+    ],
+    "sub_categories": [
+      "job_application_ongiini", "job_application_foundation", "business_partnership",
+      "sales_lead", "investor_pitch", "friend_catchup", "family_update",
+      "project_discussion", "support_request", "unknown"
+    ],
+    "interaction_types": [
+      "Email", "Meeting", "Call", "Message", "Application", "Interview", "Other"
+    ],
+    "sentiments": ["Positive", "Neutral", "Negative", "Urgent"],
+    "priorities": ["High", "Medium", "Low"],
+    "auto_tags": [
+      "job_application_ongiini", "job_application_foundation", "business_opportunity",
+      "high_priority", "urgent", "personal", "networking", "support"
+    ]
+  },
+  "user_aliases": [
+    "sebastian", "seb", "sebastian kuepers", "s. kuepers", "sebastian küpers"
+  ]
+}
