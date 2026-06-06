@@ -41,13 +41,21 @@ def make_notion_writer_agent() -> wf_mistral.Agent:
     )
 
 
-def render_triage_for_agent(triage: InteractionTriage) -> str:
-    """Render an InteractionTriage as a clear instruction for the writer agent."""
+def render_triage_for_agent(triage: InteractionTriage, gmail_message_id: str | None = None) -> str:
+    """Render an InteractionTriage as a clear instruction for the writer agent.
+
+    When ``gmail_message_id`` is given, the writer is told to dedup and store it
+    (see NOTION_WRITER_CONTEXT) — so re-runs of the batch don't create duplicates.
+    """
     i = triage.interaction
     lines = [
         "Write the following interaction into the Notion CRM, "
         "finding-or-creating the related Contact(s) and Organization(s).",
         "",
+    ]
+    if gmail_message_id:
+        lines.append(f"Gmail Message ID: {gmail_message_id}")
+    lines += [
         f"Title: {i.title}",
         f"Date: {i.occurred_on}",
         f"Interaction Type: {i.interaction_type}",

@@ -126,6 +126,8 @@ class InteractionInput(BaseModel):
 class EmailItem(BaseModel):
     """A single email pulled from Gmail (shape we normalise the connector into)."""
 
+    message_id: str = ""           # Gmail message id — used for dedup
+    direction: str = "received"    # received | sent
     sender: str = ""
     subject: str = ""
     snippet: str = ""
@@ -160,3 +162,38 @@ class FollowUpDigestInput(BaseModel):
     horizon_days: int = Field(
         default=0, description="Include follow-ups due within this many days from today (0 = overdue/today)."
     )
+
+
+class IngestRecentInput(BaseModel):
+    """Input for the twice-daily batch ingest workflow."""
+
+    window_hours: int = Field(
+        default=13, description="Look back this many hours (13 overlaps a 12h schedule gap)."
+    )
+    max_emails: int = Field(default=50, description="Max emails to process per run.")
+    dry_run: bool = Field(
+        default=True, description="If true, classify only and write nothing to Notion."
+    )
+
+
+class IngestItem(BaseModel):
+    """One processed email in the ingest report."""
+
+    message_id: str = ""
+    direction: str = "received"
+    subject: str = ""
+    category: str | None = None
+    contact_names: list[str] = Field(default_factory=list)
+    organization_names: list[str] = Field(default_factory=list)
+    action: str = "classified"  # classified (dry run) | written | skipped | error
+    detail: str | None = None
+
+
+class IngestRecentReport(BaseModel):
+    """Result of a batch ingest run."""
+
+    window_hours: int
+    dry_run: bool
+    found: int
+    processed: int
+    items: list[IngestItem] = Field(default_factory=list)

@@ -1,4 +1,4 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest sync-agents sync-agents-dry
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry
 
 ## Install dependencies
 installdeps:
@@ -63,3 +63,9 @@ crm-triage-inbox:
 ## Usage: make crm-digest input='{"draft_reminders":true,"horizon_days":0}'
 crm-digest:
 	uv run python -m entrypoints.start --workflow crm-followup-digest $(if $(input),--input '$(input)',--input '{"draft_reminders":true,"horizon_days":0}')
+
+## BATCH — ingest recent Gmail (inbox+sent) → classify → write to Notion (Gmail+Notion; OAuth)
+## The twice-daily workhorse (triggered by the Cloudflare cron). Dry run by default.
+## Usage: make crm-ingest input='{"window_hours":13,"max_emails":50,"dry_run":false}'
+crm-ingest:
+	uv run python -m entrypoints.start --workflow crm-ingest-recent $(if $(input),--input '$(input)',--input '{"window_hours":13,"max_emails":50,"dry_run":true}')

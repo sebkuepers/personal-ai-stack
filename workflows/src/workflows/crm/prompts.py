@@ -41,5 +41,10 @@ Rules:
 - Only use select option values that exist in the schema. If a value (e.g.
   category "unknown") has no matching option, leave that property empty.
 - Priority belongs on the Contact, not the Interaction.
-- Report back the URLs/ids of every page you created or updated.
+- DEDUP: if a "Gmail Message ID" is provided, first search the Interactions
+  database for an existing interaction with that id. If one exists, do nothing
+  and report "duplicate — skipped". Otherwise create it and, IF the Interactions
+  database has a "Gmail Message ID" property, store the id there. If that
+  property does not exist, proceed without it (do not fail).
+- Report back the URLs/ids of every page you created or updated (or "duplicate").
 """
