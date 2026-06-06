@@ -18,18 +18,23 @@ from mistralai.workflows.core.definition.workflow_definition import (
 
 
 def discover_workflows() -> list[type]:
-    """Scan the `workflows` package and return all workflow classes."""
-    discovered = []
+    """Recursively scan the `workflows` package for all workflow classes.
+
+    Uses ``walk_packages`` so workflows can be grouped in subpackages/folders
+    (e.g. ``workflows/crm/``) instead of all sitting at the top level. Modules
+    without a workflow class (shared helpers like ``crm/config.py``) are simply
+    skipped. Results are de-duplicated by identity, so a class that is also
+    imported into another module is counted once.
+    """
+    discovered: list[type] = []
+    seen: set[int] = set()
     package = importlib.import_module("workflows")
 
-    for _, modname, ispkg in pkgutil.iter_modules(
-        package.__path__, prefix="workflows."
-    ):
-        if ispkg:
-            continue
+    for _, modname, _ in pkgutil.walk_packages(package.__path__, prefix="workflows."):
         module = importlib.import_module(modname)
         for _, obj in inspect.getmembers(module, inspect.isclass):
-            if hasattr(obj, "__workflows_workflow_def"):
+            if hasattr(obj, "__workflows_workflow_def") and id(obj) not in seen:
+                seen.add(id(obj))
                 discovered.append(obj)
 
     return discovered
