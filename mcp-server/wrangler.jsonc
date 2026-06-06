@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "personal-crm-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // McpAgent stores each MCP session in a SQLite-backed Durable Object.
+  "durable_objects": {
+    "bindings": [{ "class_name": "CrmMcp", "name": "MCP_OBJECT" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CrmMcp"] }]
+  // Secrets (NOT here — set via `wrangler secret put`):
+  //   NOTION_TOKEN     Notion internal-integration token (reads the CRM DB schema)
+  //   NOTION_VERSION   optional, defaults to 2025-09-03
+}

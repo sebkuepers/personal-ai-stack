@@ -10,10 +10,17 @@ build/
 venv/
 env/
 
+# Node / Cloudflare (mcp-server, cron)
+node_modules/
+.wrangler/
+.dev.vars
+worker-configuration.d.ts
+
 # Secrets / local env — never commit these
 .env
 .env.*
 !.env.example
+.dev.vars.*
 
 # Tooling caches
 .mypy_cache/
