@@ -20,10 +20,9 @@ Skills are **declarative** — they point at MCP tools and workflows; they don't
 description determines activation, so write it as *when to use* ("Use when I want to log an email or
 interaction to my CRM…"), not just what it does.
 
-## Planned skills
+## Skills
 
 | Skill | Teaches Vibe Work to… |
 |---|---|
-| `log-interaction` | classify an interaction and file it to the Notion CRM (MCP + `crm-notion-sync`) |
-| `triage-inbox` | pull recent mail and classify it (`crm-email-triage`) |
-| `get-categories` | fetch the current CRM category vocabulary (MCP `get_used_categories`) |
+| `personal-crm` | understand the CRM (Notion structure, the classification agent, and which workflow to use for classify / log / triage / ingest / follow-up) |
+| `crm-categories` | fetch the current category vocabulary via the `get_used_categories` MCP tool before classifying, so it reuses categories instead of inventing duplicates |

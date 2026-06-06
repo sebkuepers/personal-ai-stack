@@ -6,9 +6,10 @@ decisions that were already reasoned through.
 ## The system in one picture
 
 ```
- Cloudflare Cron Worker (cron/)      ──08:00 & 18:00──►  POST /v1/workflows/{name}/execute   [serverless]
- Cloudflare Container (workflows/)   ──hosts──►  Mistral Workflows worker (ALL workflows)     [scale-to-zero]
- Cloudflare MCP Worker (mcp-server/) ──registered as a Mistral custom connector               [serverless]
+ Cloudflare worker-host  ──cron 08:00 & 18:00──►  POST /v1/workflows/{name}/execute   [serverless]
+   ├─ hosts the Mistral Workflows worker (Docker, ALL workflows)                       [scale-to-zero container]
+   └─ scheduled() trigger + wakes the container
+ Cloudflare MCP Worker (mcp-server/) ──registered as a Mistral custom connector        [serverless]
         │  consumed by Studio agents · Le Chat · Vibe Work · workflow durable agents
  Skills (skills/)  ──teach Vibe Work when/how to use the MCP tools + workflows
         ▼

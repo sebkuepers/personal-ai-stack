@@ -13,7 +13,8 @@ A personal AI system with three composable pillars on Mistral + Cloudflare:
 | `mcp-server/` — personal MCP server (a Mistral custom connector) | TypeScript · Cloudflare Worker | `mcp-server/README.md` |
 | `skills/` — Agent Skills for Vibe Work | Markdown (`SKILL.md`) | `skills/README.md` |
 
-Plus `cron/` (Cloudflare Cron Worker, the scheduled trigger) and `shared/` (the source of truth).
+Plus `worker-host/` (Cloudflare Worker: hosts the workflows worker container + the cron trigger),
+`Dockerfile` (the worker image), and `shared/` (the source of truth).
 See [`README.md`](README.md) for the architecture and [`docs/architecture.md`](docs/architecture.md)
 for the infra rationale.
 
@@ -42,8 +43,9 @@ for the infra rationale.
   per tool under `src/tools/`. `wrangler dev` / `wrangler deploy`; secrets via `wrangler secret`.
   Tools read IDs from `shared/crm.json`. Registered with Mistral as a custom connector — when an
   agent calls a tool, **Mistral pings the Worker** (not the workflow).
-- **`cron/`** — a `scheduled()` handler; `crons` in `wrangler.jsonc`; `fetch`es the Mistral execute
-  API with the key as a Worker secret.
+- **`worker-host/`** — Cloudflare Worker that (1) defines the `WorkflowsWorker` Container (runs the
+  repo-root `Dockerfile`, scale-to-zero) and (2) has a `scheduled()` cron that wakes the container and
+  `fetch`es the Mistral execute API (`/v1/workflows/{name}/execute`, key as a Worker secret).
 - **`skills/`** — one folder per skill with a `SKILL.md` (YAML frontmatter + Markdown, open Agent
   Skills standard). Descriptions are *when to use* ("Use when I want to log an interaction…").
   Skills reference the MCP tools and workflows; they don't contain logic.

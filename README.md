@@ -15,16 +15,18 @@ is built to grow into a general personal automation system.
 | **MCP server** | My personal function library, callable by *every* agent (Studio, Le Chat, Vibe Work, and the workflows) | TypeScript · Cloudflare Worker | [`mcp-server/`](mcp-server/) |
 | **Skills** | Agent Skills (`SKILL.md`) that teach Mistral **Vibe Work** when/how to use the MCP tools + workflows | Markdown · open Agent Skills standard | [`skills/`](skills/) |
 
-A fourth folder, [`cron/`](cron/), is a tiny Cloudflare Cron Worker that triggers the scheduled
-workflow runs. [`shared/crm.json`](shared/crm.json) is the **single source of truth** (IDs, schema,
-vocab) that both the Python and TypeScript sides read.
+A fourth folder, [`worker-host/`](worker-host/), is the Cloudflare Worker that hosts the workflows
+worker in a scale-to-zero container **and** triggers the scheduled batch runs (cron).
+[`shared/crm.json`](shared/crm.json) is the **single source of truth** (IDs, schema, vocab) that both
+the Python and TypeScript sides read.
 
 ## Architecture
 
 ```
- Cloudflare Cron Worker (cron/)     ──schedule──►  Mistral execute API
- Cloudflare Container (workflows/)  ──hosts────►  Mistral Workflows worker (all workflows)   [scale-to-zero]
- Cloudflare MCP Worker (mcp-server/)──registered as a Mistral custom connector               [serverless]
+ Cloudflare worker-host       ──cron 08:00 & 18:00──►  Mistral execute API
+   ├─ hosts the Mistral Workflows worker (Docker, all workflows)              [scale-to-zero container]
+   └─ scheduled() trigger for the batch ingest                               [serverless]
+ Cloudflare MCP Worker (mcp-server/)──registered as a Mistral custom connector  [serverless]
         │  used by Studio agents · Le Chat · Vibe Work · workflow durable agents
  Skills (skills/)  ──teach Vibe Work how/when to use the MCP tools + workflows
         ▼
@@ -46,7 +48,8 @@ personal-ai-stack/
 ├── workflows/     # Python · Mistral Workflows worker  (see workflows/README.md, workflows/CLAUDE.md)
 ├── agents/        # Mistral agents as code (definitions + sync)
 ├── mcp-server/    # TypeScript · Cloudflare Worker — personal MCP server
-├── cron/          # TypeScript · Cloudflare Worker — scheduled triggers
+├── worker-host/   # TypeScript · Cloudflare Worker — hosts the worker container + cron
+├── Dockerfile     # the workflows worker image (built by worker-host)
 ├── skills/        # Agent Skills (SKILL.md) for Vibe Work
 ├── shared/        # crm.json — single source of truth (IDs, schema, vocab)
 ├── docs/          # CRM.md (workflow map), architecture.md (infra rationale)

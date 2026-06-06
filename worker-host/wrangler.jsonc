@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "personal-ai-stack-worker-host",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // The Mistral Workflows worker runs in a scale-to-zero container.
+  // image points at the repo-root Dockerfile (its directory is the build context,
+  // so it can COPY both workflows/ and shared/). Confirm at deploy: wrangler must
+  // accept a Dockerfile above the worker dir; if not, move the Dockerfile here.
+  "containers": [
+    {
+      "class_name": "WorkflowsWorker",
+      "image": "../Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "class_name": "WorkflowsWorker", "name": "WORKFLOWS_WORKER" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WorkflowsWorker"] }],
+
+  // 08:00 & 18:00 daily — wake the worker + kick off the batch ingest.
+  "triggers": { "crons": ["0 7 * * *", "0 17 * * *"] },
+
+  "vars": {
+    "SERVER_URL": "https://api.mistral.ai",
+    "DEPLOYMENT_NAME": "personal-ai-stack"
+  }
+  // Secret (NOT here — `wrangler secret put MISTRAL_API_KEY`):
+  //   MISTRAL_API_KEY — used to trigger the workflow AND injected into the container.
+}
