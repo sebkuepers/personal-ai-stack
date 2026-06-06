@@ -1,4 +1,4 @@
-# CLAUDE.md — personal-workflows monorepo
+# CLAUDE.md — personal-ai-stack monorepo
 
 Guidance for AI agents (and humans) working in this repo. This is the **monorepo-level** map; each
 pillar has its own deeper doc. Read this first, then the pillar doc for whatever you're touching.

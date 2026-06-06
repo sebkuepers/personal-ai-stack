@@ -1,4 +1,4 @@
-# crm-workflows
+# workflows — Mistral Workflows (the durable-orchestration pillar of personal-ai-stack)
 
 A personal-CRM autopilot built on [Mistral Workflows](https://docs.mistral.ai/studio-api/workflows/getting-started/overview)
 — durable, multi-step AI processes that wire together a Studio **classification

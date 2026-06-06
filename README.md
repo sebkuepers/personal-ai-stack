@@ -1,4 +1,4 @@
-# personal-workflows
+# personal-ai-stack
 
 My personal AI system — a monorepo of **durable workflows**, a **personal MCP server**, and
 **personal skills**, orchestrated by [Mistral](https://docs.mistral.ai/) and hosted on
@@ -42,8 +42,9 @@ vocab) that both the Python and TypeScript sides read.
 ## Repository layout
 
 ```
-personal-workflows/
+personal-ai-stack/
 ├── workflows/     # Python · Mistral Workflows worker  (see workflows/README.md, workflows/CLAUDE.md)
+├── agents/        # Mistral agents as code (definitions + sync)
 ├── mcp-server/    # TypeScript · Cloudflare Worker — personal MCP server
 ├── cron/          # TypeScript · Cloudflare Worker — scheduled triggers
 ├── skills/        # Agent Skills (SKILL.md) for Vibe Work
