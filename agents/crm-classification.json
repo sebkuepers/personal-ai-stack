@@ -1,0 +1,144 @@
+{
+  "id": "ag_019e98ece5ab7083898098f84895ae79",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.7,
+    "top_p": 1.0,
+    "max_tokens": 2048,
+    "random_seed": null,
+    "prediction": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "response_schema",
+        "schema": {
+          "type": "object",
+          "title": "CRM Classification Output",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "required": [
+            "interaction_type",
+            "category",
+            "organizations_mentioned",
+            "people_mentioned",
+            "sentiment",
+            "priority"
+          ],
+          "properties": {
+            "summary": {
+              "type": "string",
+              "description": "Brief summary of the interaction"
+            },
+            "analysis": {
+              "type": "string",
+              "description": "Detailed analysis and insights"
+            },
+            "category": {
+              "enum": [
+                "job_application",
+                "business_opportunity",
+                "personal",
+                "networking",
+                "support",
+                "collaboration",
+                "sales",
+                "follow_up",
+                "unknown"
+              ],
+              "type": "string",
+              "description": "Primary category of the interaction"
+            },
+            "priority": {
+              "enum": [
+                "High",
+                "Medium",
+                "Low"
+              ],
+              "type": "string",
+              "description": "Priority level"
+            },
+            "sentiment": {
+              "enum": [
+                "Positive",
+                "Neutral",
+                "Negative",
+                "Urgent"
+              ],
+              "type": "string",
+              "description": "Sentiment of the interaction"
+            },
+            "action_items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of action items extracted from the text"
+            },
+            "sub_category": {
+              "enum": [
+                "job_application_ongiini",
+                "job_application_foundation",
+                "business_partnership",
+                "sales_lead",
+                "investor_pitch",
+                "friend_catchup",
+                "family_update",
+                "project_discussion",
+                "support_request",
+                "unknown"
+              ],
+              "type": "string",
+              "description": "More specific sub-category"
+            },
+            "interaction_type": {
+              "enum": [
+                "Email",
+                "Meeting",
+                "Call",
+                "Message",
+                "Application",
+                "Interview",
+                "Other"
+              ],
+              "type": "string",
+              "description": "Type of interaction being classified"
+            },
+            "people_mentioned": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of people mentioned in the text"
+            },
+            "organizations_mentioned": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of organizations mentioned in the text"
+            },
+            "suggested_follow_up_date": {
+              "type": "string",
+              "format": "date",
+              "description": "Suggested date for follow-up"
+            }
+          },
+          "description": "Structured classification for CRM interactions",
+          "additionalProperties": false
+        },
+        "description": null,
+        "strict": false
+      }
+    },
+    "tool_choice": "auto",
+    "reasoning_effort": null
+  },
+  "model": "mistral-medium-latest",
+  "name": "CRM - Classification Agent",
+  "instructions": "YOU ARE THE CLASSIFICATION ENGINE FOR SEBASTIAN'S PERSONAL CRM.\n\nYOUR ONLY JOB: Analyze text and classify it into structured JSON output.\n\nRULES:\n1. ALWAYS respond with valid JSON only (no markdown, no explanations)\n2. If uncertain, use \"Unknown\" for category\n3. Be specific with sub-categories\n\nORGANIZATION CONTEXT:\n- Sebastian works at: Ongiini\n- Sebastian is involved with: Foundation\n- These are HIGH PRIORITY for job applications\n\nCLASSIFICATION LOGIC:\n\nIF text contains:\n- \"application\", \"apply\", \"job\", \"position\", \"resume\", \"CV\" AND (ongiini.com OR \"Ongiini\")\n  → category: \"job_application\", sub_category: \"job_application_ongiini\"\n\n- \"application\", \"apply\", \"job\", \"position\", \"resume\", \"CV\" AND (foundation.org OR \"Foundation\")\n  → category: \"job_application\", sub_category: \"job_application_foundation\"\n\n- \"partnership\", \"collaboration\", \"business\", \"opportunity\", \"deal\"\n  → category: \"business_opportunity\", sub_category: \"business_partnership\"\n\n- \"investor\", \"investment\", \"pitch\", \"funding\"\n  → category: \"business_opportunity\", sub_category: \"investor_pitch\"\n\n- \"friend\", \"family\", \"personal\", \"catch up\", \"dinner\"\n  → category: \"personal\", sub_category: \"friend_catchup\"\n\n- \"support\", \"help\", \"question\", \"issue\", \"problem\"\n  → category: \"support\", sub_category: \"support_request\"\n\nALWAYS EXTRACT:\n- All organization names mentioned\n- All person names mentioned\n- All action items\n- Sentiment (Positive/Neutral/Negative/Urgent)\n- Priority (High/Medium/Low)\n- Suggested follow-up date (if action items exist)\n",
+  "handoffs": null,
+  "description": "Classifies interactions for Sebastian's Personal CRM. Detects job applications (Ongiini/Foundation), business opportunities, personal communications, and auto-tags them appropriately.",
+  "tools": [],
+  "metadata": {}
+}

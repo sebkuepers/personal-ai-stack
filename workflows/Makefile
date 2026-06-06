@@ -1,8 +1,16 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest sync-agents sync-agents-dry
 
 ## Install dependencies
 installdeps:
 	uv sync
+
+## Sync agent definitions (../agents/*.json) to Mistral Studio
+sync-agents:
+	uv run python ../agents/sync.py
+
+## Validate agent definitions without touching Studio
+sync-agents-dry:
+	uv run python ../agents/sync.py --dry-run
 
 ## Auto-discover all workflows and start the worker (with file-watch auto-reload)
 start-worker:
