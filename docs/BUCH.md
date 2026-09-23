@@ -212,6 +212,14 @@ Vier Mechanismen erzwingen Substanz:
 
 5. **Höchstens zwölf Regeln.** Ein Profil mit vierzig Regeln liest niemand und befolgt kein Agent.
 
+6. **Die Belege gegen ihre Regeln halten.** Punkt 4 prüft, ob eine Fundstelle im Manuskript
+   *existiert* — nicht, ob sie die Regel *zeigt*. Genau das ging schief: „Direkte Rede ohne
+   Einleitung" war mit einem Satz ohne jede direkte Rede belegt, „Kurze Sätze (≤5 Wörter)" mit
+   einem Satz aus zwölf. Für den Stil-Agenten ist das schlimmer als eine Regel weniger, denn er
+   lernt am Beleg, wie die Regel aussieht. `buch-profil-pruefen` hält jede Regel gegen ihre erste
+   Fundstelle; wer durchfällt, geht auf `status="beobachtung"` und erreicht den Stil-Agenten nicht
+   mehr. Am echten Profil gemessen: 7 von 10 sauber.
+
 Die Felder heißen nach ihrem Inhalt: `fundstellen` (Stellen, an denen man die Regel sieht) und
 `so_geht_es` (dieselbe Stelle, wie sie von jemand anderem klänge). Eine frühere Fassung hieß
 `beweis` und `gegenbeispiel` — und enthielt das Gegenteil dessen, was die Namen versprachen. Der
@@ -237,6 +245,7 @@ Alle in `agents/buch-*.json`, alle mit erzwungenem `response_format.json_schema`
 | `buch-gegenlesen` | Zweites Augenpaar über Ebene 1: sieht denselben Abschnitt wie Stufe 1 plus deren Befunde und meldet, was fehlt und was keiner ist |
 | `buch-stil-gegenlesen` | Zweites Augenpaar über Ebene 2: prüft je Vorschlag, ob er hält, was seine Regel verspricht — `traegt`, `verdreht_die_regel`, `kein_verstoss`, `greift_zu_weit` |
 | `buch-inhalt` | Ebene 3: prüft ein ganzes **Kapitel** gegen die Rubrik des Autors. Ändert nichts, stellt Fragen |
+| `buch-profil-pruefen` | Hält jede Stimmprofil-Regel gegen ihre Fundstelle: Zeigt der Satz, was die Regel behauptet? |
 
 Die JSON-Schemata werden **aus** den Pydantic-Modellen in `buch/models.py` generiert
 (`agents/build_buch_agents.py`), mit aufgelösten `$defs`. So können Schema und Modell nicht
@@ -626,8 +635,6 @@ Der RTF-Roundtrip ist durch Tests abgesichert: alle `content.rtf` müssen zeiche
 - **Write-back nach Scrivener** (`buch-anwenden`) mit der Disziplin von unten. Das einzige Stück,
   das schreibt, und bewusst das letzte.
 - Entscheidungslog → Verfeinerung des Stimmprofils über die Annahmequote je Regel
-- Die Fundstellen im Stimmprofil belegen ihre Regel nicht immer. Die Prüfung stellt sicher, dass
-  ein Satz **existiert**, nicht dass er die Regel **zeigt**.
 
 **Langfristige Verbesserungen**
 

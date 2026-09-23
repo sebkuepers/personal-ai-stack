@@ -540,3 +540,30 @@ class StilGegenlesung(BaseModel):
 
     pruefungen: list[StilPruefung]
     urteil: str
+
+
+class RegelPruefung(BaseModel):
+    """Ob eine Fundstelle die Regel, für die sie steht, tatsächlich zeigt."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    regel_id: str
+    zeigt_die_regel: bool
+    warum: str
+
+
+class ProfilPruefung(BaseModel):
+    """Ausgabe von ``buch-profil-pruefen`` — die Belege gegen ihre Regeln gehalten.
+
+    Die Belegprüfung in ``stimme.py`` stellt sicher, dass ein Satz **existiert**.
+    Sie kann nicht sagen, ob er die Regel **zeigt** — und genau das ging schief:
+    Eine Regel „Umgangssprache in Sachzusammenhängen" war mit einem Satz belegt,
+    in dem keine Umgangssprache vorkommt. Formal einwandfrei, inhaltlich wertlos,
+    und für den Stil-Agenten irreführend, weil er daraus lernt, wie die Regel
+    aussieht.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    pruefungen: list[RegelPruefung]
+    urteil: str

@@ -19,6 +19,7 @@ abgesicherter Schritt und bleibt bewusst außerhalb jedes Workflows.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -245,3 +246,73 @@ async def schreibe_entscheidungen(
         for e in entscheidungen
     ]
     return log.schreibe(log.log_datei(DATEN, werk), zeilen)
+
+
+# Wie lange eine Sitzungssperre als frisch gilt. Länger als eine Sitzung
+# typischerweise dauert, kürzer als eine Nacht — eine Sperre, die den Abschnitt
+# bis zum nächsten Morgen blockiert, ist schlimmer als das Problem.
+SPERRE_FRISCH = timedelta(hours=3)
+
+
+@workflows.activity(
+    retry_policy_max_attempts=2,
+    start_to_close_timeout=timedelta(seconds=30),
+)
+async def belege_abschnitt(werk: str, uuid: str, sitzung_id: str, titel: str) -> str:
+    """Meldet eine laufende Sitzung an und warnt vor einer anderen.
+
+    **Warnt, blockiert nicht.** Eine Sperre kann verwaisen — abgestürzte Sitzung,
+    geschlossener Browser, Timeout. Wer dann den Abschnitt nicht mehr bearbeiten
+    darf, ist schlechter dran als jemand, der zweimal dasselbe entscheidet. Die
+    Ankerprüfung beim Anwenden fängt den eigentlichen Schaden ohnehin: Ein
+    Absatz, den die andere Sitzung verändert hat, hat einen anderen Hash.
+
+    Gibt einen Hinweistext zurück oder einen leeren String.
+    """
+    ordner = DATEN / "buch" / werk / "sitzungen"
+    ordner.mkdir(parents=True, exist_ok=True)
+    datei = ordner / f"{uuid}.json"
+    jetzt = datetime.now(UTC)
+
+    hinweis = ""
+    if datei.is_file():
+        try:
+            alt = json.loads(datei.read_text(encoding="utf-8"))
+            seit = datetime.fromisoformat(alt["seit"])
+            if alt.get("sitzung") != sitzung_id and jetzt - seit < SPERRE_FRISCH:
+                minuten = int((jetzt - seit).total_seconds() // 60)
+                hinweis = (
+                    f"Achtung: An {titel!r} läuft seit {minuten} Minuten eine andere Sitzung "
+                    f"({alt['sitzung'][:8]}). Beide zu Ende zu führen heißt, dieselben Stellen "
+                    "zweimal zu entscheiden — die zweite Anwendung scheitert dann an der "
+                    "Ankerprüfung."
+                )
+        except (json.JSONDecodeError, KeyError, ValueError):
+            pass  # Kaputte Sperrdatei ist kein Grund, die Sitzung zu verhindern.
+
+    datei.write_text(
+        json.dumps(
+            {"sitzung": sitzung_id, "abschnitt": titel, "seit": jetzt.isoformat(timespec="seconds")},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return hinweis
+
+
+@workflows.activity(
+    retry_policy_max_attempts=1,
+    start_to_close_timeout=timedelta(seconds=30),
+)
+async def gib_abschnitt_frei(werk: str, uuid: str, sitzung_id: str) -> bool:
+    """Räumt die eigene Sperre weg. Fremde Sperren bleiben unangetastet."""
+    datei = DATEN / "buch" / werk / "sitzungen" / f"{uuid}.json"
+    if not datei.is_file():
+        return False
+    try:
+        if json.loads(datei.read_text(encoding="utf-8")).get("sitzung") != sitzung_id:
+            return False
+    except json.JSONDecodeError:
+        return False
+    datei.unlink()
+    return True

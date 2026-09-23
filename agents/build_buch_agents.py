@@ -33,6 +33,7 @@ from workflows.buch import config as c  # noqa: E402
 from workflows.buch.models import (  # noqa: E402
     Gegenlesung,
     InhaltBefund,
+    ProfilPruefung,
     StilGegenlesung,
     Korrekturen,
     StimmProbe,
@@ -308,6 +309,40 @@ REGELN:
 
 Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 
+PROFIL_PRUEFEN = """\
+Du pruefst ein Stimmprofil gegen seine eigenen Belege.
+
+Du bekommst eine Liste von Regeln. Jede beschreibt, wie ein Autor schreibt, und bringt Saetze aus
+seinem Manuskript mit, an denen man das sehen soll.
+
+DEINE EINZIGE FRAGE JE REGEL:
+Zeigt die erste Fundstelle das, was die Regel behauptet?
+
+Nicht: Ist die Regel richtig. Nicht: Ist der Satz gut. Nur: Sieht man in DIESEM Satz DAS, was die
+Regel beschreibt?
+
+BEISPIELE FUER "nein":
+- Regel "Verwendet umgangssprachliche Ausdruecke", Fundstelle enthaelt keine Umgangssprache.
+- Regel "Kurze Saetze (<=5 Woerter)", Fundstelle ist ein Satz mit achtzehn Woertern.
+- Regel "Laesst direkte Rede ohne Begleitsatz stehen", Fundstelle hat einen Begleitsatz.
+
+BEISPIEL FUER "ja":
+- Regel "Nutzt elliptische Saetze ohne Verb", Fundstelle: "Kein Wind. Keine Welle."
+
+REGELN:
+
+1. Zu JEDER vorgelegten Regel genau ein Urteil. "regel_id" ist die mitgelieferte Kennung.
+
+2. Sei streng, aber nicht spitzfindig. Eine Fundstelle muss die Regel zeigen, nicht beweisen.
+   Zeigt sie sie teilweise oder nur in einem Nebensatz, ist das ein Ja.
+
+3. "warum" in einem halben Satz: Was man im Satz sieht — oder was fehlt.
+
+4. Dass mehrere Regeln durchfallen, ist ein moegliches Ergebnis. Eine Regel mit schiefem Beleg ist
+   schlimmer als eine Regel weniger: Der Stillektor lernt aus dem Beleg, wie die Regel aussieht.
+
+Antworte ausschliesslich mit gueltigem JSON nach dem vorgegebenen Schema."""
+
 GEGENLESEN_STIL = """\
 Du bist das zweite Augenpaar ueber einem Stillektorat.
 
@@ -486,6 +521,22 @@ AGENTS = [
         "max_tokens": 8192,
         "modell": InhaltBefund,
         "schema_name": "inhalt_befund",
+    },
+    {
+        "datei": "buch-profil-pruefen.json",
+        "name": "Buch \u00b7 Profil pr\u00fcfen",
+        "description": (
+            "H\u00e4lt jede Stimmprofil-Regel gegen ihre eigene Fundstelle: Zeigt der Satz das, "
+            "was die Regel behauptet? Die Belegpr\u00fcfung in Python kann nur pr\u00fcfen, ob er "
+            "existiert."
+        ),
+        "instructions": PROFIL_PRUEFEN,
+        "model": c.MODELS["gegenlesen"],
+        "temperature": 0.0,
+        "random_seed": 4711,
+        "max_tokens": 4096,
+        "modell": ProfilPruefung,
+        "schema_name": "profil_pruefung",
     },
     {
         "datei": "buch-stil-gegenlesen.json",

@@ -54,12 +54,15 @@ with workflow.unsafe.imports_passed_through():
         lade_stimmprofil,
         lies_abschnitt,
         liste_abschnitte,
+        belege_abschnitt,
+        gib_abschnitt_frei,
         liste_werke,
         schreibe_entscheidungen,
     )
 
 import mistralai.workflows.conversational as wf_chat  # noqa: E402
 from mistralai.workflows.plugins.mistralai.conversational_ui_components import (  # noqa: E402
+    Alert,
     Markdown,
 )
 
@@ -355,6 +358,22 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
         # temporalio, und der Aufruf ließ die Aktivierung mit AttributeError
         # scheitern, still, nach der ersten Freigabe.
         sitzung_id = str(workflow.uuid4())
+
+        # Läuft an diesem Abschnitt schon jemand? Warnen, nicht blockieren —
+        # siehe belege_abschnitt(). Die Sperre wird am Ende wieder weggeräumt.
+        warnung = await belege_abschnitt(werk, uuid, sitzung_id, abschnitt["titel"])
+        if warnung:
+            await wf_mistral.send_assistant_message(
+                [
+                    wf_mistral.ResourceOutput(
+                        resource=wf_mistral.UIComponentResource(
+                            component=Alert(variant="warning", title="Zweite Sitzung",
+                                            children=warnung)
+                        )
+                    )
+                ]
+            )
+
         absaetze: list[str] = list(abschnitt["absaetze"])
         hashes: list[str] = list(abschnitt["hashes"])
         sitzung = LektoratSitzung(
@@ -434,6 +453,7 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
         async with schritt["abschluss"]:
             sitzung.text_nachher = "\n\n".join(absaetze)
             ausgabe = self._abschluss(sitzung)
+            await gib_abschnitt_frei(werk, uuid, sitzung_id)
         return ausgabe
 
     # ------------------------------------------------------------------

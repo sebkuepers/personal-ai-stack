@@ -27,6 +27,7 @@ from . import config
 from .models import (
     Gegenlesung,
     InhaltBefund,
+    ProfilPruefung,
     StilGegenlesung,
     Korrekturen,
     StimmProbe,
@@ -331,6 +332,33 @@ async def pruefe_inhalt(
         teile.append(a["text"])
 
     ergebnis = await _trigger(config.AGENTS["inhalt"], "\n".join(teile), InhaltBefund)
+    return ergebnis.model_dump(mode="json")
+
+
+@workflows.activity(
+    retry_policy_max_attempts=2,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=180),
+)
+async def pruefe_profil(regeln: list[dict]) -> dict:
+    """Hält jede Profilregel gegen ihre eigene Fundstelle.
+
+    Die Belegprüfung in ``stimme.py`` stellt sicher, dass ein Satz im Manuskript
+    **existiert** — nicht, dass er die Regel **zeigt**. Gemessen am ersten
+    brauchbaren Profil: „Umgangssprache in Sachzusammenhängen" war mit einem Satz
+    ohne jede Umgangssprache belegt. Für den Stil-Agenten ist das schlimmer als
+    eine Regel weniger, denn er lernt am Beleg, wie die Regel aussieht.
+    """
+    teile = []
+    for r in regeln:
+        teile += [
+            f"REGEL {r['id']}: {r.get('titel', '')}",
+            f"  Beschreibung: {r.get('regel', '')}",
+            f"  Erkennbar an: {r.get('pruefbar_als', '—')}",
+            f"  Fundstelle:   {(r.get('fundstellen') or ['—'])[0]}",
+            "",
+        ]
+    ergebnis = await _trigger(config.AGENTS["profil_pruefen"], "\n".join(teile), ProfilPruefung)
     return ergebnis.model_dump(mode="json")
 
 

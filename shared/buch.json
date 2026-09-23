@@ -8,7 +8,8 @@
     "stimme_profil": "ag_01a0cd6a54a97001875a8592a1ec319f",
     "inhalt": "ag_01a0cf306fe27574b53b6903264c39f6",
     "gegenlesen": "ag_01a0ce2ce85572b4aa977b15118d55d9",
-    "stil_gegenlesen": "ag_01a0cf67b51d725ba2587628768a8a05"
+    "stil_gegenlesen": "ag_01a0cf67b51d725ba2587628768a8a05",
+    "profil_pruefen": "ag_01a0cfb97d457402bff48f357146922a"
   },
   "models": {
     "korrektorat": "mistral-medium-latest",

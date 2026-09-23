@@ -38,7 +38,12 @@ from mistralai.workflows import workflow
 # Import, danach nur noch Konstanten), also ist Passthrough hier genau richtig.
 with workflow.unsafe.imports_passed_through():
     from workflows.buch import config
-    from workflows.buch.agenten import heute, probiere_stimme, verdichte_stimme
+    from workflows.buch.agenten import (
+        heute,
+        probiere_stimme,
+        pruefe_profil,
+        verdichte_stimme,
+    )
 
 # Reine Module (Modelle, Prüflogik) normal importieren.
 from workflows.buch.models import (  # noqa: E402
@@ -47,6 +52,7 @@ from workflows.buch.models import (  # noqa: E402
     Stimmprofil,
     StimmprofilInput,
 )
+from workflows.buch.models import ProfilPruefung  # noqa: E402
 from workflows.buch.stimme import baue_profil  # noqa: E402
 
 
@@ -79,9 +85,9 @@ class BuchStimmprofilWorkflow:
         )
         roh = StimmProfilRoh.model_validate(roh_dict)
 
-        # Schritt 3 — Prüfung, deterministisch im Workflow-Thread.
+        # Schritt 3 — Belegprüfung, deterministisch im Workflow-Thread.
         heute_iso = await heute()
-        return baue_profil(
+        profil = baue_profil(
             roh,
             werk=inp.werk,
             korpus_text=inp.korpus_text,
@@ -96,3 +102,30 @@ class BuchStimmprofilWorkflow:
             max_regeln=config.MAX_STIMMREGELN,
             version=inp.version,
         )
+
+        # Schritt 4 — die Belege gegen ihre Regeln halten.
+        #
+        # Schritt 3 prüft, ob eine Fundstelle im Manuskript EXISTIERT. Ob sie die
+        # Regel ZEIGT, ist ein Urteil und braucht ein Modell. Gemessen am ersten
+        # brauchbaren Profil: „Umgangssprache in Sachzusammenhängen" war mit
+        # einem Satz ohne jede Umgangssprache belegt.
+        #
+        # Wer durchfällt, wird nicht verworfen, sondern auf `beobachtung`
+        # gesetzt: Die Regel kann richtig und nur der Beleg schief sein. Der
+        # Stil-Agent bekommt über `aktive_regeln` nur die bestätigten — er lernt
+        # am Beleg, wie die Regel aussieht, und ein schiefer Beleg ist dort
+        # schlimmer als eine Regel weniger.
+        if profil.regeln and config.AGENTS.get("profil_pruefen"):
+            urteil = ProfilPruefung.model_validate(
+                await pruefe_profil([r.model_dump(mode="json") for r in profil.regeln])
+            )
+            schief = {p.regel_id: p.warum for p in urteil.pruefungen if not p.zeigt_die_regel}
+            for r in profil.regeln:
+                if r.id in schief:
+                    r.status = "beobachtung"
+            if schief:
+                profil.offene_fragen.append(
+                    f"{len(schief)} Regel(n) auf 'beobachtung', weil die Fundstelle die Regel "
+                    "nicht zeigt: " + "; ".join(f"{k} ({v})" for k, v in schief.items())
+                )
+        return profil
