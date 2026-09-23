@@ -47,6 +47,7 @@ with workflow.unsafe.imports_passed_through():
 from workflows.buch.pruefungen import (  # noqa: E402
     korrigiere_absatz_index,
     teile_auf,
+    verwerfe_dubletten,
     verwerfe_eingriffe_in_rede,
     verwerfe_gewollte_umgangssprache,
     verwerfe_nichtbefunde,
@@ -90,6 +91,8 @@ def _invarianten(
     """
     hinweise: list[str] = []
     befunde, h = korrigiere_absatz_index(befunde, absaetze)
+    hinweise += h
+    befunde, h = verwerfe_dubletten(befunde)
     hinweise += h
     befunde, h = verwerfe_nichtbefunde(befunde)
     hinweise += h

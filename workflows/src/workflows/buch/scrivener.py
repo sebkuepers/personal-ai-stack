@@ -308,6 +308,29 @@ def _lies_notizen(paket: Path, uuid: str) -> str | None:
     return "\n\n".join(dekodiere_rtf(p.read_bytes())).strip() or None
 
 
+def _lies_vollstaendig(datei: Path, versuche: int = 4) -> bytes:
+    """Liest eine RTF-Datei und wartet kurz, falls Scrivener gerade schreibt.
+
+    Scrivener speichert nach einer Tipppause; wer in genau dem Moment liest,
+    bekommt eine halbe Datei — und die dekodiert entweder zu Müll oder zu einem
+    Absatz, der mitten im Satz endet, ohne Fehler. Eine RTF-Datei endet immer
+    mit ``}``. Fehlt es, ist die Datei nicht fertig: kurz warten, neu lesen.
+    Nach dem letzten Versuch wird geworfen statt geraten.
+    """
+    import time
+
+    for versuch in range(versuche):
+        roh = datei.read_bytes()
+        if roh.rstrip().endswith(b"}"):
+            return roh
+        if versuch < versuche - 1:
+            time.sleep(0.25 * (versuch + 1))
+    raise OSError(
+        f"{datei.name}: Datei endet nicht mit '}}' — Scrivener schreibt vermutlich gerade. "
+        "Kurz warten und erneut versuchen."
+    )
+
+
 def _vokabular(baum: ET.Element, block: str, eintrag: str) -> dict[str, str]:
     """Die Etikett- bzw. Statusliste eines Projekts als ``{ID: Name}``.
 
@@ -395,7 +418,7 @@ def lies_binder(
                         uuid=uuid,
                         titel=titel,
                         pfad=list(pfad),
-                        absaetze=dekodiere_rtf(rtf.read_bytes()),
+                        absaetze=dekodiere_rtf(_lies_vollstaendig(rtf)),
                         synopsis=_lies_synopsis(paket, uuid),
                         notizen=_lies_notizen(paket, uuid),
                         hat_text=True,

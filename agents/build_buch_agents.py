@@ -403,6 +403,11 @@ Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.
 # Definitionen
 # ===========================================================================
 
+# Ein fester random_seed für alle Agents. Nicht für die Qualität — für die
+# NACHVOLLZIEHBARKEIT: Derselbe Abschnitt lieferte in zwei Läufen 2 und 4
+# Befunde. Ein Autor, der gestern etwas gesehen hat und es heute nicht
+# wiederfindet, verliert das Vertrauen in das Werkzeug, nicht in den Text.
+# Mit Seed ist gleiche Eingabe gleiche Ausgabe, soweit die API das zusichert.
 AGENTS = [
     {
         "datei": "buch-stimme-probe.json",
@@ -414,6 +419,7 @@ AGENTS = [
         "instructions": STIMME_PROBE,
         "model": c.MODELS["stimme"],
         "temperature": 0.2,
+        "random_seed": 4711,
         "max_tokens": 2048,
         "modell": StimmProbe,
         "schema_name": "stimmprobe",
@@ -428,6 +434,7 @@ AGENTS = [
         "instructions": STIMME_PROFIL,
         "model": c.MODELS["stimme"],
         "temperature": 0.3,
+        "random_seed": 4711,
         "max_tokens": 8192,
         "modell": StimmProfilRoh,
         "schema_name": "stimmprofil",
@@ -442,6 +449,7 @@ AGENTS = [
         "instructions": KORREKTORAT,
         "model": c.MODELS["korrektorat"],
         "temperature": 0.1,
+        "random_seed": 4711,
         "max_tokens": 4096,
         "modell": Korrekturen,
         "schema_name": "korrekturen",
@@ -456,6 +464,7 @@ AGENTS = [
         "instructions": STIL,
         "model": c.MODELS["stil"],
         "temperature": 0.4,
+        "random_seed": 4711,
         "max_tokens": 4096,
         "modell": Stilvorschlaege,
         "schema_name": "stilvorschlaege",
@@ -470,6 +479,7 @@ AGENTS = [
         "instructions": INHALT,
         "model": c.MODELS["inhalt"],
         "temperature": 0.2,
+        "random_seed": 4711,
         # Ein Kapitel hat leicht sechs „muss tragen"-Punkte und zwei Prüfsteine,
         # jeweils mit Begründung und Belegstellen. Mit 4096 blieben beide Listen
         # leer — das Modell fing hinten an und kam nicht mehr dazu.
@@ -488,6 +498,7 @@ AGENTS = [
         "instructions": GEGENLESEN_STIL,
         "model": c.MODELS["gegenlesen"],
         "temperature": 0.0,
+        "random_seed": 4711,
         "max_tokens": 4096,
         "modell": StilGegenlesung,
         "schema_name": "stil_gegenlesung",
@@ -503,6 +514,7 @@ AGENTS = [
         "instructions": GEGENLESEN,
         "model": c.MODELS["gegenlesen"],
         "temperature": 0.0,
+        "random_seed": 4711,
         "max_tokens": 2048,
         "modell": Gegenlesung,
         "schema_name": "gegenlesung",
@@ -528,7 +540,7 @@ def main() -> int:
                 "temperature": a["temperature"],
                 "top_p": 1.0,
                 "max_tokens": a["max_tokens"],
-                "random_seed": None,
+                "random_seed": a.get("random_seed"),
                 "prediction": None,
                 "tool_choice": "auto",
                 "reasoning_effort": None,

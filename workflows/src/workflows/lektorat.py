@@ -235,6 +235,12 @@ def _anwenden(absaetze: list[str], entscheidungen: list[Entscheidung]) -> tuple[
         if not 0 <= e.absatz_index < len(neu):
             hinweise.append(f"Absatz {e.absatz_index} gibt es nicht — {e.search!r} übersprungen.")
             continue
+        if e.eigene_fassung:
+            # Die Fassung des Autors ersetzt den ganzen Absatz. Weitere Befunde
+            # auf demselben Absatz greifen danach meist ins Leere — das ist
+            # richtig so: Er hat den Absatz neu geschrieben, nicht geflickt.
+            neu[e.absatz_index] = e.eigene_fassung
+            continue
         treffer = neu[e.absatz_index].count(e.search)
         if treffer != 1:
             hinweise.append(
@@ -254,6 +260,10 @@ def _anwenden(absaetze: list[str], entscheidungen: list[Entscheidung]) -> tuple[
         "Ergebnis ist eine Sitzung, die man danach anwenden kann."
     ),
     execution_timeout=timedelta(hours=12),
+    # Ausführungen nach Werk und Abschnitt auffindbar machen — „was hatte ich
+    # zu diesem Abschnitt schon gesehen?" ist sonst Scrollen in der Timeline.
+    # Kein Eingabeschema, also keine Pfade in die Eingabe; die Werte kommen
+    # zur Laufzeit über workflow.upsert_search_keys, sobald sie feststehen.
 )
 class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
     @workflows.workflow.entrypoint
@@ -535,7 +545,12 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
         entscheidungen: list[Entscheidung] = []
         for i, b in enumerate(befunde, start=1):
             antwort = await self.wait_for_input(
-                wf_chat.AcceptDeclineConfirmation(
+                wf_chat.ConfirmationInput(
+                    options=[
+                        ("uebernehmen", "Übernehmen"),
+                        ("selbst", "Selbst formulieren"),
+                        ("ablehnen", "Ablehnen"),
+                    ],
                     description=(
                         f"**{i}/{len(befunde)}** · `{b['art']}` · Absatz {b['absatz_index']}"
                         + (f" · {b['regel_id']}" if b.get("regel_id") else "")
@@ -543,15 +558,48 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
                         + _vorher_nachher(absaetze, b)
                         + f"\n\n_{b.get('warum', '')}_"
                     ),
-                    accept_label="Übernehmen",
-                    decline_label="Ablehnen",
                 ),
                 label=f"{name} {i}/{len(befunde)}",
                 timeout=timedelta(hours=8),
             )
-            if wf_mistral.is_accepted(antwort):
+            wahl = getattr(antwort, "choice", "ablehnen")
+
+            if wahl == "uebernehmen":
                 entscheidungen.append(bauen(b, "angenommen"))
                 continue
+
+            if wahl == "selbst":
+                # Der wertvollste Ausgang: Der Autor nimmt den Gedanken an und
+                # formuliert ihn selbst. Dieses Paar — Vorschlag und seine
+                # Fassung — hat kein Modell erzeugt, und es geht so ins Log.
+                # Der Canvas zeigt den Absatz MIT angewendetem Vorschlag, denn
+                # der ist der Ausgangspunkt, nicht das Original.
+                idx = b["absatz_index"]
+                if 0 <= idx < len(absaetze):
+                    vorlage = absaetze[idx].replace(b["search"], b["replace"], 1)
+                    uri = f"file://canvas/{abschnitt['uuid']}/{idx}/{i}"
+                    await wf_mistral.send_assistant_message(
+                        "Formuliere den Absatz so, wie du ihn haben willst, und schick ihn zurück.",
+                        canvas=wf_mistral.CanvasResource(
+                            uri=uri,
+                            canvas=wf_mistral.CanvasPayload(
+                                type="text/markdown",
+                                title=f"Absatz {idx} — deine Fassung",
+                                content=vorlage,
+                            ),
+                        ),
+                    )
+                    eigene = await self.wait_for_input(
+                        wf_chat.CanvasInput(uri),
+                        label=f"{name} {i}/{len(befunde)} — eigene Fassung",
+                        timeout=timedelta(hours=8),
+                    )
+                    fassung = eigene.canvas.content.strip()
+                    e = bauen(b, "angenommen")
+                    if fassung and fassung != vorlage:
+                        e.eigene_fassung = fassung
+                    entscheidungen.append(e)
+                    continue
 
             # Der Grund ist der Ertrag dieser Sitzung — deshalb wird er gefragt,
             # und deshalb steht er als Vorschlag da statt als leeres Feld.

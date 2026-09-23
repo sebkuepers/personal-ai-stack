@@ -48,3 +48,6 @@ shared/buch/*.md
 .DS_Store
 .idea/
 .vscode/
+
+# Rohmitschnitte der interaktiven CLI — enthalten Manuskripttext
+workflows/sse_events_*.sse.log

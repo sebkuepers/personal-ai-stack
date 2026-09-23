@@ -1,6 +1,7 @@
 """Das Stimmprofil eines Werks destillieren.
 
-    python -m buchcli.stimmprofil --werk immer-wieder-ruegen [--schreiben] [--library]
+    python -m buchcli.stimmprofil --werk immer-wieder-ruegen              # Lauf → Kandidat
+    python -m buchcli.stimmprofil --werk immer-wieder-ruegen --uebernehmen # Kandidat → Profil
 
 Die Arbeitsteilung folgt der Architekturregel der Domäne: **lokal lesen und
 rechnen, in der Cloud orchestrieren.** Hier passiert alles, was Dateisystem oder
@@ -8,8 +9,13 @@ Determinismus braucht — Scrivener lesen, Kennzahlen messen, die Lektoratsnotiz
 auswerten. Der Workflow ``buch-stimmprofil`` bekommt das fertig aufbereitet und
 kümmert sich um die Agent-Aufrufe, ihre Wiederholung und die Belegprüfung.
 
-Ohne ``--schreiben`` ist der Lauf folgenlos: Das Profil wird nur angezeigt. Erst
-mit ``--schreiben`` landet es in ``shared/buch/<slug>-stimme.json``, im Skill
+Jeder Lauf schreibt seinen Kandidaten nach ``shared/buch/<slug>-stimme.kandidat.json``
+und zeigt ihn. ``--uebernehmen`` befördert **genau diesen Kandidaten** zum Profil —
+ohne neuen Lauf. Vorher war ``--schreiben`` ein zweiter Lauf, und das
+gespeicherte Profil war nie das, das man gerade gesehen hatte. Ein Lauf, ansehen,
+den übernehmen.
+
+Das Profil landet in ``shared/buch/<slug>-stimme.json``, im Skill
 ``skills/buch-stimme/`` und (mit ``--library``) in der Mistral Library.
 
 Voraussetzung: ein laufender Worker (``make start-worker``).
@@ -171,7 +177,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--werk", default="immer-wieder-ruegen")
     p.add_argument("--limit", type=int, help="nur die ersten N Abschnitte (Probelauf)")
     p.add_argument("--parallel", type=int, default=6)
-    p.add_argument("--schreiben", action="store_true", help="Profil ablegen statt nur anzeigen")
+    p.add_argument("--uebernehmen", action="store_true",
+                   help="den zuletzt erzeugten Kandidaten zum Profil machen (kein neuer Lauf)")
+    p.add_argument("--schreiben", action="store_true",
+                   help="Lauf UND sofort übernehmen — nur, wenn man ohne Ansehen vertraut")
     p.add_argument("--library", action="store_true", help="zusätzlich in die Mistral Library")
     args = p.parse_args(argv)
 
@@ -188,9 +197,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"Analyse läuft ({args.parallel} parallel) — das dauert einige Minuten …\n")
 
+    kandidat = REPO / "shared" / "buch" / f"{args.werk}-stimme.kandidat.json"
+
+    if args.uebernehmen:
+        if not kandidat.is_file():
+            print(f"Kein Kandidat unter {kandidat.relative_to(REPO)} — erst einen Lauf machen.")
+            return 1
+        profil = Stimmprofil.model_validate_json(kandidat.read_text(encoding="utf-8"))
+        zeige(profil)
+        for pfad in schreibe(profil, args.werk):
+            print(f"  → {pfad.relative_to(REPO)}")
+        print("  (Kandidat übernommen — kein neuer Lauf)")
+        return 0
+
     roh = asyncio.run(ausfuehren(eingabe))
     profil = Stimmprofil.model_validate(roh if isinstance(roh, dict) else roh.model_dump())
     zeige(profil)
+    kandidat.write_text(profil.model_dump_json(indent=2, exclude_none=False) + "\n", encoding="utf-8")
+    print(f"  → Kandidat: {kandidat.relative_to(REPO)}")
 
     if args.schreiben:
         for pfad in schreibe(profil, args.werk):
@@ -204,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
             md.write_text(render_markdown(profil), encoding="utf-8")
             print(f"  → Library: {in_library(md, werk)}")
     else:
-        print("Nur angezeigt. Mit --schreiben wird das Profil abgelegt.")
+        print("Nur Kandidat. Gefällt er: --uebernehmen. Gefällt er nicht: neuer Lauf.")
 
     return 0
 

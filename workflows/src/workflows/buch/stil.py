@@ -38,6 +38,7 @@ from workflows.buch.pruefungen import (  # noqa: E402
     filtere_ohne_regelbezug,
     korrigiere_absatz_index,
     teile_auf,
+    verwerfe_dubletten,
 )
 from workflows.buch.models import (  # noqa: E402
     BefundMitUrteil,
@@ -102,6 +103,8 @@ class BuchStilWorkflow:
         # Filter 0 — Anker prüfen: Der Agent zählt Absätze nicht zuverlässig.
         befunde, idx_hinweise = korrigiere_absatz_index(befunde, absaetze)
         hinweise += idx_hinweise
+        befunde, dub_hinweise = verwerfe_dubletten(befunde)
+        hinweise += dub_hinweise
 
         # Filter 1 — Regelbezug gegen die IDs, die im Profil tatsächlich stehen.
         bekannte = set(_REGEL_ID.findall(inp.stimmprofil_text))

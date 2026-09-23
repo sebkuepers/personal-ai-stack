@@ -72,10 +72,9 @@ def zeile(
         "warum": e.warum,
         "entscheidung": e.entscheidung,
         "grund": e.grund,
-        # Wenn der Autor selbst umformuliert hat, steht hier seine Fassung. Das
-        # Feld existiert von Anfang an, auch wenn es die Oberfläche noch nicht
-        # füllt — damit spätere Zeilen und frühere dieselbe Form haben.
-        "eigene_fassung": None,
+        # Wenn der Autor selbst umformuliert hat, steht hier seine Fassung —
+        # das Goldstandard-Paar, das kein Modell erzeugt hat.
+        "eigene_fassung": e.eigene_fassung,
     }
 
 

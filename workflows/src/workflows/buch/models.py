@@ -404,6 +404,14 @@ class Entscheidung(BaseModel):
     regel_id: str | None = None
     entscheidung: Literal["angenommen", "abgelehnt", "zurueckgestellt"]
     grund: str = Field(default="", description="Nur bei Ablehnung; aus Vorschlägen oder frei")
+    eigene_fassung: str | None = Field(
+        default=None,
+        description=(
+            "Der ganze Absatz, wie der Autor ihn selbst formuliert hat — gesetzt, wenn er "
+            "den Gedanken annahm, aber nicht die Formulierung. Ersetzt beim Anwenden den "
+            "Absatz statt nur search→replace."
+        ),
+    )
 
 
 class LektoratSitzung(BaseModel):

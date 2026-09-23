@@ -209,6 +209,28 @@ def _finde_wortlaut(absatz: str, suchtext: str) -> str | None:
     return absatz[start : start + len(suchtext)]
 
 
+def verwerfe_dubletten(
+    befunde: list[BefundMitUrteil],
+) -> tuple[list[BefundMitUrteil], list[str]]:
+    """Zwei Befunde auf dieselbe Stelle — der zweite fliegt.
+
+    Beobachtet im Log: „Papa warte, ich komme mit" zweimal, zwei Ersatztexte.
+    Beim Anwenden würde der zweite ins Leere greifen (der Suchtext ist nach dem
+    ersten weg) — aber vorher muss der Autor ihn zweimal beurteilen. Der erste
+    gewinnt; das ist der, den der Agent zuerst für wichtig hielt.
+    """
+    gesehen: set[tuple[int, str]] = set()
+    behalten, hinweise = [], []
+    for b in befunde:
+        schluessel = (b.absatz_index, b.search)
+        if schluessel in gesehen:
+            hinweise.append(f"Dublette verworfen: {b.search[:40]!r} (Absatz {b.absatz_index})")
+            continue
+        gesehen.add(schluessel)
+        behalten.append(b)
+    return behalten, hinweise
+
+
 def korrigiere_absatz_index(
     befunde: list[BefundMitUrteil], absaetze: list[str]
 ) -> tuple[list[BefundMitUrteil], list[str]]:
