@@ -69,11 +69,14 @@ def main(argv: list[str] | None = None) -> int:
             roh = roh.strip()
             if not roh:
                 continue
-            mit_reasoning = roh.endswith("+")
-            modell = roh.rstrip("+")
+            mit_high = roh.endswith("+")
+            roh = roh.rstrip("+")
+            modell, _, stufe = roh.partition(":")
             kurz = modell.replace("-latest", "").replace("mistral-", "")
-            konfigs.append(Konfiguration(f"{kurz}/none", modell))
-            if mit_reasoning:
+            konfigs.append(
+                Konfiguration(f"{kurz}/{stufe or 'none'}", modell, stufe or None)
+            )
+            if mit_high:
                 konfigs.append(Konfiguration(f"{kurz}/high", modell, "high"))
     else:
         konfigs = [k for k in STANDARD_KONFIGURATIONEN if not args.nur or k.name == args.nur]

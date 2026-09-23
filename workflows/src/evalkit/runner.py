@@ -37,7 +37,12 @@ class Konfiguration:
         # Reasoning verbraucht leicht 2000+ Tokens, bevor die eigentliche Antwort
         # beginnt. Zu knapp bemessen kommt eine abgeschnittene Antwort zurück —
         # und die sieht aus wie ein Modellfehler, ist aber ein Budgetfehler.
-        return 8000 if self.reasoning else 4000
+        #
+        # Gemessen an GLM: 4000 reichten nicht, die Antworten brachen mitten im
+        # JSON ab und zählten als Modellfehler. Mistral-Modelle hören von selbst
+        # früher auf, für sie kostet die höhere Grenze also nichts. Wer Modelle
+        # vergleicht, muss ihnen denselben Platz geben.
+        return 16000 if self.reasoning else 12000
 
 
 # Beide Modelle akzeptieren laut API nur 'none' oder 'high';
