@@ -309,6 +309,37 @@ die wie ein Modellfehler aussieht, aber ein Budgetfehler ist.
 Eindeutigkeit des Suchtexts. Das sind billige, absolute Prüfungen ohne Ermessen. Inhaltliche Urteile
 gehören in die Modellwahl und in den Judge, nicht in eine Wortliste.
 
+### Der Judge-Loop — gebaut, gemessen, abgeschaltet
+
+Die Idee: Ein Judge, der nur sperrt, wirft auch brauchbare Befunde weg, bloß weil sie zu weit
+gefasst waren. Also geht das Urteil an den Agent zurück (`append_conversation` auf dieselbe
+Conversation, deshalb `store=True`), und er darf zurückziehen, enger fassen oder begründet
+verteidigen.
+
+**Gemessen hat er geschadet.** A/B am selben Abschnitt:
+
+| | Befunde | Qualität |
+|---|---|---|
+| `runden=1` (nur sperren) | 0 | sauber — alles von den Invarianten abgefangen |
+| `runden=2` (mit Rückkopplung) | 6 | alle unsinnig (`runter.` → `runter`), alle mit Treue 5/5 |
+
+Der Agent nimmt „enger fassen" wörtlich und minimiert seinen Vorschlag bis zur Sinnlosigkeit:
+Statt ihn zurückzuziehen, reduziert er ihn auf das Entfernen eines Satzzeichens. Formal eine
+kleinere Änderung, inhaltlich Unfug. Dabei versagen zwei Sicherungen gleichzeitig —
+`verwerfe_nichtbefunde` greift nicht, weil eine Änderung ja stattfindet, und der Treue-Judge gibt
+5/5, weil sich die Bedeutung nicht ändert. **Er prüft Treue, nicht Sinn.**
+
+Deshalb steht `max_runden` auf **1**. Der Code bleibt, die Mechanik ist erprobt und in Studio
+sichtbar — aber eingeschaltet wird er erst wieder, wenn zwei Dinge erledigt sind: die Optionen in
+der Rückmeldung umgedreht (Zurückziehen zuerst und ausdrücklich bevorzugt), und ein Eval mit
+annotierten **Erwartungen**, das zeigt, dass es hilft. Eine reine Fallenmessung hätte diesen Schaden
+nicht gesehen.
+
+**Warum kein `handoff`.** Mistral kennt Handoffs, aber dort entscheidet der *Agent*, ob und wann er
+abgibt. Für Arbeitsteilung ist das richtig („das ist eigentlich ein Stilproblem, übernimm du"), für
+ein QA-Gate falsch: keine Schleifenbegrenzung, keine feste Schwelle, kein Zugriff auf die
+Zwischenstände. Kontrollstruktur gehört in den deterministischen Teil.
+
 ## Ein neues Werk anlegen
 
 1. Projekt nach `~/Werk/buch/<slug>/<slug>.scriv` legen (außerhalb jeder Synchronisation).

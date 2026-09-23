@@ -128,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ebene", choices=["korrektorat", "stil"], default="korrektorat")
     p.add_argument("--max", type=int, default=12)
     p.add_argument("--ohne-judge", action="store_true", help="Bewertung überspringen")
+    p.add_argument("--runden", type=int, default=1,
+                   help="Judge-Runden: 1 = nur sperren (gemessener Standard), 2+ = Rückkopplung")
     args = p.parse_args(argv)
 
     a = finde_abschnitt(args.werk, uuid=args.uuid, titel=args.abschnitt)
@@ -144,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         "stimmprofil_text": profil,
         "max_befunde": args.max,
         "mit_judge": not args.ohne_judge,
+        "max_runden": args.runden,
     }
 
     print(

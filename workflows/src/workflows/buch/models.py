@@ -266,11 +266,15 @@ class LektoratInput(BaseModel):
         default=True, description="Bewertung vor der Anzeige (empfohlen)"
     )
     max_runden: int = Field(
-        default=2,
+        default=1,
         description=(
-            "Wie oft ein abgelehnter Befund an den Agent zurückgeht. 1 = kein Loop, "
-            "nur sperren. Über 3 lohnt sich selten: Was zweimal durchfällt, ist meist "
-            "kein Befund."
+            "Wie oft ein abgelehnter Befund an den Agent zurückgeht. "
+            "1 = kein Loop, nur sperren — das ist der gemessene Standard. "
+            "Ein A/B-Lauf am selben Abschnitt ergab: ohne Loop 0 Befunde (alles sauber "
+            "gefiltert), mit Loop 6 Befunde, alle unsinnig. Der Agent nimmt die "
+            "Aufforderung 'enger fassen' wörtlich und minimiert seinen Vorschlag bis zur "
+            "Sinnlosigkeit ('runter.' → 'runter'). Erst wieder erhöhen, wenn ein Eval "
+            "mit annotierten Erwartungen zeigt, dass es hilft."
         ),
     )
 

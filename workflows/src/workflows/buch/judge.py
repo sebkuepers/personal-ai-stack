@@ -246,6 +246,16 @@ def korrigiere_absatz_index(
 def baue_rueckmeldung(abgelehnt: list[BefundMitUrteil], runde: int) -> str:
     """Formuliert das Judge-Urteil als Auftrag an den Agent.
 
+    .. warning::
+       **Der Loop ist standardmäßig aus** (``max_runden=1``), weil er in einem
+       A/B-Lauf messbar geschadet hat: ohne Loop 0 Befunde, mit Loop 6 unsinnige.
+       Der Agent nimmt „enger fassen" wörtlich und minimiert bis zur Sinnlosigkeit
+       — statt einen Befund zurückzuziehen, reduziert er ihn auf das Entfernen
+       eines Satzzeichens. Formal eine kleinere Änderung, inhaltlich Unfug.
+       Bevor der Loop wieder aktiviert wird, müsste die Reihenfolge der Optionen
+       umgedreht (Zurückziehen zuerst und ausdrücklich bevorzugt) und das Ergebnis
+       mit annotierten Erwartungen gemessen werden.
+
     Bewusst nicht „mach es besser“, sondern: Hier ist dein Vorschlag, hier ist
     das Urteil, und hier sind deine drei Möglichkeiten. Ein Modell, dem man nur
     sagt, etwas sei falsch, wiederholt oft dasselbe leicht umformuliert.
