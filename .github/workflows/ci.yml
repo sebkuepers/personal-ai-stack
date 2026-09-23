@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: workflows (ruff, pytest, discovery)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workflows
+    steps:
+      - uses: actions/checkout@v4
+
+      # uv sync installs the project itself, so the offline discovery check can
+      # import entrypoints.worker just like `make` does locally.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          working-directory: workflows
+
+      - name: Install dependencies
+        run: uv sync
+
+      # Lint — the same explicit rule set as in workflows/pyproject.toml.
+      # ../agents and tests/ run with it too; files outside workflows/ (agents/)
+      # fall back to ruff's defaults because the config lives in workflows/.
+      - name: ruff
+        run: uv run ruff check src/workflows src/buchcli src/evalkit ../agents tests/
+
+      # The Scrivener roundtrip tests skip themselves when no werk config or
+      # live project exists (both are gitignored) — so a CI runner stays green.
+      # The triage mapping tests need nothing but the repo (they read
+      # shared/crm.json by walking up).
+      - name: pytest
+        run: uv run pytest tests/ -q
+
+      # Offline discovery — imports every workflow module. Catches sandbox
+      # import errors and syntax/annotation breakage without the cloud. It
+      # does NOT validate: only a real worker start does.
+      - name: workflow discovery
+        run: uv run python -c "from entrypoints.worker import discover_workflows as d; \
+          print('discovered', len(d()), 'workflows')"
+
+  typecheck:
+    name: ${{ matrix.dir }} (tsc --noEmit)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [mcp-server, worker-host]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm ci
+        run: npm ci
+        working-directory: ${{ matrix.dir }}
+      - name: typecheck
+        run: npm run typecheck
+        working-directory: ${{ matrix.dir }}
