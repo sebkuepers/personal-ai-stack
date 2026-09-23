@@ -8,7 +8,6 @@ eine Verschlechterung?
 
 Aufbau:
   modelle.py  Fall, Prüfung, Ergebnis, Bilanz — was gemessen wird
-  judging.py  Kriterien, Schwellen, Kontextversorgung — wie bewertet wird
   runner.py   führt Fälle gegen Konfigurationen aus — wie gemessen wird
   __main__.py generisches CLI: python -m evalkit --agent <name> --faelle <datei>
 
@@ -16,7 +15,6 @@ Eine Domäne steuert nur zwei Dinge bei: die Testfälle (welche Eingaben, welche
 Zusicherungen) und optional einen Generator dafür. Alles andere ist hier.
 """
 
-from .judging import Kriterienkatalog, Kriterium
 from .modelle import Bilanz, Ergebnis, Fall, Pruefung, bilanziere, hole, pruefe
 from .runner import (
     STANDARD_KONFIGURATIONEN,
@@ -32,8 +30,7 @@ __all__ = [
     "Ergebnis",
     "Fall",
     "Konfiguration",
-    "Kriterienkatalog",
-    "Kriterium",
+
     "Pruefung",
     "agent_definition",
     "bilanziere",

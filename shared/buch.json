@@ -7,15 +7,15 @@
     "stimme_probe": "ag_01a0cd6a53de713c80ccec2865d75766",
     "stimme_profil": "ag_01a0cd6a54a97001875a8592a1ec319f",
     "inhalt": null,
-    "judge": "ag_01a0cd6a519871cdb899400bc10ac7ce"
+    "gegenlesen": "ag_01a0ce2ce85572b4aa977b15118d55d9"
   },
   "models": {
-    "korrektorat": "mistral-small-latest",
+    "korrektorat": "mistral-medium-latest",
     "stil": "mistral-medium-latest",
     "inhalt": "mistral-medium-latest",
     "stimme": "mistral-medium-latest",
-    "judge": "mistral-medium-latest",
-    "_comment": "Gemessen mit evalkit am 23.09.2026 (6 Fälle, 12 Fallen, buch-korrektorat): small/none 0/12 Fallen, 4.9s, 5599T · small/high 0/12, 13.7s, 13955T · medium/none 1/12 ✗, 8.6s, 8660T · medium/high 0/12 aber 6 Timeouts bei 48s. Deshalb small fürs Korrektorat. Vor einer Änderung: make buch-eval."
+    "_comment": "Gemessen mit evalkit am 23.09.2026. KORREKTORAT gegen eval-korrektorat.json (8 Fälle, 7 Erwartungen, 21 Fallen, 3 Läufe): medium/none 21/21 Treffer, 6/63 Fallen, 1,0s, 2.420T · small/none 17/21, 0/63 · small/high 19/21, 3/63 · medium/high 19/21, 0/63, 4,6s, 14.078T. Reasoning hilft nicht. Eine frühere Messung ohne annotierte Erwartungen hatte small empfohlen — sie konnte nur Fallen zählen und hat Übersehen deshalb nicht bestraft. GEGENLESEN gegen eval-gegenlesen.json (6 Fälle, 2 Läufe): large/none 12/12, 0 Fallen, 3,7s, 1.462T · zai-glm-5 11/12, 2 Fallen, 7.161T · medium/none 10/12, 0 Fallen · magistral-medium 10/12 (praktisch identisch mit medium — Magistral steckt inzwischen als reasoning_effort in medium/small). BEWUSST ANDERES MODELL ALS STUFE 1: Self-preference bias — ein Judge aus derselben Familie wie der Generator bewertet dessen Ausgaben systematisch zu gut und teilt seine blinden Flecken. Large gewinnt hier auch ohne dieses Argument. Vor einer Änderung: make buch-eval.",
+    "gegenlesen": "mistral-large-latest"
   },
   "vokabular": {
     "ebenen": [
@@ -85,43 +85,6 @@
       "drüber": "darüber"
     }
   },
-  "judges": {
-    "_comment": "Studio-Observability (client.beta.observability.judges) ist auf dem Pro-Plan nicht erreichbar — GET /v1/observability/judges antwortet mit HTTP 404. Deshalb 'agent': ein Judge-Agent mit striktem Schema, Kriterium kommt als Eingabe. Auf 'observability' umstellen, falls Mistral das freischaltet.",
-    "backend": "agent",
-    "kriterien": {
-      "treue": {
-        "frage": "Verändert der Vorschlag Bedeutung, Fakten, Namen oder Aussage des Originals — über das hinaus, was er selbst als Problem benennt?",
-        "skala": "1-5",
-        "sperrt_unter": 4,
-        "aktiv": true,
-        "braucht_kontext": false
-      },
-      "stimmtreue": {
-        "frage": "Klingt der geänderte Text noch nach dem Autor, gemessen an den Regeln des Stimmprofils?",
-        "skala": "1-5",
-        "sperrt_unter": null,
-        "aktiv": false,
-        "braucht_kontext": true
-      },
-      "sparsamkeit": {
-        "frage": "Ist das die kleinste Änderung, die das benannte Problem löst, oder wurde darüber hinaus umgeschrieben?",
-        "skala": "1-5",
-        "sperrt_unter": null,
-        "aktiv": false,
-        "braucht_kontext": false
-      },
-      "berechtigung": {
-        "frage": "Behebt der Vorschlag einen tatsächlichen Fehler im Original? Wäre das Original in einem Diktat als Fehler angestrichen worden?",
-        "skala": "1-5",
-        "sperrt_unter": 4,
-        "aktiv": true,
-        "_comment": "Neu nach einem konkreten Schaden: Der Treue-Judge winkte 'Meer.' → 'Meer' mit 5/5 durch, weil sich die Bedeutung nicht ändert. Er prüft Treue, nicht Sinn. Dieses Kriterium fragt, ob überhaupt ein Fehler behoben wird.",
-        "braucht_kontext": true
-      }
-    },
-    "_messung": "Gemessen 23.09.2026 mit evalkit gegen shared/buch/eval-judge.json (12 konstruierte Fälle, 12 Erwartungen, 11 Fallen). MIT Werkkontext: medium/none 12/12 · 0 Fallen · 0.9s · 670T | medium/high 12/12 aber 5690T | small/none 10/12 · 2 Fallen | small/high 9/12 · 3 Fallen. OHNE Werkkontext war medium nur bei 10/12 — der Judge hielt 'runter'→'hinunter' für berechtigt. Reasoning bringt hier nichts. Deshalb medium ohne Reasoning. Vor Änderungen: make eval agent=buch-judge.",
-    "_kontext": "braucht_kontext=true heißt: Dieses Kriterium ist ohne Domänenwissen nicht beantwortbar. Der Katalog (evalkit.Kriterienkatalog) warnt, wenn es fehlt — sonst urteilt der Judge still nach allgemeinen Maßstäben statt nach denen des Werks. Gemessen: ohne Kontext 10/12, mit Kontext 12/12."
-  },
   "grenzen": {
     "_comment": "Bewusste Obergrenzen. Ein Profil mit 40 Regeln liest niemand, und 50 Stilbefunde pro Abschnitt sind kein Lektorat, sondern Rauschen.",
     "max_stil_befunde_pro_abschnitt": 12,
@@ -183,5 +146,9 @@
       "kapitelbereich": "alle | 1-3 | 4",
       "stand_datum": "wird auf der Titelseite ausgewiesen"
     }
+  },
+  "gegenlesen": {
+    "_comment": "Das zweite Augenpaar (buch-gegenlesen) sieht denselben Abschnitt wie die erste Stufe und beantwortet zwei Fragen: Fehlt ein Fehler? Ist einer der gemeldeten keiner? Die Kriterien stehen in seinen Instructions (agents/build_buch_agents.py), nicht hier — anders als beim Vorgänger, der je Befund ein einzelnes Kriterium als Eingabe bekam. Der Werkkontext (gewollte Umgangssprache, Figurenrede) kommt zur Laufzeit aus vokabular.gewollte_umgangssprache über pruefungen.werk_kontext().",
+    "laeuft_immer": true
   }
 }

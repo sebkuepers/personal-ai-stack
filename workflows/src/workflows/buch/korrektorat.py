@@ -1,32 +1,35 @@
-"""Ebene 1 des Lektorats — Korrektorat für EINEN Abschnitt, mit QA-Schleife.
+"""Ebene 1 des Lektorats — Korrektorat für EINEN Abschnitt, nach dem Vier-Augen-Prinzip.
 
 Rechtschreibung, Zeichensetzung, Grammatik, Tempus, Typografie. Stil wird nicht
 angefasst; dafür gibt es ``buch-stil``.
 
-**Die Schleife ist der Kern.** Ein Judge, der nur sperrt, wirft auch brauchbare
-Befunde weg, bloß weil sie zu weit gefasst waren. Hier bekommt der Agent das
-Urteil zurück und darf nachbessern:
+    korrigiere()      Befunde der ersten Stufe
+      ↓
+    Invarianten       Index, Nicht-Befunde, Figurenrede — deterministisch, ohne Modell
+      ↓
+    gegenlese()       zweites Augenpaar auf DEMSELBEN Abschnitt: was fehlt, was keiner ist
+      ↓
+    fertig
 
-    korrigiere_offen()      Befunde + conversation_id   (store=True)
-      ↓
-    Invarianten             Index, Nicht-Befunde — deterministisch, ohne Modell
-      ↓
-    bewerte()               je Kriterium ein Judge-Aufruf, parallel
-      ↓
-    alles über der Schwelle? ──ja──► fertig
-      ↓ nein
-    ueberarbeite()          append auf dieselbe Conversation: der Agent sieht
-                            seinen eigenen Vorschlag UND das Urteil
-      ↓
-    … bis ``max_runden``, dann wird verworfen, was durchfällt
+**Warum das zweite Augenpaar den ganzen Abschnitt sieht.** Der Vorgänger war ein
+Judge, der je Befund lief und nur ``search`` und ``replace`` bekam — einen
+Schnipsel ohne den Satz, in dem er steht. Er konnte deshalb zwei Dinge nicht:
+beurteilen, ob ein Fehler wirklich behoben wird, und bemerken, dass einer fehlt.
+Das zweite war der schwerere Mangel: Bei null Befunden lief er gar nicht erst an,
+also war ein übersehener Fehler unsichtbar. Ein Prüfer, der nur die Vorschläge
+des Ersten sieht, prüft nicht dessen Arbeit, sondern nur dessen Wortwahl.
 
-**Warum die Schleife hier steht und nicht im Agenten.** Mistral kennt
-``handoffs`` — dabei entscheidet aber der *Agent*, ob und wann er abgibt. Das ist
-richtig für Arbeitsteilung („das ist eigentlich ein Stilproblem, übernimm du"),
-falsch für ein QA-Gate: Es gäbe keine Schleifenbegrenzung, keine feste Schwelle
-und keinen Zugriff auf die Zwischenstände. Kontrollstruktur gehört in den
-deterministischen Teil — genau dafür ist durable execution da. Jede Runde steht
-danach in der Ereignishistorie.
+**Warum keine Rückkopplungsschleife.** Eine frühere Fassung gab abgelehnte
+Befunde an den Agenten zurück. Gemessen hat das geschadet: Er nahm „enger fassen"
+wörtlich und reduzierte Befunde bis zur Sinnlosigkeit, statt sie zurückzuziehen.
+Was das zweite Augenpaar verwirft, wird jetzt verworfen; was es findet, kommt
+hinzu. Beides ohne zweite Runde.
+
+**Warum die Kontrollstruktur hier steht und nicht im Agenten.** Mistral kennt
+``handoffs`` — dabei entscheidet aber der *Agent*, ob er abgibt. Das ist richtig
+für Arbeitsteilung, falsch für ein QA-Gate: Es gäbe keine feste Reihenfolge und
+keinen Zugriff auf die Zwischenstände. Jeder Schritt steht so in der
+Ereignishistorie.
 
 Auslösen:
   make buch-korrektorat abschnitt="Einführung Strand"
@@ -39,23 +42,19 @@ from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
     from workflows.buch import config
-    from workflows.buch.agenten import bewerte, korrigiere_offen, ueberarbeite
+    from workflows.buch.agenten import gegenlese, korrigiere
 
-from workflows.buch.judge import (  # noqa: E402
-    aktive_kriterien,
-    baue_rueckmeldung,
-    kontext_pruefen,
+from workflows.buch.pruefungen import (  # noqa: E402
     korrigiere_absatz_index,
-    kriterium_text,
     teile_auf,
-    werk_kontext,
     verwerfe_eingriffe_in_rede,
     verwerfe_gewollte_umgangssprache,
     verwerfe_nichtbefunde,
-    wende_urteil_an,
+    werk_kontext,
 )
 from workflows.buch.models import (  # noqa: E402
     BefundMitUrteil,
+    Gegenlesung,
     Korrekturen,
     LektoratErgebnis,
     LektoratInput,
@@ -63,8 +62,8 @@ from workflows.buch.models import (  # noqa: E402
 
 
 def _zu_befunden(roh: dict, grenze: int) -> list[BefundMitUrteil]:
-    # Nur das Nutzdatenfeld validieren: korrigiere_offen() legt die
-    # conversation_id daneben, und Korrekturen verbietet Extrafelder.
+    # Nur das Nutzdatenfeld validieren: die Aktivität kann Beiwerk danebenlegen,
+    # und Korrekturen verbietet Extrafelder.
     roh = {"korrekturen": roh.get("korrekturen", [])}
     return [
         BefundMitUrteil(
@@ -85,9 +84,9 @@ def _invarianten(
 ) -> tuple[list[BefundMitUrteil], list[str]]:
     """Prüfungen ohne Ermessen — billig, absolut, vor jedem Modellaufruf.
 
-    Bewusst getrennt von dem, was der Judge beurteilt: Ob ein Suchtext eindeutig
-    auffindbar ist, ist eine Tatsache. Ob eine Korrektur inhaltlich berechtigt
-    ist, ist ein Urteil und gehört in die Schleife.
+    Bewusst getrennt von dem, was das zweite Augenpaar beurteilt: Ob ein Suchtext
+    eindeutig auffindbar ist, ist eine Tatsache. Ob eine Korrektur berechtigt ist,
+    ist ein Urteil.
     """
     hinweise: list[str] = []
     befunde, h = korrigiere_absatz_index(befunde, absaetze)
@@ -101,13 +100,48 @@ def _invarianten(
     return befunde, hinweise
 
 
+def _wende_gegenlesung_an(
+    befunde: list[BefundMitUrteil], g: Gegenlesung
+) -> tuple[list[BefundMitUrteil], list[str]]:
+    """Trägt das Urteil des zweiten Augenpaars ein.
+
+    Verworfene Befunde werden gesperrt, nicht gelöscht — sie erscheinen im
+    Ergebnis unter ``gesperrt`` mit Grund. Nur so lässt sich später auswerten,
+    ob das zweite Augenpaar zu streng ist.
+    """
+    hinweise: list[str] = []
+
+    for u in g.unberechtigt:
+        i = u.nummer - 1
+        if 0 <= i < len(befunde):
+            befunde[i].gesperrt = True
+            befunde[i].sperrgrund = f"gegenlesen: {u.warum}"
+        else:
+            hinweise.append(f"Gegenlesen verweist auf Befund {u.nummer}, den es nicht gibt.")
+
+    for f in g.uebersehen:
+        befunde.append(
+            BefundMitUrteil(
+                ebene="korrektorat",
+                absatz_index=f.absatz_index,
+                search=f.search,
+                replace=f.replace,
+                art=f.art,
+                warum=f"[von der Gegenlesung ergänzt] {f.warum}",
+            )
+        )
+    if g.uebersehen:
+        hinweise.append(f"Gegenlesen hat {len(g.uebersehen)} übersehene(n) Fehler ergänzt.")
+    return befunde, hinweise
+
+
 @workflows.workflow.define(
     name="buch-korrektorat",
     workflow_display_name="Buch · Korrektorat (Ebene 1)",
     workflow_description=(
         "Prüft einen Abschnitt auf Rechtschreibung, Zeichensetzung, Grammatik, Tempus und "
-        "Typografie. Abgelehnte Befunde gehen mit dem Urteil an den Agent zurück, der sie "
-        "zurückziehen, enger fassen oder begründet verteidigen kann."
+        "Typografie. Ein zweites Augenpaar liest denselben Abschnitt gegen und meldet, was "
+        "fehlt und was kein Befund ist — auch dann, wenn die erste Stufe nichts gefunden hat."
     ),
 )
 class BuchKorrektoratWorkflow:
@@ -116,68 +150,29 @@ class BuchKorrektoratWorkflow:
         absaetze = inp.absaetze or [inp.abschnitt.text]
         hinweise: list[str] = []
 
-        roh = await korrigiere_offen(titel=inp.abschnitt.titel, absaetze=absaetze)
-        conversation_id = str(roh.get("conversation_id") or "")
+        roh = await korrigiere(titel=inp.abschnitt.titel, absaetze=absaetze)
         befunde = _zu_befunden(roh, inp.max_befunde)
 
-        judge_moeglich = bool(inp.mit_judge and config.AGENTS.get("judge"))
-        if inp.mit_judge and not judge_moeglich:
-            hinweise.append("Ohne Bewertung: keine Judge-Agent-ID in shared/buch.json.")
-        for fehlend in kontext_pruefen():
-            # Ein Kriterium ohne sein Domänenwissen urteilt nicht gar nicht,
-            # sondern still nach allgemeinen Maßstäben. Das muss sichtbar sein.
-            hinweise.append(
-                f"Kriterium {fehlend!r} braucht Werkkontext, bekommt aber keinen — "
-                f"das Urteil ist unzuverlässig."
-            )
+        befunde, h = _invarianten(befunde, absaetze)
+        hinweise += h
 
-        runde = 0
-        while True:
-            runde += 1
+        # Das zweite Augenpaar läuft IMMER — gerade die leere Befundliste ist der
+        # Fall, den sonst niemand prüft.
+        if inp.mit_judge and config.AGENTS.get("gegenlesen"):
+            roh_g = await gegenlese(
+                titel=inp.abschnitt.titel,
+                absaetze=absaetze,
+                befunde=[b.model_dump(mode="json") for b in befunde],
+                kontext=werk_kontext("berechtigung"),
+            )
+            befunde, h = _wende_gegenlesung_an(befunde, Gegenlesung.model_validate(roh_g))
+            hinweise += h
+            # Ergänzte Befunde noch einmal durch die Invarianten: Auch das zweite
+            # Augenpaar kann einen Suchtext danebenschreiben.
             befunde, h = _invarianten(befunde, absaetze)
             hinweise += h
-
-            if not befunde or not judge_moeglich:
-                break
-
-            auftraege = [
-                {
-                    "index": i,
-                    "kriterium": kriterium,
-                    "frage": kriterium_text(kriterium),
-                    "original": b.search,
-                    "vorschlag": b.replace,
-                    "warum": b.warum,
-                    "kontext": werk_kontext(kriterium),
-                }
-                for kriterium in aktive_kriterien()
-                for i, b in enumerate(befunde)
-            ]
-            urteile = await workflows.execute_activities_in_parallel(
-                bewerte, items=auftraege, max_concurrent_scheduled_tasks=6
-            )
-            for u in urteile or []:
-                if u and u.get("index") is not None:
-                    wende_urteil_an(befunde[u["index"]], u["kriterium"], u["score"])
-
-            abgelehnt = [b for b in befunde if b.gesperrt]
-            if not abgelehnt:
-                break
-            if runde >= inp.max_runden or not conversation_id:
-                hinweise.append(
-                    f"{len(abgelehnt)} Befund(e) nach {runde} Runde(n) weiterhin abgelehnt "
-                    "— verworfen."
-                )
-                break
-
-            # Zurück an den Agent: er sieht seinen Vorschlag und das Urteil.
-            hinweise.append(f"Runde {runde}: {len(abgelehnt)} Befund(e) zur Überarbeitung.")
-            roh = await ueberarbeite(
-                conversation_id=conversation_id,
-                rueckmeldung=baue_rueckmeldung(abgelehnt, runde),
-                ebene="korrektorat",
-            )
-            befunde = _zu_befunden(roh, inp.max_befunde)
+        elif inp.mit_judge:
+            hinweise.append("Ohne Gegenlesen: keine Agent-ID in shared/buch.json.")
 
         angezeigt, gesperrt = teile_auf(befunde)
         return LektoratErgebnis(

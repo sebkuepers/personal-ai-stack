@@ -10,8 +10,13 @@ Zwei Filter hintereinander, beide in deterministischem Code:
 1. **Regelbezug** — ein Vorschlag ohne gültige ``regel_id`` fliegt raus, außer
    bei Schwere „hoch". Ohne diesen Filter zitiert der Agent das Profil bestenfalls
    dekorativ.
-2. **Treue** — verändert der Vorschlag die Bedeutung? Der einzige Judge, der
-   sperren darf.
+**Kein maschinelles Gegenlesen auf dieser Ebene.** Ebene 1 hat eines, weil ein
+übersehenes Komma sonst niemandem auffällt. Ein Stilvorschlag dagegen wird
+ohnehin nie ohne Zustimmung des Autors angewendet — das zweite Augenpaar ist
+hier er selbst, und seine Entscheidung ist das wertvollere Signal, weil sie ins
+Entscheidungslog geht und das Stimmprofil nachschärft. Ein maschinelles
+Gegenlesen käme erst infrage, wenn eine Messung zeigt, dass es die Vorschläge
+verbessert, die er zu sehen bekommt.
 
 Auslösen:
   make buch-stil werk=immer-wieder-ruegen uuid=<abschnitt-uuid>
@@ -25,16 +30,12 @@ import mistralai.workflows as workflows
 from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
-    from workflows.buch import config
-    from workflows.buch.agenten import bewerte, stil_pruefen
+    from workflows.buch.agenten import stil_pruefen
 
-from workflows.buch.judge import (  # noqa: E402
-    aktive_kriterien,
-    korrigiere_absatz_index,
+from workflows.buch.pruefungen import (  # noqa: E402
     filtere_ohne_regelbezug,
-    kriterium_text,
+    korrigiere_absatz_index,
     teile_auf,
-    wende_urteil_an,
 )
 from workflows.buch.models import (  # noqa: E402
     BefundMitUrteil,
@@ -108,28 +109,6 @@ class BuchStilWorkflow:
         rang = {"hoch": 0, "mittel": 1, "niedrig": 2}
         befunde.sort(key=lambda b: rang.get(b.schwere or "niedrig", 3))
         befunde = befunde[: inp.max_befunde]
-
-        # Filter 2 — Bewertung.
-        if inp.mit_judge and befunde and config.AGENTS.get("judge"):
-            auftraege = [
-                {
-                    "index": i,
-                    "kriterium": kriterium,
-                    "frage": kriterium_text(kriterium),
-                    "original": b.search,
-                    "vorschlag": b.replace,
-                    "warum": b.warum,
-                    "kontext": inp.stimmprofil_text if kriterium == "stimmtreue" else "",
-                }
-                for kriterium in aktive_kriterien()
-                for i, b in enumerate(befunde)
-            ]
-            urteile = await workflows.execute_activities_in_parallel(
-                bewerte, items=auftraege, max_concurrent_scheduled_tasks=6
-            )
-            for u in urteile or []:
-                if u and u.get("index") is not None:
-                    wende_urteil_an(befunde[u["index"]], u["kriterium"], u["score"])
 
         angezeigt, gesperrt = teile_auf(befunde)
         return LektoratErgebnis(

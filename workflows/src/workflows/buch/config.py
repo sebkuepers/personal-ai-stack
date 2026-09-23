@@ -49,15 +49,6 @@ GEWOLLTE_UMGANGSSPRACHE: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# Bewertung
-# ---------------------------------------------------------------------------
-JUDGE_BACKEND: str = _CFG["judges"]["backend"]
-JUDGE_KRITERIEN: dict[str, dict[str, Any]] = {
-    k: v for k, v in _CFG["judges"]["kriterien"].items() if not k.startswith("_")
-}
-AKTIVE_JUDGES: list[str] = [k for k, v in JUDGE_KRITERIEN.items() if v.get("aktiv")]
-
-# ---------------------------------------------------------------------------
 # Bewusste Obergrenzen
 # ---------------------------------------------------------------------------
 _G = _CFG["grenzen"]

@@ -18,6 +18,6 @@ Aufbau:
   stilmetrik.py   — deterministische Stilkennzahlen (rein, ohne Modell)
   analyse.py      — Aktivitäten: die Lektorats-Agents auslösen
   stimme.py       — Stimmprofil bauen, prüfen, rendern
-  judge.py        — Bewertung, Weiche zwischen Agent- und Observability-Backend
+  pruefungen.py   — Invarianten ohne Ermessen, plus der Werkkontext fürs Gegenlesen
   entscheidungen.py — Entscheidungslog schreiben und auswerten
 """

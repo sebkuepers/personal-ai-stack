@@ -54,7 +54,7 @@ re-checked when Mistral changes something.
 
 | Studio feature | On this account | How the repo solves it instead |
 |---|---|---|
-| **Judges** (`/v1/observability/judges`) | ✗ HTTP 404 · *"Private Preview … Enterprise-tier organizations only"* | A judge **agent** with a strict schema, called as a normal workflow step. Criteria live in `shared/<domain>.json`; a switch in `buch/judge.py` keeps a later migration local. |
+| **Judges** (`/v1/observability/judges`) | ✗ HTTP 404 · *"Private Preview … Enterprise-tier organizations only"* | A second-reader **agent** with a strict schema, called as a normal workflow step. It sees the same input as the first stage, so a later migration stays small — Mistral's judge also scores a response in the context of its request. |
 | **Datasets / Campaigns** (`/v1/observability/*`) | ✗ HTTP 404 (`campaigns` is gone from the SDK entirely) | `evalkit/` — a domain-independent harness: cases × configurations → hit rate and trap rate. |
 | **Traces / Explorer** | ✗ Enterprise only | Studio's execution timeline still shows every workflow run, retry and failure — that part is not gated. |
 | **Prompts** (`/v2/prompts`) | ✓ available | `prompts/` + `prompts/sync.py` |

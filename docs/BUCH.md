@@ -181,7 +181,7 @@ Alle in `agents/buch-*.json`, alle mit erzwungenem `response_format.json_schema`
 | `buch-stimme-profil` | Reduce — verdichtet alle Beobachtungen zu höchstens zwölf prüfbaren Regeln |
 | `buch-korrektorat` | Ebene 1: Rechtschreibung, Zeichensetzung, Grammatik, Tempus, Typografie. Fasst Stil nicht an |
 | `buch-stil` | Ebene 2: macht den Text dem Autor **ähnlicher**, nicht glatter. Muss jede Regel des Stimmprofils zitieren |
-| `buch-judge` | Bewertet einen Vorschlag nach einem Kriterium, das als Eingabe kommt — ein Agent für alle Kriterien |
+| `buch-gegenlesen` | Das zweite Augenpaar: sieht denselben Abschnitt wie Stufe 1 plus deren Befunde und meldet, was fehlt und was keiner ist |
 
 Die JSON-Schemata werden **aus** den Pydantic-Modellen in `buch/models.py` generiert
 (`agents/build_buch_agents.py`), mit aufgelösten `$defs`. So können Schema und Modell nicht
@@ -309,70 +309,88 @@ die wie ein Modellfehler aussieht, aber ein Budgetfehler ist.
 Eindeutigkeit des Suchtexts. Das sind billige, absolute Prüfungen ohne Ermessen. Inhaltliche Urteile
 gehören in die Modellwahl und in den Judge, nicht in eine Wortliste.
 
-### Der Judge braucht sein eigenes Eval
+### Das Vier-Augen-Prinzip — und wie ich es zuerst falsch gebaut habe
 
-Ein blinder Fleck, der lange bestand: Der Judge ist selbst ein Agent — mit Modell, Reasoning und
-Temperatur — und wurde nie gemessen. Er hat Unsinn mit 5/5 durchgewunken.
+Ebene 1 läuft in zwei Stufen: `buch-korrektorat` findet, `buch-gegenlesen` liest gegen. Der zweite
+Agent bekommt **denselben Abschnitt** wie der erste, dazu dessen Befundliste, und beantwortet zwei
+Fragen:
+
+1. **Fehlt etwas?** Steht im Text ein Fehler, der nicht in der Liste auftaucht?
+2. **Stimmt, was dasteht?** Ist einer der gemeldeten Befunde keiner?
+
+Er läuft **immer** — gerade die leere Befundliste ist der Fall, den sonst niemand prüft.
+
+**Der Vorgänger war ein Judge, der je Befund lief und nur `search` und `replace` bekam.** Also einen
+Schnipsel ohne den Satz, in dem er steht. Zwei Dinge konnte er deshalb nicht: beurteilen, ob ein
+Fehler wirklich behoben wird, und bemerken, dass einer fehlt. Das zweite war der schwerere Mangel —
+bei null Befunden lief er gar nicht erst an, ein übersehener Fehler war unsichtbar. Ein Prüfer, der
+nur die Vorschläge des Ersten sieht, prüft nicht dessen Arbeit, sondern nur dessen Wortwahl.
+
+Der Fehler kam daher, dass ich vom Schreibpfad her gedacht habe („was darf ins Manuskript?" ist eine
+Frage pro Vorschlag) statt vom Vier-Augen-Prinzip. Mistrals eingebauter Judge macht es übrigens
+richtig: Er bewertet eine Antwort **im Kontext ihrer Anfrage**, sieht also den vollständigen Trace.
 
 ```bash
-make eval agent=buch-judge faelle=shared/buch/eval-judge.json zaehlpfad=""
+make eval agent=buch-gegenlesen faelle=shared/buch/eval-gegenlesen.json zaehlpfad="uebersehen[]"
 ```
 
-Die zwölf Fälle sind **konstruiert** und enthalten deshalb keinen Werktext — sie liegen als einzige
-Eval-Datei im Repo. Je Kriterium sechs Fälle, hälftig „muss ablehnen" und „muss annehmen". Der
-zweite Teil ist genauso wichtig: Ein Judge, der alles ablehnt, blockiert jeden Befund und ist so
-wertlos wie einer, der alles durchwinkt.
+Die sieben Fälle sind konstruiert und liegen deshalb im Repo. Sie decken die vier Betriebsarten ab —
+sauberer Text mit leerer Liste, Fehler korrekt gefunden, Fehler übersehen, Befund erfunden — plus
+zwei Werkkontext-Fälle und **G-verankerung**: Der Fehler steht noch im Text, aber die erste Stufe hat
+Befunde geliefert, die ihn nicht beheben. Beobachtet mit `medium`: Der Zweite hielt die Stelle dann
+für erledigt. Verankerung durch die Liste des Ersten ist die eigentliche Schwäche des Prinzips.
 
-| Konfiguration | mit Werkkontext | ohne | Zeit | Tokens |
-|---|---|---|---|---|
-| **medium/none** | **12/12 · 0 Fallen** | 10/12 · 2 | **0,9s** | **670** |
-| medium/high | 12/12 · 0 Fallen | 10/12 · 2 | 3,7s | 5.690 |
-| small/none | 10/12 · 2 Fallen | 10/12 · 2 | 0,9s | 896 |
-| small/high | 9/12 · 3 Fallen | 8/12 · 4 | 3,5s | 6.084 |
+### Zwei Stufen, zwei Modelle — mit Absicht
 
-Drei Ergebnisse, die sich verallgemeinern lassen:
-
-1. **Ein Judge braucht Domänenwissen.** „Ist das überhaupt ein Fehler?" ist ohne Werkkontext
-   unbeantwortbar — der Judge hielt `runter` → `hinunter` für berechtigt, weil es
-   standardsprachlich stimmt. `werk_kontext()` in `judge.py` liefert ihn je Kriterium.
-2. **Reasoning hilft dem Judge nicht.** Gleiche Trefferquote, achtfache Tokenzahl.
-3. **Unterschiedliche Aufgaben, unterschiedliche Modelle.** Korrektorat: `small` genügt.
-   Judge: `medium` ist nötig, `small` bleibt auch mit Kontext bei 83 %.
-
-Und ein viertes, das erst die Messung sichtbar machte: Dem Kriterienkatalog fehlte **Berechtigung**.
-Der Treue-Judge prüft Treue, nicht Sinn — deshalb ging `Meer.` → `Meer` mit 5/5 durch. Das neue
-Kriterium fragt, ob überhaupt ein Fehler behoben wird.
-
-### Der Judge-Loop — gebaut, gemessen, abgeschaltet
-
-Die Idee: Ein Judge, der nur sperrt, wirft auch brauchbare Befunde weg, bloß weil sie zu weit
-gefasst waren. Also geht das Urteil an den Agent zurück (`append_conversation` auf dieselbe
-Conversation, deshalb `store=True`), und er darf zurückziehen, enger fassen oder begründet
-verteidigen.
-
-**Gemessen hat er geschadet.** A/B am selben Abschnitt:
-
-| | Befunde | Qualität |
+| Stufe | Modell | Gemessen |
 |---|---|---|
-| `runden=1` (nur sperren) | 0 | sauber — alles von den Invarianten abgefangen |
-| `runden=2` (mit Rückkopplung) | 6 | alle unsinnig (`runter.` → `runter`), alle mit Treue 5/5 |
+| `buch-korrektorat` | `mistral-medium-latest` | 21/21 Treffer, 6/63 Fallen, 1,0s, 2.420T |
+| `buch-gegenlesen` | **`mistral-large-latest`** | **16/16 Treffer, 0/26 Fallen**, 3,2s, 1.878T |
 
-Der Agent nimmt „enger fassen" wörtlich und minimiert seinen Vorschlag bis zur Sinnlosigkeit:
-Statt ihn zurückzuziehen, reduziert er ihn auf das Entfernen eines Satzzeichens. Formal eine
-kleinere Änderung, inhaltlich Unfug. Dabei versagen zwei Sicherungen gleichzeitig —
-`verwerfe_nichtbefunde` greift nicht, weil eine Änderung ja stattfindet, und der Treue-Judge gibt
-5/5, weil sich die Bedeutung nicht ändert. **Er prüft Treue, nicht Sinn.**
+`large` ist hier kein Luxus: Es schlägt `medium` (10/12) und `zai-glm-5` (11/12, 2 Fallen, fünffache
+Tokenzahl) und ist als einziges Modell gegen die Verankerung immun.
 
-Deshalb steht `max_runden` auf **1**. Der Code bleibt, die Mechanik ist erprobt und in Studio
-sichtbar — aber eingeschaltet wird er erst wieder, wenn zwei Dinge erledigt sind: die Optionen in
-der Rückmeldung umgedreht (Zurückziehen zuerst und ausdrücklich bevorzugt), und ein Eval mit
-annotierten **Erwartungen**, das zeigt, dass es hilft. Eine reine Fallenmessung hätte diesen Schaden
-nicht gesehen.
+Dass die Stufen **verschiedene** Modelle nutzen, ist zusätzlich Absicht. Die Forschung zu
+*self-preference bias* ist eindeutig: Ein Judge aus derselben Familie wie der Generator bewertet
+dessen Ausgaben systematisch zu gut und teilt seine blinden Flecken. Empfohlen wird ein Judge von
+einem **anderen Anbieter** — das steht als langfristige Verbesserung auf der Liste; vorerst genügt
+der Abstand zwischen `medium` und `large`. Mistrals eigene Doku sagt zur Modellwahl für Judges
+nichts; ihre Best Practices betreffen nur die Instructions (spezifisch sein, Testbarkeit,
+Grenzbeispiele).
 
-**Warum kein `handoff`.** Mistral kennt Handoffs, aber dort entscheidet der *Agent*, ob und wann er
-abgibt. Für Arbeitsteilung ist das richtig („das ist eigentlich ein Stilproblem, übernimm du"), für
-ein QA-Gate falsch: keine Schleifenbegrenzung, keine feste Schwelle, kein Zugriff auf die
-Zwischenstände. Kontrollstruktur gehört in den deterministischen Teil.
+Nebenbefund: `magistral-medium` liefert praktisch identische Zahlen wie `mistral-medium` — Magistral
+steckt inzwischen als `reasoning_effort` in medium/small und ist als eigenes Modell überholt.
+
+### Die Rückkopplungsschleife — gebaut, gemessen, entfernt
+
+Die Idee: Abgelehnte Befunde gehen an den Agent zurück, er darf zurückziehen, enger fassen oder
+begründet verteidigen. **Gemessen hat sie geschadet** — 0 Befunde ohne, 6 unsinnige mit. Der Agent
+nahm „enger fassen" wörtlich und reduzierte seine Vorschläge bis zur Sinnlosigkeit, statt sie
+zurückzuziehen.
+
+Der entscheidende Einwand kam aber woanders her: Eine Schleife feuert nur nach einer Ablehnung.
+Dass sie überhaupt anlief, hieß, dass in Runde 1 schon etwas kaputt war. Ich hatte das Symptom
+behandelt und die Ursache nie auseinandergehalten. Mit dem Gegenlesen gibt es keine zweite Runde
+mehr: Was es verwirft, ist verworfen; was es findet, kommt hinzu.
+
+**Warum kein `handoff`.** Mistral kennt Handoffs, aber dort entscheidet der *Agent*, ob er abgibt.
+Für Arbeitsteilung ist das richtig, für ein QA-Gate falsch: keine feste Reihenfolge, kein Zugriff
+auf die Zwischenstände. Kontrollstruktur gehört in den deterministischen Teil.
+
+### Kein Chunking auf Absatzebene
+
+Gemessen an einem Abschnitt aus sechs Absätzen mit bekanntem Fehlerinventar:
+
+| | Pflichtfunde | Fallen | Aufrufe | Zeit | Tokens |
+|---|---|---|---|---|---|
+| **ganzer Abschnitt** | **4/4 · 4/4** | **0** | **1** | **3,0s** | **381** |
+| Absatz für Absatz | 4/4 · 3/4 | 2× Leerlauf | 6 | 6,1s | 473 |
+
+Gleich gut im Finden, aber jeder Einzelaufruf hat einen eigenen Drang, etwas zu liefern. Für Ebene 2
+bleibt die Frage offen — Rhythmus und Wiederholung sind absatzübergreifend.
+
+Was **keine** der beiden Betriebsarten fand: dieselbe Sache in Absatz 2 und 5 unterschiedlich
+geschrieben. Konsistenz über den Abschnitt hinweg prüft bisher niemand.
 
 ## Ein neues Werk anlegen
 
@@ -423,6 +441,7 @@ Der RTF-Roundtrip ist durch Tests abgesichert: alle `content.rtf` müssen zeiche
 - Deterministische Stilkennzahlen
 - Fünf Studio-Agents, Schemata aus den Modellen generiert
 - Workflow `buch-stimmprofil` (Map/Reduce) samt Belegprüfung
+- Workflow `buch-korrektorat` mit Vier-Augen-Prinzip, beide Stufen gemessen
 - Mistral Library mit dem Manuskriptstand
 
 **Als Nächstes**
@@ -433,11 +452,27 @@ Der RTF-Roundtrip ist durch Tests abgesichert: alle `content.rtf` müssen zeiche
 - Entscheidungslog → Verfeinerung des Stimmprofils
 - Ebene 3 (Inhalt) gegen die Kapitelrubrik
 
+**Langfristige Verbesserungen**
+
+- **Judge über einen anderen Anbieter.** Die Forschung zu *self-preference bias* empfiehlt
+  ausdrücklich einen Judge von einem fremden Anbieter, nicht nur ein anderes Modell derselben
+  Familie. Auf dem Konto liegt mit `zai-glm-5` bereits eine fremde Familie; sie war in der ersten
+  Messung schwächer (11/12, 2 Fallen, fünffache Tokenzahl), aber das ist eine Momentaufnahme an
+  sieben Fällen. Erneut prüfen, sobald es mehr Fälle gibt — oder eine echte Fremdanbieter-Option.
+- **Konsistenz über den Abschnitt hinweg.** Dieselbe Sache in Absatz 2 und 5 unterschiedlich
+  geschrieben findet derzeit keine Stufe. Das ist deterministisch prüfbar (Wortformen vergleichen,
+  Eigennamen sammeln) und braucht kein Modell.
+- **Ein zweites Augenpaar für Ebene 2.** Bisher bewusst nicht gebaut: Stilvorschläge werden ohnehin
+  nie ohne Zustimmung angewendet, der Autor *ist* dort der Zweite. Erst bauen, wenn eine Messung
+  zeigt, dass es die Vorschläge verbessert, die er zu sehen bekommt.
+
 **Bewusst nicht gebaut**
 
 Studio-Judges (`client.beta.observability.*`) sind auf dem Pro-Plan nicht erreichbar — die
-Endpunkte antworten mit HTTP 404. Bewertung läuft deshalb über einen eigenen Judge-Agent, hinter
-einer Weiche in `buch/judge.py`, damit ein späterer Umstieg lokal bleibt.
+Endpunkte antworten mit HTTP 404. Das Gegenlesen läuft deshalb als eigener Agent. Ein späterer
+Umstieg bliebe klein: Mistrals Judge bewertet eine Antwort im Kontext ihrer Anfrage, bekommt also
+wie `buch-gegenlesen` den vollen Zusammenhang; die Kriterien stehen als versionierter Text in
+`agents/build_buch_agents.py` und müssten nur registriert werden.
 
 ---
 

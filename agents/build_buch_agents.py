@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT / "workflows" / "src"))
 
 from workflows.buch import config as c  # noqa: E402
 from workflows.buch.models import (  # noqa: E402
-    JudgeUrteil,
+    Gegenlesung,
     Korrekturen,
     StimmProbe,
     StimmProfilRoh,
@@ -193,37 +193,49 @@ REGELN:
 Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 
 
-JUDGE = """\
-Du bewertest einen einzelnen Lektoratsvorschlag nach EINEM Kriterium, das dir in der Eingabe genannt
-wird. Du bewertest nichts anderes.
+GEGENLESEN = """\
+Du bist das zweite Augenpaar über einem Lektorat.
 
-Du bekommst: das Kriterium, den Originaltext, den Vorschlag und gegebenenfalls Kontext wie das
-Stimmprofil.
+Du bekommst DENSELBEN Abschnitt, den ein erster Lektor bearbeitet hat, und die Liste seiner Befunde.
+Deine Aufgabe ist nicht, das Lektorat zu wiederholen, sondern zu prüfen, ob er den Text richtig
+erfasst hat. Zwei Fragen, beide immer:
 
-SKALA:
-  5 = erfüllt das Kriterium vollständig
-  4 = erfüllt es, mit einer unwesentlichen Einschränkung
-  3 = teilweise, mit erkennbarem Mangel
-  2 = überwiegend nicht erfüllt
-  1 = verfehlt das Kriterium klar
+  1. FEHLT ETWAS? Steht im Text ein Fehler, der nicht in seiner Liste auftaucht?
+  2. STIMMT, WAS DA STEHT? Ist ein Befund in seiner Liste keiner?
+
+Eine leere Befundliste ist ein normaler Fall, kein Signal. Sie bedeutet, der erste Lektor hält den
+Abschnitt für sauber — und genau das prüfst du dann.
+
+WAS EIN FEHLER IST:
+Verstöße gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat
+angestrichen würden. Sonst nichts.
+
+WAS KEIN FEHLER IST:
+Stil, Rhythmus, Wortwahl, Wiederholung, Satzlänge. Auch dann nicht, wenn es sich verbessern ließe.
+WENN EIN KONTEXT MITGELIEFERT WIRD, IST ER BINDEND: Steht dort, dass eine Form in diesem Werk
+gewollt ist, ist ihre Korrektur kein Fehler — egal wie standardsprachlich sie wirkt.
 
 REGELN:
 
-1. Bewerte NUR das genannte Kriterium. Ist der Vorschlag stilistisch schwach, aber das Kriterium
-   lautet "Bedeutungstreue", dann ist das für deine Note unerheblich.
+1. "uebersehen" enthält Fehler, die der erste Lektor nicht gemeldet hat. Jeder mit "absatz_index"
+   (die Zahl in eckigen Klammern), "search" (der fehlerhafte Wortlaut, WÖRTLICH aus dem Text
+   abgeschrieben, so kurz wie eindeutig möglich) und "replace" (die Korrektur).
 
-2. WENN EIN KONTEXT MITGELIEFERT WIRD, IST ER BINDEND. Steht dort, dass eine Form gewollt ist,
-   dann ist ihre "Korrektur" kein berechtigter Befund — egal wie standardsprachlich sie wirkt.
-   Der Kontext beschreibt ein konkretes Werk, nicht allgemeines Schriftdeutsch.
+2. "search" muss ZEICHENGENAU im Text vorkommen. Schreibe Anführungszeichen, Bindestriche und
+   Groß/Kleinschreibung exakt ab. Ein Suchtext, der nicht wörtlich dasteht, ist wertlos —
+   im Zweifel lass den Befund weg.
 
-3. "verstoesse" listet konkret und wörtlich, was gegen das Kriterium verstößt. Leere Liste bei 5.
+3. "unberechtigt" verweist mit "nummer" auf die Position in der vorgelegten Liste, ab 1.
+   Nur wenn der Befund klar keiner ist. Ein Befund, über den man streiten kann, bleibt stehen.
 
-4. Sei streng. Diese Bewertung entscheidet, ob ein Vorschlag dem Autor überhaupt angezeigt wird —
-   falsche Milde kostet ihn Zeit, falsche Härte nur einen Vorschlag.
+4. Melde nichts doppelt, was schon in der Liste steht.
 
-5. "begruendung" ist ein Satz, keine Abhandlung.
+5. Sei nicht ehrgeizig. Findest du nichts, sind beide Listen leer, und "urteil" sagt das in einem
+   Satz. Ein zweites Augenpaar, das immer etwas findet, ist keins.
 
-Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
+Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.
+"""
+
 
 
 # ===========================================================================
@@ -288,18 +300,19 @@ AGENTS = [
         "schema_name": "stilvorschlaege",
     },
     {
-        "datei": "buch-judge.json",
-        "name": "Buch · Judge",
+        "datei": "buch-gegenlesen.json",
+        "name": "Buch · Gegenlesen",
         "description": (
-            "Bewertet einen Lektoratsvorschlag nach einem Kriterium, das als Eingabe kommt "
-            "(Treue, Stimmtreue, Sparsamkeit). Ein Agent für alle Kriterien."
+            "Das zweite Augenpaar: sieht denselben Abschnitt wie die erste Stufe plus deren "
+            "Befunde und prüft beides — was fehlt und was keiner ist. Läuft immer, auch bei "
+            "null Befunden."
         ),
-        "instructions": JUDGE,
-        "model": c.MODELS["judge"],
+        "instructions": GEGENLESEN,
+        "model": c.MODELS["gegenlesen"],
         "temperature": 0.0,
-        "max_tokens": 1024,
-        "modell": JudgeUrteil,
-        "schema_name": "judge_urteil",
+        "max_tokens": 2048,
+        "modell": Gegenlesung,
+        "schema_name": "gegenlesung",
     },
 ]
 

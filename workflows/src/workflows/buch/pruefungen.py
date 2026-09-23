@@ -1,22 +1,20 @@
-"""Bewertung von Lektoratsvorschlägen — mit Weiche zwischen zwei Backends.
+"""Prüfungen ohne Ermessen — und der Werkkontext für die, die Ermessen brauchen.
 
-Studio-Observability (``client.beta.observability.judges``) ist auf dem Pro-Plan
-nicht erreichbar: ``GET /v1/observability/judges`` antwortet mit HTTP 404. Das
-Muster ist trotzdem richtig, also bauen wir es selbst — ein Judge-Agent mit
-striktem Schema, aufgerufen wie jeder andere Agent.
+Was hier steht, entscheidet **Tatsachen**: Kommt ein Suchtext im Absatz vor?
+Ändert ein Befund überhaupt etwas? Greift er in direkte Rede ein? Nennt er eine
+Regel, die es gibt? Das sind Prüfungen, die kein Modell braucht, nie unsicher
+sind und nichts kosten — sie laufen vor jedem Modellaufruf.
 
-Die Weiche in ``shared/buch.json`` (``judges.backend``) hält den späteren
-Umstieg lokal: Sollte Mistral Observability für Pro öffnen, sind die Kriterien
-bereits als versionierte Texte da und müssten nur registriert werden.
+**Urteile stehen nicht hier.** Ob ein Befund berechtigt ist oder ob einer fehlt,
+beantwortet ``buch-gegenlesen`` — ein zweites Augenpaar, das denselben Abschnitt
+sieht wie die erste Stufe. Die Vorgängerfassung dieser Datei hieß ``judge.py``
+und enthielt beides: die Invarianten und einen bewertenden Judge, der je Befund
+lief und nur ``search`` und ``replace`` bekam. Dass er den Satz nicht sah, zu dem
+er urteilen sollte, ist mir erst aufgefallen, als der Name der Datei nicht mehr
+verriet, was darin liegt. Deshalb heißt sie jetzt nach dem, was sie tut.
 
-**Nur ein Kriterium darf sperren.** „Treue" entscheidet, ob ein Vorschlag dem
-Autor überhaupt angezeigt wird, denn er ist das Einzige, was den Weg zum
-automatischen Schreiben absichert. Die übrigen Kriterien bewerten, ohne zu
-blockieren — falsche Härte kostet einen Vorschlag, falsche Milde kostet
-Vertrauen in jeden folgenden.
-
-Rein: keine I/O. Die Aktivität, die den Judge-Agent auslöst, steht in
-``agenten.py``.
+``werk_kontext`` bleibt hier, weil es dieselbe Quelle liest wie die Filter: die
+Eigenheiten dieses Werks aus ``shared/buch.json``.
 """
 
 from __future__ import annotations
@@ -24,50 +22,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from evalkit import Kriterienkatalog
-
 from . import config
 from .models import BefundMitUrteil
-
-
-def katalog() -> Kriterienkatalog:
-    """Der Kriterienkatalog dieser Domäne, versorgt mit ihrem Werkkontext.
-
-    Die Mechanik (Kriterien, Schwellen, Kontextprüfung) liegt in ``evalkit``, weil
-    sie in jedem Use-Case dieselbe ist. Domänenspezifisch ist nur, WAS an Wissen
-    geliefert wird — hier über :func:`werk_kontext`.
-    """
-    return Kriterienkatalog.aus_config(config.JUDGE_KRITERIEN, kontext=werk_kontext)
-
-
-def kriterium_text(name: str) -> str:
-    """Die Frage, die der Judge-Agent beantworten soll."""
-    return katalog().frage(name)
-
-
-def sperrt_unter(name: str) -> int | None:
-    """Ab welchem Score ein Kriterium einen Vorschlag zurückhält (None = nie)."""
-    k = katalog().kriterien.get(name)
-    return k.sperrt_unter if k else None
-
-
-def aktive_kriterien() -> list[str]:
-    return katalog().aktive
-
-
-def kontext_pruefen() -> list[str]:
-    """Aktive Kriterien, denen ihr Domänenwissen fehlt — für Hinweise im Workflow."""
-    return katalog().fehlender_kontext()
-
-
-def wende_urteil_an(befund: BefundMitUrteil, kriterium: str, score: int) -> BefundMitUrteil:
-    """Trägt einen Score ein und sperrt den Befund, falls das Kriterium das vorsieht."""
-    befund.judge[kriterium] = score
-    grenze = sperrt_unter(kriterium)
-    if grenze is not None and score < grenze:
-        befund.gesperrt = True
-        befund.sperrgrund = f"{kriterium} {score}/5 (Grenze {grenze})"
-    return befund
 
 
 def teile_auf(
@@ -257,56 +213,6 @@ def korrigiere_absatz_index(
             grund = "nicht gefunden" if gesamt == 0 else f"{gesamt}-mal im Abschnitt, nicht eindeutig"
             hinweise.append(f"verworfen ({grund}): {b.search[:50]!r}")
     return behalten, hinweise
-
-
-def baue_rueckmeldung(abgelehnt: list[BefundMitUrteil], runde: int) -> str:
-    """Formuliert das Judge-Urteil als Auftrag an den Agent.
-
-    .. warning::
-       **Der Loop ist standardmäßig aus** (``max_runden=1``), weil er in einem
-       A/B-Lauf messbar geschadet hat: ohne Loop 0 Befunde, mit Loop 6 unsinnige.
-       Der Agent nimmt „enger fassen" wörtlich und minimiert bis zur Sinnlosigkeit
-       — statt einen Befund zurückzuziehen, reduziert er ihn auf das Entfernen
-       eines Satzzeichens. Formal eine kleinere Änderung, inhaltlich Unfug.
-       Bevor der Loop wieder aktiviert wird, müsste die Reihenfolge der Optionen
-       umgedreht (Zurückziehen zuerst und ausdrücklich bevorzugt) und das Ergebnis
-       mit annotierten Erwartungen gemessen werden.
-
-    Bewusst nicht „mach es besser“, sondern: Hier ist dein Vorschlag, hier ist
-    das Urteil, und hier sind deine drei Möglichkeiten. Ein Modell, dem man nur
-    sagt, etwas sei falsch, wiederholt oft dasselbe leicht umformuliert.
-
-    Die dritte Möglichkeit — **zurückziehen** — ist die wichtigste. Ohne sie
-    erfindet der Agent Alternativen für Befunde, die von vornherein keine waren.
-    """
-    zeilen = [
-        f"ÜBERARBEITUNG, RUNDE {runde}.",
-        "",
-        "Eine unabhängige Prüfung hat folgende deiner Vorschläge abgelehnt:",
-        "",
-    ]
-    for i, b in enumerate(abgelehnt, start=1):
-        noten = ", ".join(f"{k} {v}/5" for k, v in b.judge.items())
-        zeilen += [
-            f"{i}. „{b.search}“ → „{b.replace}“",
-            f"   Bewertung: {noten}" + (f" · {b.sperrgrund}" if b.sperrgrund else ""),
-            f"   Deine Begründung war: {b.warum}",
-            "",
-        ]
-    zeilen += [
-        "Für JEDEN dieser Punkte hast du genau drei Möglichkeiten:",
-        "",
-        "  A) ZURÜCKZIEHEN — er war kein Befund. Lass ihn in der neuen Antwort einfach weg.",
-        "     Das ist oft die richtige Wahl und kostet dich nichts.",
-        "  B) ENGER FASSEN — der Kern stimmt, aber du hast zu viel geändert. Schlage die",
-        "     kleinstmögliche Änderung vor, die nur den benannten Fehler behebt.",
-        "  C) UNVERÄNDERT LASSEN — nur wenn du überzeugt bist, dass die Prüfung irrt.",
-        "     Dann begründe in 'warum' ausdrücklich, warum der Einwand nicht zutrifft.",
-        "",
-        "Die nicht beanstandeten Vorschläge übernimmst du unverändert.",
-        "Antworte wieder mit dem vollständigen JSON — alle Befunde, die bestehen bleiben sollen.",
-    ]
-    return "\n".join(zeilen)
 
 
 def werk_kontext(kriterium: str, stimmprofil_text: str = "") -> str:

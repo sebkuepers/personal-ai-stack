@@ -25,7 +25,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .modelle import Fall
-from .runner import STANDARD_KONFIGURATIONEN, agent_definition
+from .runner import STANDARD_KONFIGURATIONEN, Konfiguration, agent_definition
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -36,6 +36,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--faelle", required=True, help="Pfad zur Fall-Datei (relativ zum Repo)")
     p.add_argument("--laeufe", type=int, default=1)
     p.add_argument("--nur", help="nur diese Konfiguration, z. B. small/high")
+    p.add_argument(
+        "--modelle",
+        help=(
+            "Statt der Standardkonfigurationen: Modell-IDs, kommagetrennt. "
+            "Ein '+' hängt einen Reasoning-Lauf an, z. B. "
+            "'mistral-large-latest+,zai-glm-5'. Für Judge-Vergleiche gedacht — "
+            "ein zweites Augenpaar aus derselben Modellfamilie teilt die blinden "
+            "Flecken des ersten."
+        ),
+    )
     p.add_argument(
         "--zaehlpfad",
         default="korrekturen[]",
@@ -53,7 +63,20 @@ def main(argv: list[str] | None = None) -> int:
     faelle = [Fall.from_dict(d) for d in json.loads(pfad.read_text(encoding="utf-8"))]
     instruktionen, schema = agent_definition(REPO, args.agent)
 
-    konfigs = [k for k in STANDARD_KONFIGURATIONEN if not args.nur or k.name == args.nur]
+    if args.modelle:
+        konfigs = []
+        for roh in args.modelle.split(","):
+            roh = roh.strip()
+            if not roh:
+                continue
+            mit_reasoning = roh.endswith("+")
+            modell = roh.rstrip("+")
+            kurz = modell.replace("-latest", "").replace("mistral-", "")
+            konfigs.append(Konfiguration(f"{kurz}/none", modell))
+            if mit_reasoning:
+                konfigs.append(Konfiguration(f"{kurz}/high", modell, "high"))
+    else:
+        konfigs = [k for k in STANDARD_KONFIGURATIONEN if not args.nur or k.name == args.nur]
     if not konfigs:
         verfuegbar = ", ".join(k.name for k in STANDARD_KONFIGURATIONEN)
         print(f"Unbekannt: {args.nur}. Verfügbar: {verfuegbar}", file=sys.stderr)

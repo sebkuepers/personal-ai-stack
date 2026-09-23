@@ -322,11 +322,39 @@ class LektoratErgebnis(BaseModel):
         return z
 
 
-class JudgeUrteil(BaseModel):
-    """Ausgabe von ``buch-judge`` — ein Agent für alle Kriterien, Kriterium kommt als Eingabe."""
+class UebersehenerFehler(BaseModel):
+    """Ein Fehler, den die erste Stufe nicht gemeldet hat."""
 
     model_config = ConfigDict(extra="forbid")
 
-    score: int = Field(ge=1, le=5)
-    begruendung: str
-    verstoesse: list[str] = Field(default_factory=list)
+    absatz_index: int
+    search: str
+    replace: str
+    art: str
+    warum: str
+
+
+class UnberechtigterBefund(BaseModel):
+    """Ein gemeldeter Befund, der keiner ist."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nummer: int = Field(description="Position in der vorgelegten Liste, ab 1")
+    warum: str
+
+
+class Gegenlesung(BaseModel):
+    """Ausgabe von ``buch-gegenlesen`` — das zweite Augenpaar.
+
+    Anders als der frühere Judge sieht dieser Agent **denselben Text** wie die
+    erste Stufe, nicht nur deren Vorschläge. Nur so kann er die Frage
+    beantworten, auf die es beim Vier-Augen-Prinzip ankommt: Hat der Erste das
+    richtig erfasst? Ein Prüfer, der nur Vorschläge sieht, kann gar nicht
+    bemerken, dass einer fehlt — und läuft bei null Vorschlägen nie an.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    uebersehen: list[UebersehenerFehler] = Field(default_factory=list)
+    unberechtigt: list[UnberechtigterBefund] = Field(default_factory=list)
+    urteil: str

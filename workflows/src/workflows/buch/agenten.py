@@ -24,7 +24,13 @@ from mistralai.workflows.plugins.mistralai.activities import (
 from pydantic import BaseModel
 
 from . import config
-from .models import JudgeUrteil, Korrekturen, StimmProbe, StimmProfilRoh, Stilvorschlaege
+from .models import (
+    Gegenlesung,
+    Korrekturen,
+    StimmProbe,
+    StimmProfilRoh,
+    Stilvorschlaege,
+)
 
 
 def _extract_text(response: mistralai_models.ConversationResponse) -> str:
@@ -210,35 +216,34 @@ async def stil_pruefen(
 
 
 @workflows.activity(
-    retry_policy_max_attempts=2,
+    retry_policy_max_attempts=3,
     retry_policy_backoff_coefficient=2.0,
-    start_to_close_timeout=timedelta(seconds=60),
+    start_to_close_timeout=timedelta(seconds=180),
 )
-async def bewerte(auftrag: dict) -> dict:
-    """Bewertet EINEN Vorschlag nach EINEM Kriterium.
+async def gegenlese(
+    titel: str, absaetze: list[str], befunde: list[dict], kontext: str = ""
+) -> dict:
+    """Das zweite Augenpaar über einem Lektorat.
 
-    Ein einzelnes ``dict`` als Argument, damit die Bewertungen über
-    ``execute_activities_in_parallel`` laufen können. Erwartete Schlüssel:
-    ``kriterium``, ``frage``, ``original``, ``vorschlag``, ``warum``,
-    optional ``kontext``.
+    Bekommt DENSELBEN Abschnitt wie die erste Stufe, dazu deren Befunde. Der
+    frühere Judge bekam nur ``search`` und ``replace`` — einen Schnipsel ohne
+    den Satz, in dem er steht — und konnte schon deshalb nicht beurteilen, ob
+    ein Fehler behoben wird. Und weil er je Befund lief, lief er bei null
+    Befunden nie: Ein übersehener Fehler war unsichtbar.
     """
-    teile = [
-        f"KRITERIUM: {auftrag['kriterium']}",
-        f"FRAGE: {auftrag['frage']}",
-        "",
-        f"ORIGINAL:   {auftrag['original']}",
-        f"VORSCHLAG:  {auftrag['vorschlag']}",
-        f"BEGRÜNDUNG DES LEKTORS: {auftrag.get('warum', '—')}",
-    ]
-    if auftrag.get("kontext"):
-        teile += ["", "=== KONTEXT ===", auftrag["kontext"]]
-
-    urteil = await _trigger(config.AGENTS["judge"], "\n".join(teile), JudgeUrteil)
-    return {
-        "kriterium": auftrag["kriterium"],
-        "index": auftrag.get("index"),
-        **urteil.model_dump(mode="json"),
-    }
+    liste = "\n".join(
+        f"{i}. Absatz {b.get('absatz_index')}: „{b.get('search')}“ → „{b.get('replace')}“"
+        f" ({b.get('art', '')}) — {b.get('warum', '')}"
+        for i, b in enumerate(befunde, start=1)
+    ) or "(keine)"
+    payload = (
+        f"ABSCHNITT: {titel}\n\n--- ABSÄTZE ---\n{_absatzblock(absaetze)}\n\n"
+        f"--- BEFUNDE DER ERSTEN STUFE ---\n{liste}"
+    )
+    if kontext:
+        payload += f"\n\n=== KONTEXT ===\n{kontext}"
+    ergebnis = await _trigger(config.AGENTS["gegenlesen"], payload, Gegenlesung)
+    return ergebnis.model_dump(mode="json")
 
 
 @workflows.activity(
