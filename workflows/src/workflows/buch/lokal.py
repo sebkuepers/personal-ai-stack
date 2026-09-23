@@ -163,3 +163,52 @@ async def liste_werke() -> list[dict]:
             continue
         werke.append({"slug": name, "titel": w.get("titel", name)})
     return werke
+
+
+@workflows.activity(
+    retry_policy_max_attempts=2,
+    start_to_close_timeout=timedelta(seconds=60),
+)
+async def lies_kapitel(werk: str, kapitel: str) -> dict:
+    """Ein ganzes Kapitel mit allen Abschnitten — die Eingabe der Inhaltsebene.
+
+    Ebene 3 urteilt über Bögen, Besetzung und Auslassungen. Das ist am einzelnen
+    Abschnitt nicht zu sehen, deshalb kommt hier das Kapitel am Stück.
+    """
+    m = _manuskript(werk)
+    drin = [a for a in m.abschnitte if a.hat_text and a.pfad and a.pfad[0] == kapitel]
+    if not drin:
+        raise ValueError(f"Kapitel {kapitel!r} hat in {werk} keinen Text.")
+    return {
+        "kapitel": kapitel,
+        "abschnitte": [
+            {
+                "titel": a.titel,
+                "pfad": a.pfad,
+                "text": a.text,
+                "woerter": a.woerter,
+                "synopsis": a.synopsis or "",
+                "status": a.status,
+                "etikett": a.etikett,
+            }
+            for a in drin
+        ],
+        "woerter": sum(a.woerter for a in drin),
+    }
+
+
+@workflows.activity(
+    retry_policy_max_attempts=2,
+    start_to_close_timeout=timedelta(seconds=30),
+)
+async def lade_kontext(werk: str, name: str) -> str:
+    """Ein Kontextdokument aus ``kontext/`` — Exposé, Kapitelplan, was dazukommt.
+
+    Leerer String, wenn es fehlt: Ein fehlendes Exposé soll die Prüfung nicht
+    verhindern, nur schwächer machen — und das steht dann in den Hinweisen.
+    """
+    ordner = config.werk_pfad(werk, "kontext")
+    datei = ordner / f"{name}.md"
+    if not datei.is_file():
+        return ""
+    return datei.read_text(encoding="utf-8")

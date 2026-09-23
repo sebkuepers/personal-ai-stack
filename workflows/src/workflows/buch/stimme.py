@@ -178,12 +178,12 @@ def render_fuer_agent(profil: Stimmprofil) -> str:
             f"\n[{r.id}] {r.titel}",
             f"  {r.regel}",
             f"  Erkennbar an: {r.pruefbar_als}",
-            # Beschriftung: Die Fundstelle ist der VERSTOSS, nicht das Vorbild. Eine
-            # frühere Fassung nannte sie „Beleg" und die Korrektur „Verstoß klänge wie"
-            # — genau verkehrt herum. Der Stil-Agent las daraus, der Autor schreibe
-            # bürosprachlich, und schlug prompt Bürosprache vor.
-            f"  So steht es im Text (Verstoß): „{r.fundstellen[0]}“",
-            f"  So wäre es richtig: „{r.so_geht_es}“",
+            # Beschriftung, dritter Anlauf. Erst hieß die Fundstelle „Beleg" und
+            # war ein Verstoß; dann „Verstoß" und war ein Vorbild. Jetzt ist die
+            # Sache selbst geklärt: Regeln beschreiben, was der Autor TUT, die
+            # Fundstelle zeigt es, und ``so_geht_es`` ist die Gegenprobe.
+            f"  So macht er es: „{r.fundstellen[0]}“",
+            f"  So klänge es von jemand anderem: „{r.so_geht_es}“",
         ]
     if profil.vermeidungen:
         zeilen += ["", "DAS TUT DER AUTOR NIE:"]
@@ -217,11 +217,11 @@ def render_markdown(profil: Stimmprofil) -> str:
             "",
             f"**Erkennbar an:** {r.pruefbar_als}",
             "",
-            "**Fundstellen im Manuskript — so steht es dort, also als Verstoß:**",
+            "**So macht er es — Stellen aus dem Manuskript:**",
             "",
         ]
         zeilen += [f"> {b}" for b in r.fundstellen]
-        zeilen += ["", f"**So wäre es richtig:** {r.so_geht_es}", ""]
+        zeilen += ["", f"**So klänge dieselbe Stelle von jemand anderem:** {r.so_geht_es}", ""]
 
     if profil.vermeidungen:
         zeilen += ["## Was der Autor nie tut", ""]

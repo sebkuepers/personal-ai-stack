@@ -90,6 +90,10 @@ buch-test:
 
 ## STIMMPROFIL — die Erzählstimme eines Werks destillieren (Worker muss laufen)
 ## Usage: make buch-stimmprofil werk=immer-wieder-ruegen
+.PHONY: buch-inhalt
+buch-inhalt:  ## Ebene 3 — ein Kapitel gegen seine Rubrik  (kapitel="Voll zur Oma")
+	uv run python -m buchcli.inhalt --werk $${werk:-immer-wieder-ruegen} --kapitel "$(kapitel)"
+
 .PHONY: buch-uebersicht buch-lektorat-chat
 buch-uebersicht:  ## Struktur, Dichte und Stand eines Buchs (Canvas + Diagramme)
 	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli buch-uebersicht \

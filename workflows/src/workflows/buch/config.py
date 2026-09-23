@@ -89,6 +89,11 @@ def scrivener_pfad(slug: str, *, test: bool = False) -> Path:
     return pfade["scrivener_test"] if test else pfade["scrivener"]
 
 
+def werk_pfad(slug: str, name: str) -> Path:
+    """Ein benannter Pfad aus ``pfade`` der Werk-Konfiguration (``kontext``, ``pdf``, …)."""
+    return lade_werk(slug)["pfade"][name]
+
+
 def kapitel_nach_titel(slug: str, titel: str) -> dict[str, Any] | None:
     """Findet ein Kapitel des Werks über seinen Binder-Titel.
 

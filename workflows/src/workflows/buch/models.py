@@ -63,17 +63,22 @@ class StimmregelRoh(BaseModel):
 
     id: str = Field(description="Kurzer Bezeichner, z. B. R-behauptung-statt-bild")
     titel: str
-    regel: str = Field(description="Die Regel als Anweisung, die man befolgen oder verletzen kann")
-    warum: str
-    fundstellen: list[int] = Field(
+    regel: str = Field(
         description=(
-            "Mindestens zwei NUMMERN aus dem Satzkatalog — Sätze, an denen diese Regel "
-            "greift. Keine abgetippten Zitate: Der Agent zeigt auf Sätze, er schreibt sie "
-            "nicht ab. Python löst die Nummern danach in den exakten Wortlaut auf."
+            "Was der Autor TUT, als überprüfbare Aussage — nie ein Verbot. Aus seinem "
+            "fertigen Text lässt sich kein Verbot belegen, weil darin keine Verstöße stehen."
+        )
+    )
+    warum: str
+    fundstellen: list[str] = Field(
+        description=(
+            "Mindestens zwei Einträge aus dem SATZKATALOG — entweder die Nummer in eckigen "
+            "Klammern oder der Satz wortgleich. Python löst beides gegen den Katalog auf; "
+            "was dort nicht steht, wird verworfen."
         )
     )
     so_geht_es: str = Field(
-        description="Die erste Fundstelle, umformuliert, sodass sie der Regel folgt"
+        description="Die erste Fundstelle, umgeschrieben, sodass sie der Regel NICHT mehr folgt"
     )
     pruefbar_als: str = Field(description="Woran ein Lektor oder Agent den Verstoß erkennt")
     quelle: Literal["manuskript", "notizen"]
@@ -419,3 +424,76 @@ class LektoratSitzung(BaseModel):
     @property
     def angenommen(self) -> list[Entscheidung]:
         return [e for e in self.entscheidungen if e.entscheidung == "angenommen"]
+
+
+# ---------------------------------------------------------------------------
+# Ebene 3 — Inhalt
+# ---------------------------------------------------------------------------
+
+
+class PruefsteinUrteil(BaseModel):
+    """Wie ein Kapitel gegen einen der beiden Prüfsteine des Werks dasteht."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    frage: str
+    urteil: Literal["haelt", "wackelt", "faellt"]
+    begruendung: str
+    stellen: list[str] = Field(
+        default_factory=list, description="Abschnittstitel, an denen man es sieht"
+    )
+
+
+class TragendePunkt(BaseModel):
+    """Ein Punkt aus ``muss_tragen`` — und ob das Kapitel ihn einlöst."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    punkt: str
+    getragen: Literal["ja", "teilweise", "nein"]
+    abschnitte: list[str] = Field(default_factory=list)
+    warum: str
+
+
+class Streichkandidat(BaseModel):
+    """Eine Stelle, die das Kapitel nicht braucht."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    abschnitt: str
+    umfang: str = Field(description="Ganzer Abschnitt, eine Szene, ein Absatz")
+    grund: str
+
+
+class InhaltBefund(BaseModel):
+    """Ausgabe von ``buch-inhalt`` — Ebene 3, ein ganzes Kapitel.
+
+    **Diese Ebene ändert nichts.** Kein ``search``, kein ``replace``, nirgends.
+    Sie stellt Fragen und benennt, was fehlt — weil die Antwort darauf Schreiben
+    ist, nicht Ersetzen. Ein Vorschlag, der einen Absatz umformuliert, wäre hier
+    Anmaßung; ein Hinweis, dass die Pan-Pan-Szene 800 Zeichen hat und der
+    emotionale Mittelpunkt sein soll, ist Arbeit.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kapitel_these: str = Field(
+        description="Wovon dieses Kapitel handelt — in einem Satz, aus dem Text gelesen"
+    )
+    # OHNE Standardwert, also im JSON-Schema unter `required`.
+    #
+    # Mit `default_factory=list` blieben beide Listen leer — zweimal, auch nach
+    # einer ausdrücklichen Anweisung im Prompt und mit doppeltem Token-Budget.
+    # Der Grund ist simpel: Ein Feld mit Standardwert steht nicht unter
+    # `required`, und dann darf das Modell es weglassen. Es tut es auch. Was
+    # Pflicht ist, gehört ins Schema, nicht in die Prosa.
+    pruefsteine: list[PruefsteinUrteil]
+    traegt: list[TragendePunkt]
+    zu_viel: list[Streichkandidat] = Field(
+        default_factory=list, description="Was laut Rubrik NICHT getragen werden muss, aber dasteht"
+    )
+    streichkandidaten: list[Streichkandidat] = Field(default_factory=list)
+    fragen_an_den_autor: list[str] = Field(
+        default_factory=list,
+        description="Was sich von außen nicht entscheiden lässt — höchstens fünf",
+    )

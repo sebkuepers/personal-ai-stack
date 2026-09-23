@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT / "workflows" / "src"))
 from workflows.buch import config as c  # noqa: E402
 from workflows.buch.models import (  # noqa: E402
     Gegenlesung,
+    InhaltBefund,
     Korrekturen,
     StimmProbe,
     StimmProfilRoh,
@@ -110,15 +111,32 @@ WEITERE REGELN:
    Lektoratsnotizen fließen bewusst nicht ein: Sie sagen, was der Autor an einzelnen Stellen
    korrigiert hat, nicht, wie er schreibt.
 
-4. "so_geht_es": die erste Fundstelle, von dir so umformuliert, dass sie der Regel folgt.
-   Zusammen ergeben "fundstellen" und "so_geht_es" ein Vorher/Nachher-Paar, an dem die Regel
-   überprüfbar wird.
+4. "so_geht_es": die erste Fundstelle, von dir so umgeschrieben, dass sie der Regel NICHT mehr
+   folgt — also wie es klänge, wenn jemand anderes dieselbe Stelle geschrieben hätte. Zusammen
+   mit der Fundstelle ergibt das ein Paar, an dem man die Regel sehen kann: so macht er es, so
+   macht man es sonst.
 
-4a. BESCHREIBE DIESEN AUTOR, ERZIEHE IHN NICHT. Eine Regel muss aus dem Text hervorgehen, nicht
-   aus einem Schreibratgeber. „Vermeide elliptische Sätze" ist für diesen Autor falsch — er setzt
-   sie bewusst („Kein Wind. Keine Welle."). Frage bei jeder Regel: Würde der Autor ihr zustimmen,
-   wenn ich ihm die Fundstellen zeige? Wenn du nur allgemeine Stilratschläge findest, gib lieber
-   weniger Regeln zurück und schreibe den Rest unter "offene_fragen".
+4a. JEDE REGEL BESCHREIBT, WAS DER AUTOR TUT — NIEMALS, WAS ER VERMEIDEN SOLL.
+
+   Formuliere sie als Aussage über seine Schreibweise: „Stellt Handlungen direkt dar", „Lässt
+   direkte Rede ohne einleitendes Verb stehen", „Setzt Fachbegriffe unübersetzt ein". NICHT
+   „Vermeide X", „Keine Y".
+
+   Der Grund ist zwingend: Du bekommst ausschließlich seinen fertigen Text. Darin gibt es keine
+   Verstöße gegen ein Verbot — also kannst du ein Verbot nicht belegen. Ein Verbot mit einer
+   Fundstelle, die es einhält, beweist nichts. Gemessen: In einem Lauf waren 8 von 12 Regeln
+   Verbote, und JEDE Fundstelle zeigte einen Satz ohne den verbotenen Befund. Eine dieser Regeln
+   („Vermeidet elliptische Sätze") stand sogar im direkten Widerspruch zum Text — „Kein Wind.
+   Keine Welle." ist die Handschrift dieses Autors.
+
+   Eine beschreibende Regel ist dagegen belegbar: Die Fundstelle ZEIGT, wie er es macht.
+
+   Was er NICHT tut, gehört in "vermeidungen" — dort wird kein Beleg verlangt, weil es keinen
+   geben kann.
+
+4b. Prüfe jede Regel gegen ihre eigene Fundstelle: Sieht man das, was die Regel behauptet, in
+   diesem Satz tatsächlich? Wenn nein, ist es die falsche Fundstelle oder die falsche Regel —
+   beides ein Grund, sie wegzulassen.
 
 5. "pruefbar_als" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.
 
@@ -218,6 +236,51 @@ REGELN:
 
 Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 
+
+INHALT = """\
+Du liest ein ganzes Kapitel eines deutschsprachigen Buchmanuskripts und prüfst es gegen eine
+RUBRIK, die der Autor selbst aufgestellt hat. Sie kommt mit der Eingabe.
+
+DU ÄNDERST NICHTS. Kein Vorschlag, keine Umformulierung, kein Satz, der besser klingt. Auf dieser
+Ebene ist die Antwort auf ein Problem Schreiben, nicht Ersetzen — und schreiben tut der Autor.
+Deine Arbeit ist, ihm zu zeigen, wo das Kapitel seine eigene Rubrik nicht einlöst.
+
+DIE RUBRIK HAT VORRANG VOR DEINEM GESCHMACK. Steht dort, ein Kapitel müsse eine bestimmte Szene
+tragen, dann ist ihr Fehlen ein Befund — auch wenn das Kapitel ohne sie rund wirkt. Steht dort,
+etwas müsse NICHT getragen werden, dann ist seine Anwesenheit ein Befund — auch wenn es gut
+geschrieben ist.
+
+REGELN:
+
+1. "kapitel_these": Wovon handelt dieses Kapitel, in EINEM Satz — gelesen aus dem Text, nicht aus
+   der Rubrik. Der Vergleich der beiden ist oft der wichtigste Befund überhaupt.
+
+2. "pruefsteine" IST PFLICHT und wird ZUERST ausgefüllt. Zu JEDER mitgelieferten Frage ein
+   Urteil — "haelt", "wackelt" oder "faellt" — mit Begründung und den Abschnittstiteln, an denen
+   man es sieht. Ein Urteil ohne benannte Stelle ist wertlos. Eine leere Liste ist hier KEIN
+   gültiges Ergebnis: Die Fragen stehen in der Eingabe, also sind sie zu beantworten.
+
+3. "traegt" IST PFLICHT. Zu JEDEM Punkt aus "muss tragen" — ausnahmslos jedem, auch den
+   offensichtlichen — ein Urteil: ja, teilweise, nein. Bei "ja" oder "teilweise" nennst du die
+   Abschnitte, in denen es steht. Bei "nein" sagst du, was fehlt. Die Liste hat genau so viele
+   Einträge, wie die Rubrik Punkte nennt.
+
+   Diese beiden Felder sind der Kern der Prüfung. Streichkandidaten und Fragen sind Beiwerk —
+   wenn die Antwort lang zu werden droht, kürze DORT, niemals hier.
+
+4. "zu_viel": Was laut Rubrik NICHT getragen werden muss, aber trotzdem im Kapitel steht.
+
+5. "streichkandidaten": Stellen, die das Kapitel nicht braucht — mit Abschnitt, Umfang und Grund.
+   Sei zurückhaltend. Ein Kapitel, aus dem nichts zu streichen ist, gibt es.
+
+6. "fragen_an_den_autor": HÖCHSTENS FÜNF. Nur Fragen, die sich von außen nicht entscheiden lassen
+   und deren Antwort das Kapitel verändern würde. Keine rhetorischen Fragen, keine Fragen, deren
+   Antwort im Text steht.
+
+7. Wenn das Kapitel seine Rubrik erfüllt, sag das. Eine Prüfung, die immer etwas findet, nimmt
+   niemand mehr ernst.
+
+Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 
 GEGENLESEN = """\
 Du bist das zweite Augenpaar über einem Lektorat.
@@ -324,6 +387,23 @@ AGENTS = [
         "max_tokens": 4096,
         "modell": Stilvorschlaege,
         "schema_name": "stilvorschlaege",
+    },
+    {
+        "datei": "buch-inhalt.json",
+        "name": "Buch · Inhalt",
+        "description": (
+            "Ebene 3: prüft ein ganzes Kapitel gegen die Rubrik des Autors — Prüfsteine, was es "
+            "tragen muss und was nicht. Stellt Fragen, ändert nichts."
+        ),
+        "instructions": INHALT,
+        "model": c.MODELS["inhalt"],
+        "temperature": 0.2,
+        # Ein Kapitel hat leicht sechs „muss tragen"-Punkte und zwei Prüfsteine,
+        # jeweils mit Begründung und Belegstellen. Mit 4096 blieben beide Listen
+        # leer — das Modell fing hinten an und kam nicht mehr dazu.
+        "max_tokens": 8192,
+        "modell": InhaltBefund,
+        "schema_name": "inhalt_befund",
     },
     {
         "datei": "buch-gegenlesen.json",

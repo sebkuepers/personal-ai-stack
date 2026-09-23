@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from . import config
 from .models import (
     Gegenlesung,
+    InhaltBefund,
     Korrekturen,
     StimmProbe,
     StimmProfilRoh,
@@ -139,6 +140,14 @@ async def probiere_stimme(abschnitt: dict) -> dict:
     return {"uuid": abschnitt.get("uuid"), "titel": abschnitt["titel"], **probe.model_dump(mode="json")}
 
 
+def _vergleichbar(text: str) -> str:
+    """Vergleichsform für den Katalogabgleich: Leerraum und Anführungszeichen egal."""
+    einheitlich = " ".join(str(text).split())
+    for a, b in (("„", '"'), ("“", '"'), ("”", '"'), ("‚", "'"), ("‘", "'"), ("’", "'")):
+        einheitlich = einheitlich.replace(a, b)
+    return einheitlich.strip(" \"'.,;:!?").lower()
+
+
 def _satzkatalog(proben: list[dict]) -> list[str]:
     """Alle wörtlich belegten Sätze aus den Proben, entdoppelt und stabil geordnet.
 
@@ -195,13 +204,28 @@ async def verdichte_stimme(
         config.AGENTS["stimme_profil"], "\n".join(teile), StimmProfilRoh
     )
     roh = profil.model_dump(mode="json")
-    # Nummern in Wortlaut auflösen. Eine Nummer außerhalb des Katalogs wird
-    # verworfen — das ist der einzige Weg, auf dem hier noch etwas Erfundenes
-    # ankommen könnte, und er endet hier.
+    # Gegen den Katalog auflösen — Nummern ODER Wortlaut.
+    #
+    # Gedacht war: nur Nummern, denn eine Nummer kann man nicht paraphrasieren.
+    # Gemessen: Das Modell schreibt trotzdem Sätze, auch mit ``strict: true`` im
+    # Schema — strict erzwingt Enums, aber keine Zahlentypen. Ein ``list[int]``
+    # ließ die Validierung dreimal scheitern und den Lauf hängen.
+    #
+    # Also beides annehmen und in Python auflösen. Die Garantie bleibt
+    # unverändert: Was im Katalog nicht steht, fällt raus. Nur der Weg dorthin
+    # ist jetzt tolerant statt starr.
+    nach_wortlaut = {_vergleichbar(s): s for s in katalog}
     for r in roh.get("regeln", []):
-        r["fundstellen"] = [
-            katalog[n] for n in r.get("fundstellen", []) if 0 <= n < len(katalog)
-        ]
+        aufgeloest: list[str] = []
+        for eintrag in r.get("fundstellen", []):
+            text = str(eintrag).strip().strip("[]")
+            if text.isdigit() and 0 <= int(text) < len(katalog):
+                aufgeloest.append(katalog[int(text)])
+                continue
+            treffer = nach_wortlaut.get(_vergleichbar(text))
+            if treffer:
+                aufgeloest.append(treffer)
+        r["fundstellen"] = aufgeloest
     return roh
 
 
@@ -242,6 +266,70 @@ async def stil_pruefen(
         f"=== ABSCHNITT: {titel} ===\n{_absatzblock(absaetze)}"
     )
     ergebnis = await _trigger(config.AGENTS["stil"], payload, Stilvorschlaege)
+    return ergebnis.model_dump(mode="json")
+
+
+@workflows.activity(
+    retry_policy_max_attempts=3,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=300),
+)
+async def pruefe_inhalt(
+    kapitel: dict, rubrik: dict, pruefsteine: dict, expose: str = ""
+) -> dict:
+    """Ebene 3: ein ganzes Kapitel gegen die Rubrik des Autors.
+
+    Drei Maßstäbe, in dieser Reihenfolge der Verbindlichkeit: die **Rubrik** des
+    Kapitels (was es tragen muss), die **Prüfsteine** des Werks (die zwei Fragen)
+    und das **Exposé** (was das Buch insgesamt sein soll). Das Exposé steht
+    bewusst zuletzt und wird ausdrücklich als Absicht gekennzeichnet — es
+    beschreibt das Buch, wie es Verlagen angeboten wird, nicht wie das Manuskript
+    ist. Wer beides verwechselt, hält jede Abweichung für einen Fehler.
+    """
+    teile: list[str] = []
+    if expose:
+        teile += [
+            "=== EXPOSÉ — was das Buch werden SOLL (Absicht, nicht Ist-Zustand) ===",
+            expose.strip(),
+            "",
+        ]
+    teile += ["=== PRÜFSTEINE DES WERKS — die zwei Fragen an jedes Kapitel ==="]
+    for schluessel in ("erste_frage", "zweite_frage"):
+        frage = pruefsteine.get(schluessel) or {}
+        if frage.get("regel"):
+            teile.append(f"- {frage['regel']}")
+            if frage.get("erlaeuterung"):
+                teile.append(f"  {frage['erlaeuterung']}")
+    teile.append("")
+
+    teile += [f"=== RUBRIK FÜR DIESES KAPITEL: {rubrik.get('titel', '')} ==="]
+    if rubrik.get("untertitel"):
+        teile.append(f"Untertitel: {rubrik['untertitel']}")
+    for feld, ueberschrift in (
+        ("beweist", "Beweist"),
+        ("muss_tragen", "Muss tragen"),
+        ("muss_nicht_tragen", "Muss NICHT tragen"),
+        ("offene_arbeit", "Offene Arbeit laut Plan"),
+    ):
+        werte = rubrik.get(feld) or []
+        if werte:
+            teile.append(f"{ueberschrift}:")
+            teile += [f"  - {w}" for w in werte]
+    for feld, ueberschrift in (("register", "Register"), ("zeit", "Zeit"), ("an_bord", "An Bord")):
+        if rubrik.get(feld):
+            teile.append(f"{ueberschrift}: {rubrik[feld]}")
+    if rubrik.get("historie_budget") is not None:
+        teile.append(f"Historie-Budget: {rubrik['historie_budget']} Stellen")
+    teile.append("")
+
+    teile.append(f"=== DAS KAPITEL: {kapitel['kapitel']} ({kapitel['woerter']} Wörter) ===")
+    for a in kapitel["abschnitte"]:
+        teile.append(f"\n## {a['titel']}  ({a['woerter']} Wörter, {a['status'] or 'ohne Status'})")
+        if a.get("synopsis"):
+            teile.append(f"> Absicht laut Scrivener: {a['synopsis']}")
+        teile.append(a["text"])
+
+    ergebnis = await _trigger(config.AGENTS["inhalt"], "\n".join(teile), InhaltBefund)
     return ergebnis.model_dump(mode="json")
 
 

@@ -136,8 +136,8 @@ def kontext_markdown(werk: dict) -> str:
     return "\n".join(z).strip()
 
 
-def in_library(md: Path, werk: dict) -> str:
-    """Lädt das Manuskript in die Mistral Library des Werks.
+def in_library(dateien: list[Path], werk: dict) -> str:
+    """Lädt Manuskript und Kontextdokumente in die Mistral Library des Werks.
 
     Legt die Library an, falls in der Werk-Konfiguration noch keine ID steht; die
     ID muss danach von Hand in ``shared/buch/<slug>.json`` eingetragen werden
@@ -159,16 +159,20 @@ def in_library(md: Path, werk: dict) -> str:
         print(f"  Library angelegt: {lib_id}")
         print(f"  → in shared/buch/{werk['slug']}.json unter mistral.library_id eintragen!")
 
+    namen = {d.name for d in dateien}
     # Frühere Fassungen entfernen, damit die Library nie zwei Stände enthält.
     for doc in client.beta.libraries.documents.list(library_id=lib_id).data:
-        if doc.name == md.name:
+        if doc.name in namen:
             client.beta.libraries.documents.delete(library_id=lib_id, document_id=doc.id)
 
-    with md.open("rb") as fh:
-        doc = client.beta.libraries.documents.upload(library_id=lib_id, file={
-            "file_name": md.name, "content": fh,
-        })
-    return f"{lib_id} / {doc.id}"
+    geladen = []
+    for datei in dateien:
+        with datei.open("rb") as fh:
+            client.beta.libraries.documents.upload(library_id=lib_id, file={
+                "file_name": datei.name, "content": fh,
+            })
+        geladen.append(datei.name)
+    return f"{lib_id}: " + ", ".join(geladen)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -232,7 +236,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  → {kap_dir}/ ({len(m.kapitel)} Kapitel)")
 
     if args.library:
-        print(f"  → Library: {in_library(md_pfad, werk)}")
+        # Neben dem Manuskript alles, was in `kontext/` als Markdown liegt:
+        # Exposé, Kapitelplan, was noch kommt. Eine Konvention statt einer Liste
+        # in der Config — wer ein Dokument dazulegt, muss nichts eintragen.
+        kontext_ordner = c.werk_pfad(werk["slug"], "kontext")
+        dateien = [md_pfad]
+        if kontext_ordner.is_dir():
+            dateien += sorted(kontext_ordner.glob("*.md"))
+        print(f"  → Library: {in_library(dateien, werk)}")
 
     return 0
 
