@@ -22,7 +22,9 @@ def _find_shared_config() -> Path:
     env = os.environ.get("CRM_CONFIG_PATH")
     if env:
         return Path(env)
-    here = Path(__file__).resolve()
+    # Kein .resolve(): Die Temporal-Sandbox verbietet pathlib.Path.resolve,
+    # und __file__ ist beim Import ohnehin absolut.
+    here = Path(__file__)
     for parent in here.parents:
         candidate = parent / "shared" / "crm.json"
         if candidate.is_file():

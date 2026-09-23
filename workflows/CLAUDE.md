@@ -174,7 +174,27 @@ in the examples.
 8. **`store=False`** on `ConversationRequest` avoids persisting throwaway
    classification conversations in Studio.
 
-9. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
+9. **`Path(__file__).resolve()` sprengt die Sandbox.** Temporal verbietet
+   `pathlib.Path.resolve` in Workflow-Code. Ein `config.py`, das beim Import eine
+   Datei sucht, reißt damit **jedes** Modul mit, das es direkt oder transitiv
+   importiert (auch über `connectors.py`) — der Worker startet dann gar nicht.
+   `__file__` ist beim Import ohnehin absolut, also einfach `Path(__file__)`
+   ohne `.resolve()` benutzen. Wichtig: Die Offline-Discovery-Prüfung findet das
+   **nicht**, weil sie nur importiert und nicht validiert. Nur ein echter
+   Worker-Start zeigt es.
+
+10. **Passthrough gilt für Modul*namen*, nicht für Paket-Attribute.** Innerhalb
+    von `imports_passed_through()` wirkt `from paket.modul import X` und
+    `import paket.modul as m`, aber `from paket import modul` nicht — Python löst
+    das als Attributzugriff auf und die Sandbox greift trotzdem.
+
+11. **Auto-angelegte Deployments sind nicht „hardened".** Ein Worker mit einem
+    `DEPLOYMENT_NAME`, den Mistral selbst angelegt hat, bekommt beim Registrieren
+    **HTTP 403 / `WF_1104`**. Die Freigabe erfolgt einmalig im Admin-Panel
+    (der Fehler liefert den Link mit). Das ist serverseitig neu — ein Worker, der
+    früher lief, kann daran ohne Codeänderung scheitern.
+
+12. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
 
