@@ -241,3 +241,43 @@ def korrigiere_absatz_index(
             grund = "nicht gefunden" if gesamt == 0 else f"{gesamt}-mal im Abschnitt, nicht eindeutig"
             hinweise.append(f"verworfen ({grund}): {b.search[:50]!r}")
     return behalten, hinweise
+
+
+def baue_rueckmeldung(abgelehnt: list[BefundMitUrteil], runde: int) -> str:
+    """Formuliert das Judge-Urteil als Auftrag an den Agent.
+
+    Bewusst nicht „mach es besser“, sondern: Hier ist dein Vorschlag, hier ist
+    das Urteil, und hier sind deine drei Möglichkeiten. Ein Modell, dem man nur
+    sagt, etwas sei falsch, wiederholt oft dasselbe leicht umformuliert.
+
+    Die dritte Möglichkeit — **zurückziehen** — ist die wichtigste. Ohne sie
+    erfindet der Agent Alternativen für Befunde, die von vornherein keine waren.
+    """
+    zeilen = [
+        f"ÜBERARBEITUNG, RUNDE {runde}.",
+        "",
+        "Eine unabhängige Prüfung hat folgende deiner Vorschläge abgelehnt:",
+        "",
+    ]
+    for i, b in enumerate(abgelehnt, start=1):
+        noten = ", ".join(f"{k} {v}/5" for k, v in b.judge.items())
+        zeilen += [
+            f"{i}. „{b.search}“ → „{b.replace}“",
+            f"   Bewertung: {noten}" + (f" · {b.sperrgrund}" if b.sperrgrund else ""),
+            f"   Deine Begründung war: {b.warum}",
+            "",
+        ]
+    zeilen += [
+        "Für JEDEN dieser Punkte hast du genau drei Möglichkeiten:",
+        "",
+        "  A) ZURÜCKZIEHEN — er war kein Befund. Lass ihn in der neuen Antwort einfach weg.",
+        "     Das ist oft die richtige Wahl und kostet dich nichts.",
+        "  B) ENGER FASSEN — der Kern stimmt, aber du hast zu viel geändert. Schlage die",
+        "     kleinstmögliche Änderung vor, die nur den benannten Fehler behebt.",
+        "  C) UNVERÄNDERT LASSEN — nur wenn du überzeugt bist, dass die Prüfung irrt.",
+        "     Dann begründe in 'warum' ausdrücklich, warum der Einwand nicht zutrifft.",
+        "",
+        "Die nicht beanstandeten Vorschläge übernimmst du unverändert.",
+        "Antworte wieder mit dem vollständigen JSON — alle Befunde, die bestehen bleiben sollen.",
+    ]
+    return "\n".join(zeilen)

@@ -64,6 +64,8 @@ class Pruefung:
         beidseitig, damit ein Agent mehr oder weniger Kontext mitnehmen darf)
       * ``gleich``    — irgendein Wert am Pfad ist genau ``wert``
       * ``existiert`` — am Pfad steht überhaupt etwas Nichtleeres
+      * ``unveraendert`` — zwei Pfade elementweise: ein „Befund“, der nichts
+        ändert. Eine Invariante, deshalb ohne Annotation prüfbar.
       * ``paar``      — zwei Pfade zugleich: ``wert`` ist ``[von, nach]``; trifft
         zu, wenn ein Element beide Teile erfüllt. Für Befundlisten gedacht
         („meldet ``runter`` **und** ersetzt es durch ``hinunter``“).
@@ -84,6 +86,17 @@ class Pruefung:
         if self.operator == "gleich":
             return any(_norm(w) == _norm(self.wert) for w in werte)
 
+        if self.operator == "unveraendert":
+            # Zwei Pfade, elementweise: ein "Befund", der nichts ändert. Das ist
+            # eine Invariante und deshalb ohne Annotation prüfbar — genau die
+            # Fehlerklasse, die eine reine Fallenmessung übersieht.
+            zweite = hole(antwort, self.paar_pfad or self.pfad)
+            rand = " \t.!?,;:„“\"'"
+            return any(
+                _norm(a).strip(rand) == _norm(b).strip(rand)
+                for a, b in zip(werte, zweite, strict=False)
+            )
+
         if self.operator == "paar":
             von, nach = self.wert
             zweite = hole(antwort, self.paar_pfad or self.pfad)
@@ -97,6 +110,8 @@ class Pruefung:
         return any(ziel and (ziel in _norm(w) or _norm(w) in ziel) for w in werte if w)
 
     def beschreibe(self) -> str:
+        if self.operator == "unveraendert":
+            return "Befund ohne Änderung (search == replace)"
         if self.operator == "paar":
             return f"{self.wert[0]} → {self.wert[1]}"
         return f"{self.pfad} {self.operator} {self.wert!r}"

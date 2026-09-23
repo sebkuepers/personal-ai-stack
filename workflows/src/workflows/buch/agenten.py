@@ -16,7 +16,11 @@ import json
 from datetime import timedelta
 import mistralai.workflows as workflows
 from mistralai.client import models as mistralai_models
-from mistralai.workflows.plugins.mistralai.activities import mistralai_start_conversation
+from mistralai.workflows.plugins.mistralai.activities import (
+    ConversationAppendRequest,
+    mistralai_append_conversation,
+    mistralai_start_conversation,
+)
 from pydantic import BaseModel
 
 from . import config
@@ -67,6 +71,35 @@ async def _trigger[T: BaseModel](agent_id: str, payload: str, model: type[T]) ->
             inputs=payload,
             store=False,  # Analyseläufe müssen nicht in Studio liegen bleiben
         )
+    )
+    return _parse(model, _extract_text(antwort))
+
+
+async def _trigger_offen[T: BaseModel](
+    agent_id: str, payload: str, model: type[T]
+) -> tuple[T, str]:
+    """Wie :func:`_trigger`, hält die Conversation aber für Rückfragen offen.
+
+    ``store=True`` ist dafür Pflicht: Ein ``append`` auf eine nicht gespeicherte
+    Conversation antwortet mit HTTP 404 („Conversation … was not found“, live
+    geprüft). Der Preis ist, dass diese Läufe in Studio liegen bleiben — dafür
+    ist jede Runde des Judge-Loops dort nachvollziehbar.
+    """
+    antwort = await mistralai_start_conversation(
+        mistralai_models.ConversationRequest(agent_id=agent_id, inputs=payload, store=True)
+    )
+    return _parse(model, _extract_text(antwort)), antwort.conversation_id
+
+
+async def _fortsetzen[T: BaseModel](conversation_id: str, payload: str, model: type[T]) -> T:
+    """Setzt eine offene Conversation fort — der Agent behält seinen Kontext.
+
+    Deshalb ``append`` statt eines neuen Aufrufs: Der Agent sieht, was er selbst
+    vorgeschlagen hat, und bezieht das Urteil darauf. Ein Neustart müsste den
+    ganzen Kontext wiederholen und verlöre den Bezug.
+    """
+    antwort = await mistralai_append_conversation(
+        ConversationAppendRequest(conversation_id=conversation_id, inputs=payload, store=True)
     )
     return _parse(model, _extract_text(antwort))
 
@@ -206,6 +239,34 @@ async def bewerte(auftrag: dict) -> dict:
         "index": auftrag.get("index"),
         **urteil.model_dump(mode="json"),
     }
+
+
+@workflows.activity(
+    retry_policy_max_attempts=3,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=180),
+)
+async def korrigiere_offen(titel: str, absaetze: list[str]) -> dict:
+    """Wie :func:`korrigiere`, gibt aber die ``conversation_id`` mit zurück.
+
+    Nur nötig, wenn ein Judge-Loop folgt — ohne Loop bleibt ``store=False``
+    richtig, weil dann nichts in Studio liegen bleiben muss.
+    """
+    payload = f"ABSCHNITT: {titel}\n\n--- ABSÄTZE ---\n{_absatzblock(absaetze)}"
+    ergebnis, cid = await _trigger_offen(config.AGENTS["korrektorat"], payload, Korrekturen)
+    return {"conversation_id": cid, **ergebnis.model_dump(mode="json")}
+
+
+@workflows.activity(
+    retry_policy_max_attempts=3,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=180),
+)
+async def ueberarbeite(conversation_id: str, rueckmeldung: str, ebene: str) -> dict:
+    """Gibt dem Agent das Urteil zurück und lässt ihn nachbessern."""
+    modell = Korrekturen if ebene == "korrektorat" else Stilvorschlaege
+    ergebnis = await _fortsetzen(conversation_id, rueckmeldung, modell)
+    return ergebnis.model_dump(mode="json")
 
 
 # ---------------------------------------------------------------------------

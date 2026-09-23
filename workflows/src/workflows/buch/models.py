@@ -263,7 +263,15 @@ class LektoratInput(BaseModel):
     )
     max_befunde: int = 12
     mit_judge: bool = Field(
-        default=True, description="Treue-Prüfung vor der Anzeige (empfohlen)"
+        default=True, description="Bewertung vor der Anzeige (empfohlen)"
+    )
+    max_runden: int = Field(
+        default=2,
+        description=(
+            "Wie oft ein abgelehnter Befund an den Agent zurückgeht. 1 = kein Loop, "
+            "nur sperren. Über 3 lohnt sich selten: Was zweimal durchfällt, ist meist "
+            "kein Befund."
+        ),
     )
 
 

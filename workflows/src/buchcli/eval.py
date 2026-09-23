@@ -72,6 +72,16 @@ def erzeuge(slug: str, anzahl: int = 6, max_zeichen: int = 1800) -> list[dict]:
         absatzblock = "\n\n".join(f"[{i}] {p}" for i, p in enumerate(gewaehlt))
 
         verboten = [
+            # Gilt immer und braucht keine Annotation: Ein "Befund", der nichts
+            # ändert, ist keiner. Genau diese Fehlerklasse hat eine frühere
+            # Instruktionsänderung ausgelöst, ohne dass die Messung es zeigte.
+            {
+                "pfad": "korrekturen[].search",
+                "operator": "unveraendert",
+                "paar_pfad": "korrekturen[].replace",
+                "hinweis": "Befund ohne Änderung",
+            },
+        ] + [
             {
                 "pfad": "korrekturen[].search",
                 "operator": "paar",

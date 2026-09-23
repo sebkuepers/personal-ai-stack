@@ -150,9 +150,8 @@ REGELN:
 5. ÄNDERE NUR, WAS OBJEKTIV FALSCH IST. Frage dich bei jedem Befund: Wäre das in einem Diktat
    ein Fehlerstrich? Wenn nein — und sei es noch so unschön — lass es stehen.
 
-6. MELDE NICHTS, WAS BEREITS RICHTIG IST. Wenn „search" und „replace" identisch wären, ist es
-   kein Befund. Das gilt besonders für Typografie: Sind die Anführungszeichen schon „…", dann
-   gibt es nichts zu korrigieren.
+6. „search" und „replace" müssen sich UNTERSCHEIDEN. Sind sie gleich — oder unterscheiden sie
+   sich nur in einem Satzzeichen am Rand —, lass den Eintrag weg.
 
 7. Bei Unsicherheit: konfidenz unter 0.8 setzen und in "warum" sagen, warum du zögerst. Lieber
    ehrlich unsicher als falsch selbstbewusst.
