@@ -291,3 +291,28 @@ def baue_rueckmeldung(abgelehnt: list[BefundMitUrteil], runde: int) -> str:
         "Antworte wieder mit dem vollständigen JSON — alle Befunde, die bestehen bleiben sollen.",
     ]
     return "\n".join(zeilen)
+
+
+def werk_kontext(kriterium: str, stimmprofil_text: str = "") -> str:
+    """Der Kontext, den ein Kriterium zum Urteilen braucht.
+
+    "Ist das überhaupt ein Fehler?" laesst sich nicht allgemein beantworten -- es
+    haengt vom Werk ab. Ohne diesen Kontext hielt der Judge messbar
+    ``runter`` -> ``hinunter`` fuer berechtigt, weil es standardsprachlich richtig
+    ist. Fuer dieses Werk ist es falsch: In allen vier gemessenen Konfigurationen
+    fiel er bei genau diesen Faellen durch.
+    """
+    if kriterium == "stimmtreue":
+        return stimmprofil_text
+    if kriterium != "berechtigung":
+        return ""
+    formen = ", ".join(sorted(config.GEWOLLTE_UMGANGSSPRACHE))
+    return (
+        "GEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n"
+        f"- Umgangssprachliche Formen im Erzaehltext: {formen}\n"
+        "- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n"
+        "- Kurze, unvollstaendige Saetze als Stilmittel.\n"
+        "- Wiederholung, wenn sie erkennbar Absicht ist.\n"
+        "Berechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder "
+        "Grammatik, die auch in einem Diktat angestrichen wuerden."
+    )

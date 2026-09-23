@@ -64,6 +64,8 @@ class Pruefung:
         beidseitig, damit ein Agent mehr oder weniger Kontext mitnehmen darf)
       * ``gleich``    — irgendein Wert am Pfad ist genau ``wert``
       * ``existiert`` — am Pfad steht überhaupt etwas Nichtleeres
+      * ``kleiner`` / ``groesser`` / ``mindestens`` / ``hoechstens`` — numerische
+        Schwelle am Pfad. Für Judges gedacht: „score muss unter 4 liegen“.
       * ``unveraendert`` — zwei Pfade elementweise: ein „Befund“, der nichts
         ändert. Eine Invariante, deshalb ohne Annotation prüfbar.
       * ``paar``      — zwei Pfade zugleich: ``wert`` ist ``[von, nach]``; trifft
@@ -85,6 +87,27 @@ class Pruefung:
 
         if self.operator == "gleich":
             return any(_norm(w) == _norm(self.wert) for w in werte)
+
+        if self.operator in ("kleiner", "groesser", "mindestens", "hoechstens"):
+            # Numerische Schwellen — für Judges und alles, was Punkte vergibt.
+            zahlen = []
+            for w in werte:
+                try:
+                    zahlen.append(float(w))
+                except (TypeError, ValueError):
+                    continue
+            if not zahlen:
+                return False
+            grenze = float(self.wert)
+            return any(
+                {
+                    "kleiner": z < grenze,
+                    "groesser": z > grenze,
+                    "mindestens": z >= grenze,
+                    "hoechstens": z <= grenze,
+                }[self.operator]
+                for z in zahlen
+            )
 
         if self.operator == "unveraendert":
             # Zwei Pfade, elementweise: ein "Befund", der nichts ändert. Das ist

@@ -106,8 +106,16 @@
         "skala": "1-5",
         "sperrt_unter": null,
         "aktiv": false
+      },
+      "berechtigung": {
+        "frage": "Behebt der Vorschlag einen tatsächlichen Fehler im Original? Wäre das Original in einem Diktat als Fehler angestrichen worden?",
+        "skala": "1-5",
+        "sperrt_unter": 4,
+        "aktiv": true,
+        "_comment": "Neu nach einem konkreten Schaden: Der Treue-Judge winkte 'Meer.' → 'Meer' mit 5/5 durch, weil sich die Bedeutung nicht ändert. Er prüft Treue, nicht Sinn. Dieses Kriterium fragt, ob überhaupt ein Fehler behoben wird."
       }
-    }
+    },
+    "_messung": "Gemessen 23.09.2026 mit evalkit gegen shared/buch/eval-judge.json (12 konstruierte Fälle, 12 Erwartungen, 11 Fallen). MIT Werkkontext: medium/none 12/12 · 0 Fallen · 0.9s · 670T | medium/high 12/12 aber 5690T | small/none 10/12 · 2 Fallen | small/high 9/12 · 3 Fallen. OHNE Werkkontext war medium nur bei 10/12 — der Judge hielt 'runter'→'hinunter' für berechtigt. Reasoning bringt hier nichts. Deshalb medium ohne Reasoning. Vor Änderungen: make eval agent=buch-judge."
   },
   "grenzen": {
     "_comment": "Bewusste Obergrenzen. Ein Profil mit 40 Regeln liest niemand, und 50 Stilbefunde pro Abschnitt sind kein Lektorat, sondern Rauschen.",

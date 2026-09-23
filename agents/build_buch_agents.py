@@ -212,12 +212,16 @@ REGELN:
 1. Bewerte NUR das genannte Kriterium. Ist der Vorschlag stilistisch schwach, aber das Kriterium
    lautet "Bedeutungstreue", dann ist das für deine Note unerheblich.
 
-2. "verstoesse" listet konkret und wörtlich, was gegen das Kriterium verstößt. Leere Liste bei 5.
+2. WENN EIN KONTEXT MITGELIEFERT WIRD, IST ER BINDEND. Steht dort, dass eine Form gewollt ist,
+   dann ist ihre "Korrektur" kein berechtigter Befund — egal wie standardsprachlich sie wirkt.
+   Der Kontext beschreibt ein konkretes Werk, nicht allgemeines Schriftdeutsch.
 
-3. Sei streng. Diese Bewertung entscheidet, ob ein Vorschlag dem Autor überhaupt angezeigt wird —
+3. "verstoesse" listet konkret und wörtlich, was gegen das Kriterium verstößt. Leere Liste bei 5.
+
+4. Sei streng. Diese Bewertung entscheidet, ob ein Vorschlag dem Autor überhaupt angezeigt wird —
    falsche Milde kostet ihn Zeit, falsche Härte nur einen Vorschlag.
 
-4. "begruendung" ist ein Satz, keine Abhandlung.
+5. "begruendung" ist ein Satz, keine Abhandlung.
 
 Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 

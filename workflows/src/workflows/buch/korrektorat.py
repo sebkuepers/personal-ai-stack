@@ -47,6 +47,7 @@ from workflows.buch.judge import (  # noqa: E402
     korrigiere_absatz_index,
     kriterium_text,
     teile_auf,
+    werk_kontext,
     verwerfe_eingriffe_in_rede,
     verwerfe_gewollte_umgangssprache,
     verwerfe_nichtbefunde,
@@ -139,6 +140,7 @@ class BuchKorrektoratWorkflow:
                     "original": b.search,
                     "vorschlag": b.replace,
                     "warum": b.warum,
+                    "kontext": werk_kontext(kriterium),
                 }
                 for kriterium in aktive_kriterien()
                 for i, b in enumerate(befunde)

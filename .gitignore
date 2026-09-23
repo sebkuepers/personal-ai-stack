@@ -33,6 +33,8 @@ workflows/data/
 shared/buch/*.json
 shared/buch/*.md
 !shared/buch/*.example.json
+# Judge-Testfälle sind konstruiert und enthalten keinen Werktext.
+!shared/buch/eval-judge.json
 
 # Tooling caches
 .mypy_cache/

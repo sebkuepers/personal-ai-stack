@@ -309,6 +309,40 @@ die wie ein Modellfehler aussieht, aber ein Budgetfehler ist.
 Eindeutigkeit des Suchtexts. Das sind billige, absolute Prüfungen ohne Ermessen. Inhaltliche Urteile
 gehören in die Modellwahl und in den Judge, nicht in eine Wortliste.
 
+### Der Judge braucht sein eigenes Eval
+
+Ein blinder Fleck, der lange bestand: Der Judge ist selbst ein Agent — mit Modell, Reasoning und
+Temperatur — und wurde nie gemessen. Er hat Unsinn mit 5/5 durchgewunken.
+
+```bash
+make eval agent=buch-judge faelle=shared/buch/eval-judge.json zaehlpfad=""
+```
+
+Die zwölf Fälle sind **konstruiert** und enthalten deshalb keinen Werktext — sie liegen als einzige
+Eval-Datei im Repo. Je Kriterium sechs Fälle, hälftig „muss ablehnen" und „muss annehmen". Der
+zweite Teil ist genauso wichtig: Ein Judge, der alles ablehnt, blockiert jeden Befund und ist so
+wertlos wie einer, der alles durchwinkt.
+
+| Konfiguration | mit Werkkontext | ohne | Zeit | Tokens |
+|---|---|---|---|---|
+| **medium/none** | **12/12 · 0 Fallen** | 10/12 · 2 | **0,9s** | **670** |
+| medium/high | 12/12 · 0 Fallen | 10/12 · 2 | 3,7s | 5.690 |
+| small/none | 10/12 · 2 Fallen | 10/12 · 2 | 0,9s | 896 |
+| small/high | 9/12 · 3 Fallen | 8/12 · 4 | 3,5s | 6.084 |
+
+Drei Ergebnisse, die sich verallgemeinern lassen:
+
+1. **Ein Judge braucht Domänenwissen.** „Ist das überhaupt ein Fehler?" ist ohne Werkkontext
+   unbeantwortbar — der Judge hielt `runter` → `hinunter` für berechtigt, weil es
+   standardsprachlich stimmt. `werk_kontext()` in `judge.py` liefert ihn je Kriterium.
+2. **Reasoning hilft dem Judge nicht.** Gleiche Trefferquote, achtfache Tokenzahl.
+3. **Unterschiedliche Aufgaben, unterschiedliche Modelle.** Korrektorat: `small` genügt.
+   Judge: `medium` ist nötig, `small` bleibt auch mit Kontext bei 83 %.
+
+Und ein viertes, das erst die Messung sichtbar machte: Dem Kriterienkatalog fehlte **Berechtigung**.
+Der Treue-Judge prüft Treue, nicht Sinn — deshalb ging `Meer.` → `Meer` mit 5/5 durch. Das neue
+Kriterium fragt, ob überhaupt ein Fehler behoben wird.
+
 ### Der Judge-Loop — gebaut, gemessen, abgeschaltet
 
 Die Idee: Ein Judge, der nur sperrt, wirft auch brauchbare Befunde weg, bloß weil sie zu weit
