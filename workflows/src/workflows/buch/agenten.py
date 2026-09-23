@@ -27,6 +27,7 @@ from . import config
 from .models import (
     Gegenlesung,
     InhaltBefund,
+    StilGegenlesung,
     Korrekturen,
     StimmProbe,
     StimmProfilRoh,
@@ -330,6 +331,35 @@ async def pruefe_inhalt(
         teile.append(a["text"])
 
     ergebnis = await _trigger(config.AGENTS["inhalt"], "\n".join(teile), InhaltBefund)
+    return ergebnis.model_dump(mode="json")
+
+
+@workflows.activity(
+    retry_policy_max_attempts=3,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=180),
+)
+async def gegenlese_stil(
+    titel: str, absaetze: list[str], stimmprofil_text: str, vorschlaege: list[dict]
+) -> dict:
+    """Das zweite Augenpaar über Ebene 2 — eine Frage je Vorschlag.
+
+    Nicht dasselbe wie beim Korrektorat: Dort wird auch gesucht, was FEHLT. Hier
+    nicht. Ein übersehener Stilbruch kostet nichts; ein aufgedrängter Vorschlag
+    kostet den Autor seine Stimme. Deshalb prüft diese Stufe nur in eine
+    Richtung — hält der Vorschlag, was seine Regel verspricht?
+    """
+    liste = "\n".join(
+        f"{i}. „{v.get('search')}“ → „{v.get('replace')}“  [{v.get('regel_id')}] — "
+        f"{v.get('warum', '')}"
+        for i, v in enumerate(vorschlaege, start=1)
+    )
+    payload = (
+        f"=== STIMMPROFIL DES AUTORS ===\n{stimmprofil_text}\n\n"
+        f"=== ABSCHNITT: {titel} ===\n{_absatzblock(absaetze)}\n\n"
+        f"--- VORSCHLAEGE DER ERSTEN STUFE ---\n{liste}"
+    )
+    ergebnis = await _trigger(config.AGENTS["stil_gegenlesen"], payload, StilGegenlesung)
     return ergebnis.model_dump(mode="json")
 
 

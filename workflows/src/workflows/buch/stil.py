@@ -10,13 +10,14 @@ Zwei Filter hintereinander, beide in deterministischem Code:
 1. **Regelbezug** — ein Vorschlag ohne gültige ``regel_id`` fliegt raus, außer
    bei Schwere „hoch". Ohne diesen Filter zitiert der Agent das Profil bestenfalls
    dekorativ.
-**Kein maschinelles Gegenlesen auf dieser Ebene.** Ebene 1 hat eines, weil ein
-übersehenes Komma sonst niemandem auffällt. Ein Stilvorschlag dagegen wird
-ohnehin nie ohne Zustimmung des Autors angewendet — das zweite Augenpaar ist
-hier er selbst, und seine Entscheidung ist das wertvollere Signal, weil sie ins
-Entscheidungslog geht und das Stimmprofil nachschärft. Ein maschinelles
-Gegenlesen käme erst infrage, wenn eine Messung zeigt, dass es die Vorschläge
-verbessert, die er zu sehen bekommt.
+2. **Gegenlesen** — ein zweites Augenpaar mit genau einer Frage je Vorschlag:
+   Hält er, was seine Regel verspricht? Gemessen an sieben Fällen aus echten
+   Fehlvorschlägen: Von zehn Vorschlägen fielen fünf zu Recht durch, und die drei
+   zum echten Stimmbruch blieben stehen.
+
+   Es fragt bewusst NICHT, ob etwas fehlt — anders als bei Ebene 1. Ein
+   übersehener Stilbruch kostet nichts; ein aufgedrängter Vorschlag kostet den
+   Autor seine Stimme. Das ist kein symmetrischer Tausch.
 
 Auslösen:
   make buch-stil werk=immer-wieder-ruegen uuid=<abschnitt-uuid>
@@ -30,7 +31,8 @@ import mistralai.workflows as workflows
 from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
-    from workflows.buch.agenten import stil_pruefen
+    from workflows.buch import config
+    from workflows.buch.agenten import gegenlese_stil, stil_pruefen
 
 from workflows.buch.pruefungen import (  # noqa: E402
     filtere_ohne_regelbezug,
@@ -39,6 +41,7 @@ from workflows.buch.pruefungen import (  # noqa: E402
 )
 from workflows.buch.models import (  # noqa: E402
     BefundMitUrteil,
+    StilGegenlesung,
     LektoratErgebnis,
     LektoratInput,
     Stilvorschlaege,
@@ -109,6 +112,28 @@ class BuchStilWorkflow:
         rang = {"hoch": 0, "mittel": 1, "niedrig": 2}
         befunde.sort(key=lambda b: rang.get(b.schwere or "niedrig", 3))
         befunde = befunde[: inp.max_befunde]
+
+        # Filter 2 — das zweite Augenpaar. Läuft NACH dem Kappen: Es kostet einen
+        # Modellaufruf je Abschnitt, und Vorschläge, die ohnehin nicht angezeigt
+        # werden, muss niemand beurteilen.
+        if inp.mit_judge and befunde and config.AGENTS.get("stil_gegenlesen"):
+            roh_g = await gegenlese_stil(
+                titel=inp.abschnitt.titel,
+                absaetze=absaetze,
+                stimmprofil_text=inp.stimmprofil_text,
+                vorschlaege=[b.model_dump(mode="json") for b in befunde],
+            )
+            g = StilGegenlesung.model_validate(roh_g)
+            for pruefung in g.pruefungen:
+                i = pruefung.nummer - 1
+                if 0 <= i < len(befunde) and pruefung.urteil != "traegt":
+                    befunde[i].gesperrt = True
+                    befunde[i].sperrgrund = f"{pruefung.urteil}: {pruefung.warum}"
+            gefallen = sum(1 for b in befunde if b.gesperrt)
+            if gefallen:
+                hinweise.append(
+                    f"Gegenlesen hat {gefallen} von {len(befunde)} Vorschlägen zurückgehalten."
+                )
 
         angezeigt, gesperrt = teile_auf(befunde)
         return LektoratErgebnis(

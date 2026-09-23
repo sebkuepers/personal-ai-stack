@@ -497,3 +497,38 @@ class InhaltBefund(BaseModel):
         default_factory=list,
         description="Was sich von außen nicht entscheiden lässt — höchstens fünf",
     )
+
+
+class StilPruefung(BaseModel):
+    """Ein Stilvorschlag, vom zweiten Augenpaar beurteilt."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nummer: int = Field(description="Position in der vorgelegten Liste, ab 1")
+    urteil: Literal["traegt", "verdreht_die_regel", "kein_verstoss", "greift_zu_weit"]
+    warum: str
+
+
+class StilGegenlesung(BaseModel):
+    """Ausgabe von ``buch-stil-gegenlesen`` — das zweite Augenpaar über Ebene 2.
+
+    Anders als beim Korrektorat geht es hier nicht um „fehlt etwas". Ein
+    übersehener Stilbruch kostet nichts; ein aufgedrängter Vorschlag kostet den
+    Autor seine Stimme. Deshalb prüft diese Stufe nur in eine Richtung: Hält der
+    Vorschlag, was seine Regel verspricht?
+
+    Die drei Fehlerarten sind aus echten Fehlvorschlägen benannt:
+
+    * ``verdreht_die_regel`` — die zitierte Regel sagt das Gegenteil. Das Profil
+      führt Präteritum FÜR Rückblenden, der Vorschlag zieht sie ins Präsens.
+    * ``kein_verstoss`` — die Stelle klingt bereits nach dem Autor. Eine
+      Beschreibung wird nicht dadurch verletzt, dass man sie stärker anwenden
+      könnte.
+    * ``greift_zu_weit`` — der Kern stimmt, die Änderung geht darüber hinaus:
+      verändert Bedeutung, fasst direkte Rede an, streicht Konkretes.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    pruefungen: list[StilPruefung]
+    urteil: str

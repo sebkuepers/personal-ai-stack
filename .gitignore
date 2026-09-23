@@ -36,6 +36,7 @@ shared/buch/*.md
 # Judge-Testfälle sind konstruiert und enthalten keinen Werktext.
 !shared/buch/eval-gegenlesen.json
 !shared/buch/eval-korrektorat.json
+!shared/buch/eval-stil.json
 
 # Tooling caches
 .mypy_cache/
