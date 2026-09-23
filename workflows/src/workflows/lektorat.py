@@ -260,10 +260,11 @@ def _anwenden(absaetze: list[str], entscheidungen: list[Entscheidung]) -> tuple[
         "Ergebnis ist eine Sitzung, die man danach anwenden kann."
     ),
     execution_timeout=timedelta(hours=12),
-    # Ausführungen nach Werk und Abschnitt auffindbar machen — „was hatte ich
-    # zu diesem Abschnitt schon gesehen?" ist sonst Scrollen in der Timeline.
-    # Kein Eingabeschema, also keine Pfade in die Eingabe; die Werte kommen
-    # zur Laufzeit über workflow.upsert_search_keys, sobald sie feststehen.
+    # Keine search_keys: Die gibt es nur als Pfade in die ENTRYPOINT-EINGABE,
+    # und dieser Workflow hat bewusst keine (siehe run()). Eine Laufzeit-API
+    # zum Nachtragen existiert in der SDK nicht — geprüft, nicht vermutet.
+    # Auffindbar sind die Sitzungen über das Entscheidungslog, das Werk,
+    # Abschnitt und Sitzungs-ID je Zeile trägt.
 )
 class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
     @workflows.workflow.entrypoint

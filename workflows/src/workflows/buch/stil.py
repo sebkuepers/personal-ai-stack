@@ -59,6 +59,11 @@ _REGEL_ID = re.compile(r"^\[(R-[a-zA-Z0-9-]+)\]", re.M)
         "Prüft einen Abschnitt gegen das Stimmprofil des Autors. Jeder Vorschlag muss eine "
         "Regel des Profils zitieren; Vorschläge ohne Regelbezug werden verworfen."
     ),
+    # In Studio nach Werk und Abschnitt suchbar — „was hatte ich zu diesem
+    # Abschnitt schon gesehen?" ist sonst Scrollen in der Timeline. Nur
+    # Kennungen und Titel, kein Text: search_keys werden UNVERSCHLÜSSELT
+    # gespeichert.
+    search_keys=["werk", "abschnitt.uuid", "abschnitt.titel"],
 )
 class BuchStilWorkflow:
     @workflows.workflow.entrypoint

@@ -82,6 +82,8 @@ async def lies_rubrik(werk: str, kapitel: str) -> tuple[dict, dict]:
         "was nicht hineingehört. Ändert nichts — stellt Fragen und benennt, was fehlt."
     ),
     execution_timeout=timedelta(minutes=30),
+    # Nur Kennungen, kein Text — search_keys werden unverschlüsselt gespeichert.
+    search_keys=["werk", "kapitel"],
 )
 class BuchInhaltWorkflow:
     @workflows.workflow.entrypoint

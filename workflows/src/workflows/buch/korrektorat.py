@@ -146,6 +146,11 @@ def _wende_gegenlesung_an(
         "Typografie. Ein zweites Augenpaar liest denselben Abschnitt gegen und meldet, was "
         "fehlt und was kein Befund ist — auch dann, wenn die erste Stufe nichts gefunden hat."
     ),
+    # In Studio nach Werk und Abschnitt suchbar — „was hatte ich zu diesem
+    # Abschnitt schon gesehen?" ist sonst Scrollen in der Timeline. Nur
+    # Kennungen und Titel, kein Text: search_keys werden UNVERSCHLÜSSELT
+    # gespeichert.
+    search_keys=["werk", "abschnitt.uuid", "abschnitt.titel"],
 )
 class BuchKorrektoratWorkflow:
     @workflows.workflow.entrypoint
