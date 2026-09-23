@@ -156,5 +156,60 @@
         "paar_pfad": "uebersehen[].replace"
       }
     ]
+  },
+  {
+    "id": "H-komma-entfernt",
+    "quelle": "echter Lauf",
+    "notiz": "Aus einem echten Lauf: Die erste Stufe wollte ein KORREKTES Komma vor einem Relativsatz entfernen. Der gefährlichste Befundtyp — sieht aus wie Zeichensetzung, macht den Text kaputt. Das Gegenlesen hat ihn durchgewunken.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „auskramen, die“ → „auskramen die“ (komma) — Kein Komma vor Relativsatz mit „die“ (direkter Anschluss ohne Einschub).\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "erwartet": [
+      {
+        "pfad": "unberechtigt[].nummer",
+        "operator": "gleich",
+        "wert": 1
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "uebersehen[].search",
+        "operator": "existiert"
+      }
+    ]
+  },
+  {
+    "id": "I-begruendung-passt-nicht",
+    "quelle": "echter Lauf",
+    "notiz": "Aus einem echten Lauf: „Die sind voll“ ist korrektes Deutsch, und die Begründung („muss großgeschrieben werden“) beschreibt nicht einmal die vorgeschlagene Änderung. Ein Befund, dessen Begründung nicht zur Änderung passt, ist keiner.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Die sind voll mit Handtüchern“ → „Sie sind voll mit Handtüchern“ (grammatik) — „Die“ bezieht sich auf „Strandtaschen“ (Plural), daher muss das Pronomen großgeschrieben werden.\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "erwartet": [
+      {
+        "pfad": "unberechtigt[].nummer",
+        "operator": "gleich",
+        "wert": 1
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "uebersehen[].search",
+        "operator": "existiert"
+      }
+    ]
+  },
+  {
+    "id": "J-sauberer-echttext",
+    "quelle": "echter Lauf",
+    "notiz": "Ein mehrteiliger, bereits überarbeiteter Text ohne Fehler und mit leerer Liste. Der häufigste Fall in der echten Arbeit — und der, den ich am spätesten getestet habe.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n[1] „Ne, da war der Strand aber deutlich schöner“, sagt der Junge und dreht sich weg.\n\n[2] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n[3] Dann ziehe ich das Board runter und gehe ins Wasser.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "erwartet": [],
+    "verboten": [
+      {
+        "pfad": "uebersehen[].search",
+        "operator": "existiert"
+      },
+      {
+        "pfad": "unberechtigt[].nummer",
+        "operator": "existiert"
+      }
+    ]
   }
 ]

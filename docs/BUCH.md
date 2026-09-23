@@ -377,6 +377,41 @@ mehr: Was es verwirft, ist verworfen; was es findet, kommt hinzu.
 Für Arbeitsteilung ist das richtig, für ein QA-Gate falsch: keine feste Reihenfolge, kein Zugriff
 auf die Zwischenstände. Kontrollstruktur gehört in den deterministischen Teil.
 
+### Der Test, der zuerst hätte kommen müssen
+
+Alle konstruierten Fälle enthielten einen eingebauten Fehler. Dein echter Text ist mehrfach
+überarbeitet und meistens sauber — der **häufigste** Fall in der Arbeit, und der letzte, den ich
+getestet habe. Er sah so aus:
+
+| Lauf auf `Einführung Strand` (6 Absätze, 278 Wörter) | Befunde | davon brauchbar |
+|---|---|---|
+| vorher | 2–3 je Lauf, bei jedem Lauf andere | 0 |
+| nachher | **0 · 0 · 0** | — |
+
+Darunter war `„auskramen, die" → „auskramen die"` — die Entfernung eines **korrekten** Kommas vor
+einem Relativsatz. Der gefährlichste Befundtyp: sieht aus wie Zeichensetzung, macht den Text kaputt.
+
+Die Ursache saß im Auftrag, nicht im Modell. Ein Agent, dem man sagt „finde Fehler", liefert auf
+einem sauberen Text eben etwas. Drei Zusätze im Prompt haben es behoben:
+
+1. **Die Erwartung umdrehen.** Gleich im ersten Absatz: Der Text ist meistens schon überarbeitet,
+   die leere Liste ist das häufigste richtige Ergebnis, und jeder Befund kostet den Autor Prüfzeit.
+2. **„Optional" ist disqualifizierend.** Enthält die eigene Begründung „optional", „besser",
+   „schöner", „stärker" — dann ist es Geschmack, kein Fehler. Ein Befund im echten Lauf hatte sich
+   selbst als „optional, aber typografisch korrekt" bezeichnet.
+3. **Begründung muss zur Änderung passen.** Steht da „muss großgeschrieben werden", muss die
+   Änderung eine Großschreibung sein. Passt es nicht zusammen, hat sich das Modell verrannt.
+
+Nachgemessen, damit es nicht bloß still geworden ist:
+
+| | |
+|---|---|
+| Fehler in den echten Abschnitt gepflanzt (Komma vor `dass` entfernt) | **3/3 gefunden** |
+| Eval mit Erwartungen | 19/21 statt 21/21 — findet vorsichtiger |
+| Fallenquote | **3/63 statt 6/63** |
+
+Die drei echten Fehlbefunde liegen jetzt als Fälle `H`, `I` und `J` in `eval-gegenlesen.json`.
+
 ### Kein Chunking auf Absatzebene
 
 Gemessen an einem Abschnitt aus sechs Absätzen mit bekanntem Fehlerinventar:
