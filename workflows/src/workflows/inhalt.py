@@ -13,8 +13,9 @@ Drei Maßstäbe, absteigend verbindlich:
 
 1. **Die Kapitelrubrik** aus ``shared/buch/<slug>.json`` — ``beweist``,
    ``muss_tragen``, ``muss_nicht_tragen``, Register, Zeit, Historie-Budget.
-2. **Die Prüfsteine des Werks** — die zwei Fragen, an denen schon ein Kapitel
-   („Kreuzen") und ein Ort (Prora) gescheitert sind.
+2. **Die Prüfsteine des Werks** — die zwei Fragen, an denen im Betrieb schon ein
+   ganzes Kapitel und ein Schauplatz gescheitert und aus dem Buch geflogen sind.
+   Sie sind damit der schärfste Maßstab, den dieses Repo kennt.
 3. **Das Exposé** aus ``kontext/expose.md`` — was das Buch werden soll. Steht
    zuletzt und wird ausdrücklich als Absicht gekennzeichnet: Es beschreibt das
    Buch, wie es Verlagen angeboten wird, nicht wie das Manuskript ist. Wer beides

@@ -266,7 +266,7 @@ def outliner(abschnitte: list[dict], *, mit_kapitel: bool = False) -> str:
     """
     if mit_kapitel:
         # Nach dem VOLLEN Pfad gruppieren, nicht nur nach Kapitel: Scrivener
-        # kennt Untergruppen („Voll zur Oma / Strand Thiessow"), und die sind
+        # kennt Untergruppen (Kapitel / Szenenblock / Abschnitt), und die sind
         # beim Suchen genauso Orientierung wie das Kapitel selbst. Überschriften
         # statt Einrückung, weil Markdown keine Einrückung in Tabellen kennt.
         gruppen: dict[tuple[str, ...], list[dict]] = {}
