@@ -100,6 +100,11 @@ buch-pdf:  ## Manuskript setzen (kapitel=1-3, trenner=alle|gruppen|keine, vergle
 buch-anweisungen:  ## Anweisungen fürs Vibe-Projekt erzeugen und in die Zwischenablage legen
 	uv run python -m buchcli.anweisungen --werk $${werk:-immer-wieder-ruegen} --kopieren
 
+.PHONY: buch-anwenden
+buch-anwenden:  ## Entscheidungen ins Manuskript schreiben — Vorschau; mit apply=1 wirklich  (test=1 für die Testkopie)
+	uv run python -m buchcli.anwenden --werk $${werk:-immer-wieder-ruegen} \
+		$(if $(uuid),--uuid $(uuid)) $(if $(test),--test) $(if $(apply),--apply)
+
 .PHONY: buch-entscheidungen
 buch-entscheidungen:  ## Entscheidungslog auszählen  (ebene=stil|korrektorat, eval=<datei> erzeugt Testfälle)
 	uv run python -m buchcli.entscheidungen --werk $${werk:-immer-wieder-ruegen} \

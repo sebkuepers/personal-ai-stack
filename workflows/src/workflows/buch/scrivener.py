@@ -287,6 +287,173 @@ def kodiere_rtf_text(text: str) -> str:
     return "".join(out)
 
 
+def finde_spanne(rohdaten: bytes, absatz_index: int, suchtext: str) -> tuple[int, int]:
+    """Die Byte-Spanne, die ``suchtext`` im Absatz ``absatz_index`` einnimmt.
+
+    Der Kern des Write-backs. Statt die Datei neu zu erzeugen — was jede
+    Formatierung verlöre, die dieses Modul nicht kennt — wird genau der Bereich
+    ersetzt, der den Suchtext trägt. Jedes andere Byte bleibt, wie es ist.
+
+    Möglich ist das, weil der Dekodierer auf einem cp1252-dekodierten String
+    arbeitet: Eine Zeichenposition darin ist genau ein Byte in der Datei. Der
+    Dekodierer wird hier ein zweites Mal gefahren, diesmal mit einer Positions-
+    spur je Zeichen.
+
+    :raises ValueError: wenn der Absatz fehlt oder der Suchtext dort nicht genau
+        einmal steht. Kein Fuzzy-Matching — ein Anker, der nicht eindeutig sitzt,
+        ist kein Anker.
+    """
+    absaetze, spuren = _dekodiere_mit_spur(rohdaten)
+    if not 0 <= absatz_index < len(absaetze):
+        raise ValueError(f"Absatz {absatz_index} gibt es nicht (nur {len(absaetze)}).")
+
+    absatz, spur = absaetze[absatz_index], spuren[absatz_index]
+    treffer = absatz.count(suchtext)
+    if treffer != 1:
+        raise ValueError(
+            f"Suchtext kommt in Absatz {absatz_index} {treffer}-mal vor — nicht eindeutig."
+        )
+
+    start = absatz.index(suchtext)
+    # Die Spur führt je Zeichen Anfang UND Ende seiner Bytes. Nur den Anfang zu
+    # merken reichte nicht: Endet der Suchtext auf einem Mehrbyte-Escape
+    # (\uNNNN? für ein typografisches Anführungszeichen), schnitt die Spanne
+    # mitten hinein und ließ einen Rest stehen. Gefunden an genau einem von 57
+    # geprüften Absätzen — dem einzigen, dessen Suchtext darauf endete.
+    return spur[start][0], spur[start + len(suchtext) - 1][1]
+
+
+def _dekodiere_mit_spur(rohdaten: bytes) -> tuple[list[str], list[list[tuple[int, int]]]]:
+    """Wie :func:`dekodiere_rtf`, gibt aber je Absatz auch die Byte-Spanne
+    ``(von, bis)`` jedes Zeichens zurück.
+
+    Bewusst eine zweite Funktion statt eines Schalters am Dekodierer: Der wird
+    von 20 Tests abgedeckt, und der Write-back ist der einzige Ort, der die Spur
+    braucht. Ändert sich der Dekodierer, muss diese Funktion mitgezogen werden —
+    die Tests am Ende dieses Moduls prüfen genau das.
+    """
+    s = rohdaten.decode("cp1252", errors="replace")
+    absaetze: list[str] = []
+    spuren: list[list[tuple[int, int]]] = []
+    puffer: list[str] = []
+    spur: list[tuple[int, int]] = []
+    tiefe = 0
+    verwerfen_ab: int | None = None
+    i, n = 0, len(s)
+
+    def absatz_schliessen() -> None:
+        absaetze.append("".join(puffer))
+        spuren.append(list(spur))
+        puffer.clear()
+        spur.clear()
+
+    while i < n:
+        c = s[i]
+        if c == "{":
+            tiefe += 1
+            i += 1
+            continue
+        if c == "}":
+            if verwerfen_ab is not None and tiefe <= verwerfen_ab:
+                verwerfen_ab = None
+            tiefe -= 1
+            i += 1
+            continue
+
+        if c == "\\":
+            if i + 1 < n and s[i + 1] in "\\{}":
+                if verwerfen_ab is None:
+                    puffer.append(s[i + 1])
+                    spur.append((i, i + 2))
+                i += 2
+                continue
+            if i + 1 < n and s[i + 1] == "*":
+                if verwerfen_ab is None:
+                    verwerfen_ab = tiefe
+                i += 2
+                continue
+            if i + 1 < n and s[i + 1] in "\r\n":
+                if verwerfen_ab is None:
+                    absatz_schliessen()
+                i += 2
+                if i < n and s[i - 1] == "\r" and s[i] == "\n":
+                    i += 1
+                continue
+
+            m = _HEX_ESCAPE.match(s, i)
+            if m:
+                if verwerfen_ab is None:
+                    puffer.append(bytes([int(m.group(1), 16)]).decode("cp1252", "replace"))
+                    spur.append((i, m.end()))
+                i = m.end()
+                continue
+
+            m = _STEUERWORT.match(s, i)
+            if not m:
+                i += 1
+                continue
+            wort, param = m.group(1), m.group(2)
+            anfang = i
+            i = m.end()
+
+            if wort == "u":
+                behalten = verwerfen_ab is None and param is not None
+                if behalten:
+                    code = int(param)
+                    if code < 0:
+                        code += 65536
+                    puffer.append(chr(code))
+                # Das Ersatzzeichen gehört mit zur Kodierung dieses einen
+                # Zeichens und muss beim Ersetzen mit verschwinden.
+                if i < n and s[i] not in "\\{}":
+                    i += 1
+                if behalten:
+                    spur.append((anfang, i))
+                continue
+            if wort in _VERWERFEN and verwerfen_ab is None:
+                verwerfen_ab = tiefe
+                continue
+            if wort in _ABSATZ and verwerfen_ab is None:
+                absatz_schliessen()
+                continue
+            continue
+
+        if c in "\r\n":
+            i += 1
+            continue
+        if verwerfen_ab is None:
+            puffer.append(c)
+            spur.append((i, i + 1))
+        i += 1
+
+    absatz_schliessen()
+
+    # Dieselbe Aufräumung wie dekodiere_rtf — Ränder trimmen, Leerabsätze weg.
+    # Die Spur muss exakt mitwandern, sonst zeigt sie auf die falschen Bytes.
+    fertig_text: list[str] = []
+    fertig_spur: list[list[tuple[int, int]]] = []
+    for text, sp in zip(absaetze, spuren, strict=True):
+        if not text.strip():
+            continue
+        vorne = len(text) - len(text.lstrip())
+        hinten = len(text) - len(text.rstrip())
+        fertig_text.append(text[vorne : len(text) - hinten])
+        fertig_spur.append(sp[vorne : len(sp) - hinten])
+    return fertig_text, fertig_spur
+
+
+def ersetze_im_rtf(rohdaten: bytes, absatz_index: int, suchtext: str, ersatz: str) -> bytes:
+    """Ersetzt eine Textstelle in den Originalbytes und lässt alles andere stehen.
+
+    Das Ergebnis wird vom Aufrufer neu dekodiert und gegen die Erwartung
+    gehalten — siehe ``buchcli.anwenden``. Erst wenn das stimmt, wird die Datei
+    überschrieben.
+    """
+    von, bis = finde_spanne(rohdaten, absatz_index, suchtext)
+    neu = kodiere_rtf_text(ersatz).encode("cp1252", errors="replace")
+    return rohdaten[:von] + neu + rohdaten[bis:]
+
+
 # ---------------------------------------------------------------------------
 # Binder lesen
 # ---------------------------------------------------------------------------
