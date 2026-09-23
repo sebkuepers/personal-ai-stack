@@ -24,24 +24,40 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from evalkit import Kriterienkatalog
+
 from . import config
 from .models import BefundMitUrteil
 
 
+def katalog() -> Kriterienkatalog:
+    """Der Kriterienkatalog dieser Domäne, versorgt mit ihrem Werkkontext.
+
+    Die Mechanik (Kriterien, Schwellen, Kontextprüfung) liegt in ``evalkit``, weil
+    sie in jedem Use-Case dieselbe ist. Domänenspezifisch ist nur, WAS an Wissen
+    geliefert wird — hier über :func:`werk_kontext`.
+    """
+    return Kriterienkatalog.aus_config(config.JUDGE_KRITERIEN, kontext=werk_kontext)
+
+
 def kriterium_text(name: str) -> str:
     """Die Frage, die der Judge-Agent beantworten soll."""
-    k = config.JUDGE_KRITERIEN.get(name) or {}
-    return k.get("frage", name)
+    return katalog().frage(name)
 
 
 def sperrt_unter(name: str) -> int | None:
     """Ab welchem Score ein Kriterium einen Vorschlag zurückhält (None = nie)."""
-    k = config.JUDGE_KRITERIEN.get(name) or {}
-    return k.get("sperrt_unter")
+    k = katalog().kriterien.get(name)
+    return k.sperrt_unter if k else None
 
 
 def aktive_kriterien() -> list[str]:
-    return config.AKTIVE_JUDGES
+    return katalog().aktive
+
+
+def kontext_pruefen() -> list[str]:
+    """Aktive Kriterien, denen ihr Domänenwissen fehlt — für Hinweise im Workflow."""
+    return katalog().fehlender_kontext()
 
 
 def wende_urteil_an(befund: BefundMitUrteil, kriterium: str, score: int) -> BefundMitUrteil:

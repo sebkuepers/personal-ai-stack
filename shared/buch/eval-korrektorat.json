@@ -1,0 +1,222 @@
+[
+  {
+    "id": "komma-vor-nebensatz",
+    "quelle": "konstruiert",
+    "notiz": "Zwei fehlende Kommas vor Nebensätzen. Beide müssen gefunden werden.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist. Danach lege ich mich hin obwohl der Sand noch brennt.",
+    "erwartet": [
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "Wasser weil"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "hin obwohl"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "tippfehler",
+    "quelle": "konstruiert",
+    "notiz": "Zwei klare Tippfehler.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Der Stranndkorb steht im Sand. Daneben liegt ein Handtch von gestern.",
+    "erwartet": [
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "Stranndkorb"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "Handtch"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "substantivierung",
+    "quelle": "konstruiert",
+    "notiz": "Substantiviertes Adjektiv kleingeschrieben — klassischer Fehler.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Das einzige was stört, ist mein Puls. Beim schwimmen vergesse ich das.",
+    "erwartet": [
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "einzige"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "wert": "schwimmen"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "gerade-anfuehrungszeichen",
+    "quelle": "konstruiert",
+    "notiz": "Gerade statt deutscher Anführungszeichen — echter Typografiefehler.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] \"Das Wasser ist zu kalt\", sagt die Nachbarin und dreht sich weg.",
+    "erwartet": [
+      {
+        "pfad": "korrekturen[].art",
+        "operator": "gleich",
+        "wert": "typografie"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "falle-umgangssprache-im-erzaehltext",
+    "quelle": "konstruiert",
+    "notiz": "Alles korrekt, nur umgangssprachlich. Darf NICHTS gemeldet werden.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Die Taschen ziehen mich runter. Ich muss mal gucken, ob ich das Board noch kriege.",
+    "erwartet": [],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "paar",
+        "paar_pfad": "korrekturen[].replace",
+        "wert": [
+          "runter",
+          "hinunter"
+        ]
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "paar",
+        "paar_pfad": "korrekturen[].replace",
+        "wert": [
+          "gucken",
+          "schauen"
+        ]
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "paar",
+        "paar_pfad": "korrekturen[].replace",
+        "wert": [
+          "kriege",
+          "bekomme"
+        ]
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "falle-figurenrede",
+    "quelle": "konstruiert",
+    "notiz": "Umgangssprache in direkter Rede. Darf nicht angetastet werden.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] „Ne, das mach ich nicht“, sagt der Junge. „Und nix da mit Gummistiefeln.“",
+    "erwartet": [],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "paar",
+        "paar_pfad": "korrekturen[].replace",
+        "wert": [
+          "Ne",
+          "Nein"
+        ]
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "paar",
+        "paar_pfad": "korrekturen[].replace",
+        "wert": [
+          "nix",
+          "nichts"
+        ]
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "unveraendert",
+        "paar_pfad": "korrekturen[].replace"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "falle-korrekter-text",
+    "quelle": "konstruiert",
+    "notiz": "Vollständig korrekter Text. Die leere Liste ist das richtige Ergebnis — ein Agent, der hier etwas findet, erfindet.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Meine Füße verschwinden im Sand. Kein Wind. Keine Welle am Strand.\n\n[1] Ich kenne dieses Meer zu jeder Jahreszeit, und im November ist es am schönsten.",
+    "erwartet": [],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "existiert"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  },
+  {
+    "id": "falle-kurze-saetze",
+    "quelle": "konstruiert",
+    "notiz": "Unvollständige Sätze als Stilmittel — grammatisch 'falsch', aber gewollt. Darf nicht zusammengezogen werden.",
+    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Kein Wind. Keine Welle. Nur mein Puls und mein Keuchen.",
+    "erwartet": [],
+    "verboten": [
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "existiert"
+      },
+      {
+        "pfad": "korrekturen[].search",
+        "operator": "nicht_im_text"
+      }
+    ]
+  }
+]

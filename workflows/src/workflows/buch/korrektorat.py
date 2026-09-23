@@ -44,6 +44,7 @@ with workflow.unsafe.imports_passed_through():
 from workflows.buch.judge import (  # noqa: E402
     aktive_kriterien,
     baue_rueckmeldung,
+    kontext_pruefen,
     korrigiere_absatz_index,
     kriterium_text,
     teile_auf,
@@ -122,6 +123,13 @@ class BuchKorrektoratWorkflow:
         judge_moeglich = bool(inp.mit_judge and config.AGENTS.get("judge"))
         if inp.mit_judge and not judge_moeglich:
             hinweise.append("Ohne Bewertung: keine Judge-Agent-ID in shared/buch.json.")
+        for fehlend in kontext_pruefen():
+            # Ein Kriterium ohne sein Domänenwissen urteilt nicht gar nicht,
+            # sondern still nach allgemeinen Maßstäben. Das muss sichtbar sein.
+            hinweise.append(
+                f"Kriterium {fehlend!r} braucht Werkkontext, bekommt aber keinen — "
+                f"das Urteil ist unzuverlässig."
+            )
 
         runde = 0
         while True:

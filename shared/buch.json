@@ -93,29 +93,34 @@
         "frage": "Verändert der Vorschlag Bedeutung, Fakten, Namen oder Aussage des Originals — über das hinaus, was er selbst als Problem benennt?",
         "skala": "1-5",
         "sperrt_unter": 4,
-        "aktiv": true
+        "aktiv": true,
+        "braucht_kontext": false
       },
       "stimmtreue": {
         "frage": "Klingt der geänderte Text noch nach dem Autor, gemessen an den Regeln des Stimmprofils?",
         "skala": "1-5",
         "sperrt_unter": null,
-        "aktiv": false
+        "aktiv": false,
+        "braucht_kontext": true
       },
       "sparsamkeit": {
         "frage": "Ist das die kleinste Änderung, die das benannte Problem löst, oder wurde darüber hinaus umgeschrieben?",
         "skala": "1-5",
         "sperrt_unter": null,
-        "aktiv": false
+        "aktiv": false,
+        "braucht_kontext": false
       },
       "berechtigung": {
         "frage": "Behebt der Vorschlag einen tatsächlichen Fehler im Original? Wäre das Original in einem Diktat als Fehler angestrichen worden?",
         "skala": "1-5",
         "sperrt_unter": 4,
         "aktiv": true,
-        "_comment": "Neu nach einem konkreten Schaden: Der Treue-Judge winkte 'Meer.' → 'Meer' mit 5/5 durch, weil sich die Bedeutung nicht ändert. Er prüft Treue, nicht Sinn. Dieses Kriterium fragt, ob überhaupt ein Fehler behoben wird."
+        "_comment": "Neu nach einem konkreten Schaden: Der Treue-Judge winkte 'Meer.' → 'Meer' mit 5/5 durch, weil sich die Bedeutung nicht ändert. Er prüft Treue, nicht Sinn. Dieses Kriterium fragt, ob überhaupt ein Fehler behoben wird.",
+        "braucht_kontext": true
       }
     },
-    "_messung": "Gemessen 23.09.2026 mit evalkit gegen shared/buch/eval-judge.json (12 konstruierte Fälle, 12 Erwartungen, 11 Fallen). MIT Werkkontext: medium/none 12/12 · 0 Fallen · 0.9s · 670T | medium/high 12/12 aber 5690T | small/none 10/12 · 2 Fallen | small/high 9/12 · 3 Fallen. OHNE Werkkontext war medium nur bei 10/12 — der Judge hielt 'runter'→'hinunter' für berechtigt. Reasoning bringt hier nichts. Deshalb medium ohne Reasoning. Vor Änderungen: make eval agent=buch-judge."
+    "_messung": "Gemessen 23.09.2026 mit evalkit gegen shared/buch/eval-judge.json (12 konstruierte Fälle, 12 Erwartungen, 11 Fallen). MIT Werkkontext: medium/none 12/12 · 0 Fallen · 0.9s · 670T | medium/high 12/12 aber 5690T | small/none 10/12 · 2 Fallen | small/high 9/12 · 3 Fallen. OHNE Werkkontext war medium nur bei 10/12 — der Judge hielt 'runter'→'hinunter' für berechtigt. Reasoning bringt hier nichts. Deshalb medium ohne Reasoning. Vor Änderungen: make eval agent=buch-judge.",
+    "_kontext": "braucht_kontext=true heißt: Dieses Kriterium ist ohne Domänenwissen nicht beantwortbar. Der Katalog (evalkit.Kriterienkatalog) warnt, wenn es fehlt — sonst urteilt der Judge still nach allgemeinen Maßstäben statt nach denen des Werks. Gemessen: ohne Kontext 10/12, mit Kontext 12/12."
   },
   "grenzen": {
     "_comment": "Bewusste Obergrenzen. Ein Profil mit 40 Regeln liest niemand, und 50 Stilbefunde pro Abschnitt sind kein Lektorat, sondern Rauschen.",

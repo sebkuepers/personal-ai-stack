@@ -30,7 +30,20 @@ from typing import Any
 
 
 def _norm(x: Any) -> str:
+    """Für Vergleiche, die tolerant sein sollen: Groß/Klein egal."""
     return unicodedata.normalize("NFC", str(x)).strip().lower()
+
+
+def _woertlich(x: Any) -> str:
+    """Für Vergleiche, die wörtlich sein müssen.
+
+    Invarianten dürfen **nicht** über ``_norm`` laufen: Die schreibt klein, und
+    damit liest sich jede Großschreibkorrektur („beim schwimmen" → „beim
+    Schwimmen") als „nichts geändert" — ausgerechnet die häufigste deutsche
+    Korrektur. Eine Invariante, die toleranter ist als der Agent präzise sein
+    muss, meldet den Prüfer statt den Geprüften.
+    """
+    return unicodedata.normalize("NFC", str(x)).strip()
 
 
 # Pfad-Syntax: "feld", "feld.unterfeld", "liste[].feld"
@@ -79,7 +92,9 @@ class Pruefung:
     paar_pfad: str | None = None
     hinweis: str = ""
 
-    def trifft_zu(self, antwort: Any) -> bool:
+    def trifft_zu(self, antwort: Any, kontext: str | None = None) -> bool:
+        """``kontext`` ist die Eingabe des Falls — nur Operatoren, die gegen
+        sie prüfen (``nicht_im_text``), brauchen sie."""
         werte = hole(antwort, self.pfad)
 
         if self.operator == "existiert":
@@ -113,12 +128,26 @@ class Pruefung:
             # Zwei Pfade, elementweise: ein "Befund", der nichts ändert. Das ist
             # eine Invariante und deshalb ohne Annotation prüfbar — genau die
             # Fehlerklasse, die eine reine Fallenmessung übersieht.
+            #
+            # Verglichen wird wörtlich, nur bis auf Leerraum: Eine frühere Fassung
+            # hat Anführungszeichen abgeschnitten und kleingeschrieben — und damit
+            # jede Typografie- und jede Großschreibkorrektur als Leerlauf gemeldet.
+            # Der Toleranzbereich einer Invariante muss kleiner sein als das, was
+            # der Agent legitim ändern darf.
             zweite = hole(antwort, self.paar_pfad or self.pfad)
-            rand = " \t.!?,;:„“\"'"
             return any(
-                _norm(a).strip(rand) == _norm(b).strip(rand)
+                _woertlich(a) == _woertlich(b)
                 for a, b in zip(werte, zweite, strict=False)
             )
+
+        if self.operator == "nicht_im_text":
+            # Der Agent zitiert etwas, das in seiner Eingabe nicht vorkommt.
+            # Die zweite annotationsfreie Invariante: Ein `search`, das im Text
+            # nicht steht, lässt sich nicht anwenden — egal wie richtig der
+            # Befund inhaltlich wäre. Fängt genau die Fälle, in denen ein Modell
+            # beim Zitieren stillschweigend normalisiert.
+            eingabe = _woertlich(kontext or "")
+            return any(w and _woertlich(w) not in eingabe for w in werte)
 
         if self.operator == "paar":
             von, nach = self.wert
@@ -135,6 +164,8 @@ class Pruefung:
     def beschreibe(self) -> str:
         if self.operator == "unveraendert":
             return "Befund ohne Änderung (search == replace)"
+        if self.operator == "nicht_im_text":
+            return f"{self.pfad} kommt so nicht im Text vor"
         if self.operator == "paar":
             return f"{self.wert[0]} → {self.wert[1]}"
         return f"{self.pfad} {self.operator} {self.wert!r}"
@@ -190,9 +221,11 @@ def pruefe(fall: Fall, antwort: Any, *, zaehlpfad: str | None = None) -> Ergebni
     e.elemente = len(hole(antwort, zaehlpfad)) if zaehlpfad else 1
 
     for pr in fall.erwartet:
-        (e.getroffen if pr.trifft_zu(antwort) else e.verpasst).append(pr.beschreibe())
+        (e.getroffen if pr.trifft_zu(antwort, fall.eingabe) else e.verpasst).append(
+            pr.beschreibe()
+        )
     for pr in fall.verboten:
-        if pr.trifft_zu(antwort):
+        if pr.trifft_zu(antwort, fall.eingabe):
             e.fehltritte.append(pr.beschreibe())
     return e
 
