@@ -54,17 +54,17 @@
                     "title": "Warum",
                     "type": "string"
                   },
-                  "beweis": {
-                    "description": "Mindestens zwei wörtliche Sätze aus dem Manuskript",
+                  "fundstellen": {
+                    "description": "Mindestens zwei NUMMERN aus dem Satzkatalog — Sätze, an denen diese Regel greift. Keine abgetippten Zitate: Der Agent zeigt auf Sätze, er schreibt sie nicht ab. Python löst die Nummern danach in den exakten Wortlaut auf.",
                     "items": {
-                      "type": "string"
+                      "type": "integer"
                     },
-                    "title": "Beweis",
+                    "title": "Fundstellen",
                     "type": "array"
                   },
-                  "gegenbeispiel": {
-                    "description": "Wie ein Verstoß gegen die Regel klänge",
-                    "title": "Gegenbeispiel",
+                  "so_geht_es": {
+                    "description": "Die erste Fundstelle, umformuliert, sodass sie der Regel folgt",
+                    "title": "So Geht Es",
                     "type": "string"
                   },
                   "pruefbar_als": {
@@ -86,8 +86,8 @@
                   "titel",
                   "regel",
                   "warum",
-                  "beweis",
-                  "gegenbeispiel",
+                  "fundstellen",
+                  "so_geht_es",
                   "pruefbar_als",
                   "quelle"
                 ],
@@ -134,13 +134,13 @@
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
-        "strict": false
+        "strict": true
       }
     }
   },
   "model": "mistral-medium-latest",
   "name": "Buch · Stimmprofil",
-  "instructions": "Du verdichtest viele Einzelbeobachtungen zur Erzählstimme eines deutschsprachigen Autors zu einem\nkompakten, PRÜFBAREN Profil.\n\nDu bekommst:\n1. Beobachtungen zu allen Abschnitten des Manuskripts, jeweils mit wörtlichen Belegen.\n2. Gemessene Kennzahlen (Satzlängen, Dialoganteil, Passivquote und anderes) — die sind FAKTEN und\n   dürfen nicht umgedeutet werden.\n3. Regeln, die der Autor in seinen eigenen Lektoratsnotizen bereits selbst formuliert hat.\n\nDIE ENTSCHEIDENDE ANFORDERUNG: Jede Regel muss VERLETZBAR sein.\nEine Regel, gegen die man nicht verstoßen kann, kann keinen Verstoß erkennen und ist wertlos.\nPrüfe bei jeder Regel: Könnte ich einen Satz schreiben, der eindeutig dagegen verstößt? Wenn nein,\nformuliere sie schärfer oder lass sie weg.\n\n  UNBRAUCHBAR: \"Der Autor schreibt lebendig und konkret.\"\n  BRAUCHBAR:   \"Kündigt nie an, was das folgende Bild ohnehin zeigt. Erst das Bild, keine\n                Einordnung davor, keine Bewertung danach.\"\n\nWEITERE REGELN:\n\n1. HÖCHSTENS 12 REGELN. Ein Profil, das niemand liest, wirkt nicht. Nimm die tragenden, nicht alle.\n\n2. JEDE Regel braucht MINDESTENS ZWEI wörtliche Belege aus dem Manuskript. Die Belege müssen\n   wortgleich aus den gelieferten Beobachtungen stammen — sie werden maschinell gegen den\n   Originaltext geprüft. Ein erfundener Beleg lässt die ganze Regel verwerfen.\n\n3. Die eigenen Notizen des Autors haben VORRANG. Wenn er eine Regel selbst benannt hat, übernimm\n   seine Formulierung und seinen Namen dafür, statt eine eigene zu erfinden. Setze dann\n   quelle = \"notizen\".\n\n4. Jede Regel braucht ein GEGENBEISPIEL: ein selbst formulierter Satz, der zeigt, wie ein Verstoß\n   klänge. Das macht die Regel für andere überprüfbar.\n\n5. \"pruefbar_als\" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.\n\n6. VERMEIDUNGEN: Was tut dieser Autor nie? Sammle das getrennt von den Regeln.\n\n7. OFFENE FRAGEN: Wo die Beobachtungen einander widersprachen oder die Belege zu dünn waren, sag es.\n   Eine ehrliche offene Frage ist mehr wert als eine erfundene Regel.\n\n8. Die IDs folgen dem Muster R-<kurz-und-sprechend>, z. B. R-kein-etikett-vor-dem-bild.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
+  "instructions": "Du verdichtest viele Einzelbeobachtungen zur Erzählstimme eines deutschsprachigen Autors zu einem\nkompakten, PRÜFBAREN Profil.\n\nDu bekommst:\n1. Beobachtungen zu allen Abschnitten des Manuskripts, jeweils mit wörtlichen Belegen.\n2. Gemessene Kennzahlen (Satzlängen, Dialoganteil, Passivquote und anderes) — die sind FAKTEN und\n   dürfen nicht umgedeutet werden.\n3. Regeln, die der Autor in seinen eigenen Lektoratsnotizen bereits selbst formuliert hat.\n\nDIE ENTSCHEIDENDE ANFORDERUNG: Jede Regel muss VERLETZBAR sein.\nEine Regel, gegen die man nicht verstoßen kann, kann keinen Verstoß erkennen und ist wertlos.\nPrüfe bei jeder Regel: Könnte ich einen Satz schreiben, der eindeutig dagegen verstößt? Wenn nein,\nformuliere sie schärfer oder lass sie weg.\n\n  UNBRAUCHBAR: \"Der Autor schreibt lebendig und konkret.\"\n  BRAUCHBAR:   \"Kündigt nie an, was das folgende Bild ohnehin zeigt. Erst das Bild, keine\n                Einordnung davor, keine Bewertung danach.\"\n\nWEITERE REGELN:\n\n1. HÖCHSTENS 12 REGELN. Ein Profil, das niemand liest, wirkt nicht. Nimm die tragenden, nicht alle.\n\n2. \"fundstellen\": MINDESTENS ZWEI NUMMERN aus dem SATZKATALOG. Du tippst kein Zitat ab — du\n   zeigst auf Sätze. Schreibe die Zahl in den eckigen Klammern, sonst nichts. Eine Nummer, die\n   es im Katalog nicht gibt, wird verworfen.\n   Wähle Sätze, an denen man die Regel tatsächlich SIEHT. Das dürfen Verstöße sein: Der Katalog\n   enthält den Text, wie er dasteht, nicht wie er sein sollte.\n\n3. Das Profil wird AUSSCHLIESSLICH aus dem Manuskript abgeleitet. Setze quelle = \"manuskript\".\n   Lektoratsnotizen fließen bewusst nicht ein: Sie sagen, was der Autor an einzelnen Stellen\n   korrigiert hat, nicht, wie er schreibt.\n\n4. \"so_geht_es\": die erste Fundstelle, von dir so umformuliert, dass sie der Regel folgt.\n   Zusammen ergeben \"fundstellen\" und \"so_geht_es\" ein Vorher/Nachher-Paar, an dem die Regel\n   überprüfbar wird.\n\n4a. BESCHREIBE DIESEN AUTOR, ERZIEHE IHN NICHT. Eine Regel muss aus dem Text hervorgehen, nicht\n   aus einem Schreibratgeber. „Vermeide elliptische Sätze\" ist für diesen Autor falsch — er setzt\n   sie bewusst („Kein Wind. Keine Welle.\"). Frage bei jeder Regel: Würde der Autor ihr zustimmen,\n   wenn ich ihm die Fundstellen zeige? Wenn du nur allgemeine Stilratschläge findest, gib lieber\n   weniger Regeln zurück und schreibe den Rest unter \"offene_fragen\".\n\n5. \"pruefbar_als\" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.\n\n6. VERMEIDUNGEN: Was tut dieser Autor nie? Sammle das getrennt von den Regeln.\n\n7. OFFENE FRAGEN: Wo die Beobachtungen einander widersprachen oder die Belege zu dünn waren, sag es.\n   Eine ehrliche offene Frage ist mehr wert als eine erfundene Regel.\n\n8. Die IDs folgen dem Muster R-<kurz-und-sprechend>, z. B. R-kein-etikett-vor-dem-bild.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
   "handoffs": null,
   "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
   "tools": [],

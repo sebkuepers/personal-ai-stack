@@ -100,16 +100,25 @@ WEITERE REGELN:
 
 1. HÖCHSTENS 12 REGELN. Ein Profil, das niemand liest, wirkt nicht. Nimm die tragenden, nicht alle.
 
-2. JEDE Regel braucht MINDESTENS ZWEI wörtliche Belege aus dem Manuskript. Die Belege müssen
-   wortgleich aus den gelieferten Beobachtungen stammen — sie werden maschinell gegen den
-   Originaltext geprüft. Ein erfundener Beleg lässt die ganze Regel verwerfen.
+2. "fundstellen": MINDESTENS ZWEI NUMMERN aus dem SATZKATALOG. Du tippst kein Zitat ab — du
+   zeigst auf Sätze. Schreibe die Zahl in den eckigen Klammern, sonst nichts. Eine Nummer, die
+   es im Katalog nicht gibt, wird verworfen.
+   Wähle Sätze, an denen man die Regel tatsächlich SIEHT. Das dürfen Verstöße sein: Der Katalog
+   enthält den Text, wie er dasteht, nicht wie er sein sollte.
 
-3. Die eigenen Notizen des Autors haben VORRANG. Wenn er eine Regel selbst benannt hat, übernimm
-   seine Formulierung und seinen Namen dafür, statt eine eigene zu erfinden. Setze dann
-   quelle = "notizen".
+3. Das Profil wird AUSSCHLIESSLICH aus dem Manuskript abgeleitet. Setze quelle = "manuskript".
+   Lektoratsnotizen fließen bewusst nicht ein: Sie sagen, was der Autor an einzelnen Stellen
+   korrigiert hat, nicht, wie er schreibt.
 
-4. Jede Regel braucht ein GEGENBEISPIEL: ein selbst formulierter Satz, der zeigt, wie ein Verstoß
-   klänge. Das macht die Regel für andere überprüfbar.
+4. "so_geht_es": die erste Fundstelle, von dir so umformuliert, dass sie der Regel folgt.
+   Zusammen ergeben "fundstellen" und "so_geht_es" ein Vorher/Nachher-Paar, an dem die Regel
+   überprüfbar wird.
+
+4a. BESCHREIBE DIESEN AUTOR, ERZIEHE IHN NICHT. Eine Regel muss aus dem Text hervorgehen, nicht
+   aus einem Schreibratgeber. „Vermeide elliptische Sätze" ist für diesen Autor falsch — er setzt
+   sie bewusst („Kein Wind. Keine Welle."). Frage bei jeder Regel: Würde der Autor ihr zustimmen,
+   wenn ich ihm die Fundstellen zeige? Wenn du nur allgemeine Stilratschläge findest, gib lieber
+   weniger Regeln zurück und schreibe den Rest unter "offene_fragen".
 
 5. "pruefbar_als" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.
 

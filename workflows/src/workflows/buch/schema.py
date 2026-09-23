@@ -71,6 +71,13 @@ def response_format(
             "name": name,
             "schema": json_schema(model, titel=titel, beschreibung=beschreibung),
             "description": beschreibung,
-            "strict": False,
+            # strict=True lässt die API das Schema DURCHSETZEN statt es nur
+            # vorzuschlagen. Ohne das lieferte buch-stil ein `problem`
+            # ("doppelt-gesagt"), das nicht im Vokabular steht — der Workflow
+            # brach in der Pydantic-Validierung ab, nach drei Wiederholungen.
+            # Die Alternative wäre eine Abbildungstabelle im Code gewesen: ein
+            # Flicken für einen Einzelfall, der beim nächsten erfundenen Wert
+            # wieder aufgeht.
+            "strict": True,
         },
     }

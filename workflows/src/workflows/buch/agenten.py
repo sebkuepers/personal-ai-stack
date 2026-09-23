@@ -139,15 +139,41 @@ async def probiere_stimme(abschnitt: dict) -> dict:
     return {"uuid": abschnitt.get("uuid"), "titel": abschnitt["titel"], **probe.model_dump(mode="json")}
 
 
+def _satzkatalog(proben: list[dict]) -> list[str]:
+    """Alle wörtlich belegten Sätze aus den Proben, entdoppelt und stabil geordnet.
+
+    Quelle sind ``beispielsaetze`` und die ``beleg``-Felder der Beobachtungen —
+    beides hat der Map-Schritt direkt aus dem Abschnittstext gezogen.
+    """
+    gesehen: dict[str, None] = {}
+    for p in proben:
+        for satz in p.get("beispielsaetze") or []:
+            if isinstance(satz, str) and len(satz.strip()) > 20:
+                gesehen.setdefault(satz.strip(), None)
+        for b in p.get("beobachtungen") or []:
+            beleg = (b or {}).get("beleg")
+            if isinstance(beleg, str) and len(beleg.strip()) > 20:
+                gesehen.setdefault(beleg.strip(), None)
+    return list(gesehen)
+
+
 @workflows.activity(
     retry_policy_max_attempts=3,
     retry_policy_backoff_coefficient=2.0,
     start_to_close_timeout=timedelta(seconds=300),
 )
 async def verdichte_stimme(
-    proben: list[dict], metrik_text: str, notizregeln: str, max_regeln: int
+    proben: list[dict], metrik_text: str, max_regeln: int
 ) -> dict:
-    """Reduce-Schritt: verdichtet alle Beobachtungen zu höchstens ``max_regeln`` Regeln."""
+    """Reduce-Schritt: verdichtet alle Beobachtungen zu höchstens ``max_regeln`` Regeln.
+
+    Der Agent bekommt einen **nummerierten Satzkatalog** und verweist mit Nummern
+    darauf, statt Zitate abzutippen. Vorher tat er Letzteres — und paraphrasierte
+    dabei: In einem gemessenen Lauf fielen zehn von zwölf Regeln durch die
+    Belegprüfung, weil ihre „wörtlichen" Fundstellen so nicht im Manuskript
+    standen. Eine Nummer kann man nicht paraphrasieren.
+    """
+    katalog = _satzkatalog(proben)
     teile = [
         f"HÖCHSTENS {max_regeln} REGELN.",
         "",
@@ -155,16 +181,12 @@ async def verdichte_stimme(
         metrik_text,
         "",
     ]
-    if notizregeln:
-        teile += [
-            "=== REGELN, DIE DER AUTOR SELBST FORMULIERT HAT ===",
-            "Diese haben Vorrang. Übernimm seine Formulierung und seinen Namen, "
-            'setze quelle = "notizen".',
-            "",
-            notizregeln,
-            "",
-        ]
-    teile += ["=== BEOBACHTUNGEN AUS DEN ABSCHNITTEN ==="]
+    teile += [
+        "=== SATZKATALOG — nur aus diesen Nummern darfst du Fundstellen wählen ===",
+        "\n".join(f"[{n}] {satz}" for n, satz in enumerate(katalog)),
+        "",
+        "=== BEOBACHTUNGEN AUS DEN ABSCHNITTEN ===",
+    ]
     for i, p in enumerate(proben, start=1):
         teile.append(f"\n--- Abschnitt {i} ---")
         teile.append(json.dumps(p, ensure_ascii=False, indent=1))
@@ -172,7 +194,15 @@ async def verdichte_stimme(
     profil = await _trigger(
         config.AGENTS["stimme_profil"], "\n".join(teile), StimmProfilRoh
     )
-    return profil.model_dump(mode="json")
+    roh = profil.model_dump(mode="json")
+    # Nummern in Wortlaut auflösen. Eine Nummer außerhalb des Katalogs wird
+    # verworfen — das ist der einzige Weg, auf dem hier noch etwas Erfundenes
+    # ankommen könnte, und er endet hier.
+    for r in roh.get("regeln", []):
+        r["fundstellen"] = [
+            katalog[n] for n in r.get("fundstellen", []) if 0 <= n < len(katalog)
+        ]
+    return roh
 
 
 # ---------------------------------------------------------------------------

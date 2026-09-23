@@ -75,7 +75,6 @@ class BuchStimmprofilWorkflow:
         roh_dict = await verdichte_stimme(
             proben=proben,
             metrik_text=inp.metrik_text,
-            notizregeln=inp.notizregeln,
             max_regeln=config.MAX_STIMMREGELN,
         )
         roh = StimmProfilRoh.model_validate(roh_dict)

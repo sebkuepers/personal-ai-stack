@@ -65,8 +65,16 @@ class StimmregelRoh(BaseModel):
     titel: str
     regel: str = Field(description="Die Regel als Anweisung, die man befolgen oder verletzen kann")
     warum: str
-    beweis: list[str] = Field(description="Mindestens zwei wörtliche Sätze aus dem Manuskript")
-    gegenbeispiel: str = Field(description="Wie ein Verstoß gegen die Regel klänge")
+    fundstellen: list[int] = Field(
+        description=(
+            "Mindestens zwei NUMMERN aus dem Satzkatalog — Sätze, an denen diese Regel "
+            "greift. Keine abgetippten Zitate: Der Agent zeigt auf Sätze, er schreibt sie "
+            "nicht ab. Python löst die Nummern danach in den exakten Wortlaut auf."
+        )
+    )
+    so_geht_es: str = Field(
+        description="Die erste Fundstelle, umformuliert, sodass sie der Regel folgt"
+    )
     pruefbar_als: str = Field(description="Woran ein Lektor oder Agent den Verstoß erkennt")
     quelle: Literal["manuskript", "notizen"]
 
@@ -95,6 +103,11 @@ class StimmProfilRoh(BaseModel):
 class Stimmregel(StimmregelRoh):
     """Eine Regel, die die Belegprüfung überstanden hat.
 
+    ``fundstellen`` sind hier der **Wortlaut**, nicht mehr die Nummern: Der
+    Reduce-Agent zeigt auf Sätze im Satzkatalog, und der Aufrufer löst die
+    Nummern danach auf. Ein gespeichertes Profil soll für sich lesbar sein und
+    nicht von einem Katalog abhängen, den es nicht mehr gibt.
+
     ``annahmequote`` wird später **in Python** aus dem Entscheidungslog berechnet,
     nicht von einem Modell geschätzt: eine Regel, deren Vorschläge der Autor
     überwiegend ablehnt, wird automatisch auf ``beobachtung`` gesetzt — unabhängig
@@ -103,6 +116,7 @@ class Stimmregel(StimmregelRoh):
 
     model_config = ConfigDict(extra="forbid")
 
+    fundstellen: list[str]  # type: ignore[assignment]  — aufgelöst, nicht mehr Nummern
     status: Literal["aktiv", "beobachtung", "verworfen"] = "aktiv"
     annahmequote: float | None = None
     vorschlaege_gesamt: int = 0
@@ -179,9 +193,6 @@ class StimmprofilInput(BaseModel):
     )
     metrik_text: str = Field(description="Die gemessenen Kennzahlen als Fließtext")
     metrik: dict = Field(default_factory=dict)
-    notizregeln: str = Field(
-        default="", description="Die selbst formulierten Lektoratsregeln des Autors"
-    )
     woerter: int = 0
     kapitel: list[str] = Field(default_factory=list)
     version: int = 1
@@ -358,3 +369,53 @@ class Gegenlesung(BaseModel):
     uebersehen: list[UebersehenerFehler] = Field(default_factory=list)
     unberechtigt: list[UnberechtigterBefund] = Field(default_factory=list)
     urteil: str
+
+
+# ---------------------------------------------------------------------------
+# Sitzung — der conversational Workflow
+# ---------------------------------------------------------------------------
+
+
+class Entscheidung(BaseModel):
+    """Was der Autor mit EINEM Befund gemacht hat.
+
+    Das eigentliche Kapital dieses Systems. Ein angenommener Befund sagt wenig;
+    ein abgelehnter mit Grund sagt, wo das Stimmprofil danebenliegt. Deshalb sind
+    die Gründe eine Auswahlliste mit freiem Feld und nicht nur freier Text — nur
+    so lassen sie sich später auszählen.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ebene: Literal["korrektorat", "stil"]
+    absatz_index: int
+    absatz_hash: str = Field(
+        default="", description="Stand des Absatzes bei der Analyse — Sperre beim Anwenden"
+    )
+    search: str
+    replace: str
+    art: str
+    warum: str = ""
+    regel_id: str | None = None
+    entscheidung: Literal["angenommen", "abgelehnt", "zurueckgestellt"]
+    grund: str = Field(default="", description="Nur bei Ablehnung; aus Vorschlägen oder frei")
+
+
+class LektoratSitzung(BaseModel):
+    """Das Ergebnis einer Lektoratssitzung — und die Eingabe fürs Zurückschreiben."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    werk: str
+    abschnitt_uuid: str
+    abschnitt_titel: str
+    ebenen: list[str] = Field(default_factory=list)
+    entscheidungen: list[Entscheidung] = Field(default_factory=list)
+    text_vorher: str = ""
+    text_nachher: str = ""
+    hinweise: list[str] = Field(default_factory=list)
+    abgebrochen: bool = False
+
+    @property
+    def angenommen(self) -> list[Entscheidung]:
+        return [e for e in self.entscheidungen if e.entscheidung == "angenommen"]

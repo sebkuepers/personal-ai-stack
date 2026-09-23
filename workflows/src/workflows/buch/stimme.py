@@ -90,8 +90,8 @@ def pruefe_regeln(
     verworfen: list[dict] = []
 
     for r in roh.regeln:
-        echte_belege = [b for b in r.beweis if beleg_gefunden(b, korpus_norm)]
-        erfunden = [b for b in r.beweis if b not in echte_belege]
+        echte_belege = [b for b in r.fundstellen if beleg_gefunden(b, korpus_norm)]
+        erfunden = [b for b in r.fundstellen if b not in echte_belege]
 
         if len(echte_belege) < min_belege:
             verworfen.append(
@@ -99,7 +99,7 @@ def pruefe_regeln(
                     "id": r.id,
                     "titel": r.titel,
                     "grund": (
-                        f"nur {len(echte_belege)} von {len(r.beweis)} Belegen im Manuskript "
+                        f"nur {len(echte_belege)} von {len(r.fundstellen)} Belegen im Manuskript "
                         f"gefunden, gefordert sind {min_belege}"
                     ),
                     "nicht_gefunden": erfunden[:3],
@@ -115,7 +115,7 @@ def pruefe_regeln(
 
         angenommen.append(
             Stimmregel(
-                **{**r.model_dump(), "id": normalisiere_id(r.id), "beweis": echte_belege}
+                **{**r.model_dump(), "id": normalisiere_id(r.id), "fundstellen": echte_belege}
             )
         )
 
@@ -160,26 +160,6 @@ def baue_profil(
 # ---------------------------------------------------------------------------
 
 
-def notizregeln_text(notizen) -> str:  # noqa: ANN001 — list[Lektoratsnotiz], zirkelfrei
-    """Die selbst formulierten Regeln des Autors, aufbereitet für den Reduce-Agent."""
-    zeilen: list[str] = []
-    for n in notizen:
-        if n.art == "aenderung":
-            zeilen += [
-                f"REGEL: {n.regel}",
-                f"  vorher : {n.vorher}",
-                f"  nachher: {n.nachher}",
-            ]
-            if n.warum:
-                zeilen.append(f"  warum  : {n.warum}")
-            zeilen.append("")
-        elif n.regel.upper().startswith(("NICHT ANFASSEN", "WAS BLEIBT")):
-            # Was der Autor als gelungen markiert hat, ist für ein Stimmprofil
-            # mindestens so wertvoll wie das, was er geändert hat.
-            zeilen += [f"GELUNGEN LAUT AUTOR ({n.abschnitt_titel}): {n.text}", ""]
-    return "\n".join(zeilen).strip()
-
-
 def render_fuer_agent(profil: Stimmprofil) -> str:
     """Kompakte Fassung, die dem Stil-Agent zur Laufzeit mitgegeben wird.
 
@@ -198,8 +178,12 @@ def render_fuer_agent(profil: Stimmprofil) -> str:
             f"\n[{r.id}] {r.titel}",
             f"  {r.regel}",
             f"  Erkennbar an: {r.pruefbar_als}",
-            f"  Beleg: „{r.beweis[0]}“",
-            f"  Verstoß klänge wie: „{r.gegenbeispiel}“",
+            # Beschriftung: Die Fundstelle ist der VERSTOSS, nicht das Vorbild. Eine
+            # frühere Fassung nannte sie „Beleg" und die Korrektur „Verstoß klänge wie"
+            # — genau verkehrt herum. Der Stil-Agent las daraus, der Autor schreibe
+            # bürosprachlich, und schlug prompt Bürosprache vor.
+            f"  So steht es im Text (Verstoß): „{r.fundstellen[0]}“",
+            f"  So wäre es richtig: „{r.so_geht_es}“",
         ]
     if profil.vermeidungen:
         zeilen += ["", "DAS TUT DER AUTOR NIE:"]
@@ -233,11 +217,11 @@ def render_markdown(profil: Stimmprofil) -> str:
             "",
             f"**Erkennbar an:** {r.pruefbar_als}",
             "",
-            "**Belege aus dem Manuskript:**",
+            "**Fundstellen im Manuskript — so steht es dort, also als Verstoß:**",
             "",
         ]
-        zeilen += [f"> {b}" for b in r.beweis]
-        zeilen += ["", f"**Ein Verstoß klänge so:** {r.gegenbeispiel}", ""]
+        zeilen += [f"> {b}" for b in r.fundstellen]
+        zeilen += ["", f"**So wäre es richtig:** {r.so_geht_es}", ""]
 
     if profil.vermeidungen:
         zeilen += ["## Was der Autor nie tut", ""]

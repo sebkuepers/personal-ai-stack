@@ -83,7 +83,7 @@
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "description": "Ebene 1 des Lektorats: Rechtschreibung, Zeichensetzung, Grammatik, Tempus, Typografie. Fasst Stil nicht an.",
-        "strict": false
+        "strict": true
       }
     }
   },

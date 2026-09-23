@@ -90,6 +90,15 @@ buch-test:
 
 ## STIMMPROFIL — die Erzählstimme eines Werks destillieren (Worker muss laufen)
 ## Usage: make buch-stimmprofil werk=immer-wieder-ruegen
+.PHONY: buch-uebersicht buch-lektorat-chat
+buch-uebersicht:  ## Struktur, Dichte und Stand eines Buchs (Canvas + Diagramme)
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli buch-uebersicht \
+		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
+
+buch-lektorat-chat:  ## Lektorat im Gespräch — dieselbe Oberfläche wie in Le Chat, nur im Terminal
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli buch-lektorat \
+		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
+
 buch-stimmprofil:
 	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --schreiben
 

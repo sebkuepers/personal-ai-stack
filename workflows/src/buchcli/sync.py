@@ -45,14 +45,30 @@ def slugify(text: str) -> str:
 
 def als_markdown(m: Manuskript, werk: dict) -> str:
     """Das ganze Manuskript als ein Dokument — die Form, die in die Library geht."""
+    # Eine Kennzahlen-Zeile, die jede Frage nach Umfang direkt beantwortet.
+    #
+    # Ohne sie zählt ein Modell Überschriften — und kommt auf 57 statt 48, weil
+    # Kapitel (##), Untergruppen (###) und Abschnitte (####) alle Überschriften
+    # sind und es sie addiert. Die Zahlen hier stehen im Text, sind also nicht zu
+    # verwechseln und nicht zu erraten.
+    mit_text = [a for a in m.abschnitte if a.hat_text]
+    gruppen = {tuple(a.pfad[:2]) for a in mit_text if len(a.pfad) > 1}
     zeilen = [
         f"# {werk['titel']}",
         "",
         f"*{werk['untertitel']}* — {werk['autor']}",
         "",
-        f"Stand: {date.today().isoformat()} · {len(m.kapitel)} Kapitel · {m.woerter:,} Wörter".replace(
-            ",", "."
-        ),
+        "## Umfang",
+        "",
+        f"- **{len(mit_text)} Abschnitte** mit Text (die Ebene, auf der geschrieben wird)",
+        f"- **{len(m.kapitel)} Kapitel**: {' · '.join(m.kapitel)}",
+        f"- {len(gruppen)} Untergruppen innerhalb der Kapitel",
+        f"- **{m.woerter:,} Wörter**".replace(",", "."),
+        f"- Stand: {date.today().isoformat()}",
+        "",
+        "> Kapitel, Untergruppen und Abschnitte sind DREI verschiedene Ebenen. "
+        "Wer nach der Zahl der Abschnitte gefragt wird, nennt die erste Zahl — "
+        "nicht die Summe der Überschriften in diesem Dokument.",
         "",
     ]
     for kapitel in m.kapitel:

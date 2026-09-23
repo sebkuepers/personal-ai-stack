@@ -50,6 +50,14 @@ class Abschnitt:
     notizen: str | None = None
     hat_text: bool = False
     kapitel_ebene: int = 0
+    etikett: str = ""
+    status: str = ""
+    ist_ordner: bool = False
+    """Ein Gliederungsknoten mit Kindern.
+
+    Wichtig für alles, was „hier fehlt noch Text" meldet: Ein Kapitelordner hat
+    nie eigenen Text und ist deshalb kein Mangel, sondern Struktur.
+    """
 
     @property
     def kapitel(self) -> str | None:
@@ -300,6 +308,24 @@ def _lies_notizen(paket: Path, uuid: str) -> str | None:
     return "\n\n".join(dekodiere_rtf(p.read_bytes())).strip() or None
 
 
+def _vokabular(baum: ET.Element, block: str, eintrag: str) -> dict[str, str]:
+    """Die Etikett- bzw. Statusliste eines Projekts als ``{ID: Name}``.
+
+    Scrivener führt beide als frei benennbare Listen in ``<LabelSettings>`` und
+    ``<StatusSettings>``; die Items verweisen nur über IDs darauf. Sie stehen
+    deshalb hier und nicht in der Config: Der Autor pflegt sie in Scrivener, und
+    eine Kopie im Repo wäre sofort veraltet.
+    """
+    el = baum.find(".//" + block)
+    if el is None:
+        return {}
+    return {
+        e.get("ID", ""): (e.text or "").strip()
+        for e in el.iter(eintrag)
+        if e.get("ID") is not None
+    }
+
+
 def lies_binder(
     paket: Path,
     slug: str,
@@ -329,6 +355,8 @@ def lies_binder(
         raise FileNotFoundError(f"Keine .scrivx-Datei in {paket}")
 
     baum = ET.parse(scrivx).getroot()
+    etiketten = _vokabular(baum, "LabelSettings", "Label")
+    zustaende = _vokabular(baum, "StatusSettings", "Status")
     entwurf = next(
         (b for b in baum.iter("BinderItem") if b.get("Type") == "DraftFolder"), None
     )
@@ -354,6 +382,12 @@ def lies_binder(
             titel = (titel_el.text or "").strip() if titel_el is not None else ""
             uuid = item.get("UUID") or ""
             rtf = _text_datei(paket, uuid, "content.rtf")
+            # Fehlt die ID, hat der Autor nichts gesetzt — Scrivener zeigt dann
+            # den ersten Eintrag der Liste, also die Vorgabe.
+            etikett = etiketten.get((meta.findtext("LabelID") or "-1") if meta is not None else "-1", "")
+            status = zustaende.get((meta.findtext("StatusID") or "-1") if meta is not None else "-1", "")
+            kinder_el = item.find("Children")
+            ist_ordner = kinder_el is not None and len(kinder_el) > 0
 
             if rtf.is_file():
                 abschnitte.append(
@@ -366,6 +400,9 @@ def lies_binder(
                         notizen=_lies_notizen(paket, uuid),
                         hat_text=True,
                         kapitel_ebene=kapitel_ebene,
+                        etikett=etikett,
+                        status=status,
+                        ist_ordner=ist_ordner,
                     )
                 )
             elif not nur_mit_text:
@@ -378,6 +415,9 @@ def lies_binder(
                         notizen=_lies_notizen(paket, uuid),
                         hat_text=False,
                         kapitel_ebene=kapitel_ebene,
+                        etikett=etikett,
+                        status=status,
+                        ist_ordner=ist_ordner,
                     )
                 )
 

@@ -96,7 +96,7 @@
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "description": "Das zweite Augenpaar: sieht denselben Abschnitt wie die erste Stufe plus deren Befunde und prüft beides — was fehlt und was keiner ist. Läuft immer, auch bei null Befunden.",
-        "strict": false
+        "strict": true
       }
     }
   },

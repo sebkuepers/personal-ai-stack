@@ -95,7 +95,7 @@
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
-        "strict": false
+        "strict": true
       }
     }
   },

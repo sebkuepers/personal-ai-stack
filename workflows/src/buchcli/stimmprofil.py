@@ -28,10 +28,9 @@ from dotenv import load_dotenv
 
 from workflows.buch import config as c
 from workflows.buch.models import Stimmprofil
-from workflows.buch.notizen import alle_notizen
 from workflows.buch.scrivener import lies_binder
 from workflows.buch.stilmetrik import messe_manuskript
-from workflows.buch.stimme import notizregeln_text, render_markdown
+from workflows.buch.stimme import render_markdown
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -52,7 +51,6 @@ def baue_eingabe(slug: str, *, limit: int | None = None, parallel: int = 6) -> d
         mit_text = mit_text[:limit]
 
     metrik = messe_manuskript(m)
-    notizen = alle_notizen(m)
 
     return {
         "werk": slug,
@@ -67,21 +65,20 @@ def baue_eingabe(slug: str, *, limit: int | None = None, parallel: int = 6) -> d
             for a in mit_text
         ],
         # Belegbasis = AUSSCHLIESSLICH Werktext, nie Kommentar über das Werk:
-        #  - das VOLLE Manuskript, auch bei --limit (sonst gelten Belege aus nicht
-        #    analysierten Abschnitten fälschlich als erfunden);
-        #  - die VORHER/NACHHER-Fassungen aus den Notizen, weil der Agent die Regeln
-        #    des Autors samt seiner Beispiele übernimmt und die VORHER-Fassungen per
-        #    Definition nicht mehr im aktuellen Manuskript stehen.
-        # NICHT die Hinweistexte der Notizen (~27k Zeichen Kommentar über das Buch) —
-        # daraus zitierte Belege wären keine Belege aus dem Werk.
+        # Ausschließlich das VOLLE Manuskript, auch bei --limit (sonst gelten
+        # Fundstellen aus nicht analysierten Abschnitten fälschlich als erfunden).
+        #
+        # BEWUSST OHNE die Lektoratsnotizen. Sie standen hier einmal — ihre
+        # VORHER/NACHHER-Paare gingen sogar mit VORRANG in den Reduce-Schritt, und
+        # entsprechend kamen 9 von 10 Regeln aus ihnen statt aus dem Text. Das ist
+        # nicht, was ein Stimmprofil sein soll: Die Notizen sagen, was der Autor an
+        # einzelnen Stellen korrigiert hat, nicht, wie er schreibt. Das Profil wird
+        # aus dem Manuskript abgeleitet, sonst aus nichts.
         "korpus_text": "\n\n".join(
-            [p for a in m.abschnitte if a.hat_text for p in a.absaetze]
-            + [n.vorher for n in notizen if n.vorher]
-            + [n.nachher for n in notizen if n.nachher]
+            p for a in m.abschnitte if a.hat_text for p in a.absaetze
         ),
         "metrik_text": metrik.als_text(),
         "metrik": metrik.to_dict(),
-        "notizregeln": notizregeln_text(notizen),
         "woerter": sum(a.woerter for a in mit_text),
         "kapitel": m.kapitel,
         "parallel": parallel,
@@ -121,7 +118,7 @@ def zeige(profil: Stimmprofil) -> None:
         print(f"{i:2}. {r.titel}   [{r.id}]  Quelle: {r.quelle}")
         print(f"    {r.regel}")
         print(f"    erkennbar an: {r.pruefbar_als}")
-        print(f"    Beleg: „{r.beweis[0][:100]}…“  ({len(r.beweis)} Belege)")
+        print(f"    Fundstelle: „{r.fundstellen[0][:100]}…“  ({len(r.fundstellen)} Fundstellen)")
         print()
     if profil.vermeidungen:
         print("TUT DER AUTOR NIE:")
@@ -187,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     eingabe = baue_eingabe(args.werk, limit=args.limit, parallel=args.parallel)
     print(
         f"{args.werk}: {len(eingabe['abschnitte'])} Abschnitte, {eingabe['woerter']} Wörter, "
-        f"{len(eingabe['notizregeln'].splitlines())} Zeilen Autorennotizen"
+        "nur Manuskripttext"
     )
     print(f"Analyse läuft ({args.parallel} parallel) — das dauert einige Minuten …\n")
 
