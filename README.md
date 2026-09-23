@@ -66,7 +66,7 @@ re-checked when Mistral changes something.
 | **Traces / Explorer** | ✗ Enterprise only | Studio's execution timeline still shows every workflow run, retry and failure — that part is not gated. |
 | **Prompts** (`/v2/prompts`) | ✓ available | `prompts/` + `prompts/sync.py` |
 | **Skills** (`/v2/skills`) | ✓ available | `skills/` + `skills/sync.py` |
-| **Libraries** (`/v1/libraries`) | ✓ available | `buchcli.sync --library` |
+| **Libraries** (`/v1/libraries`) | ✓ available | `buchcli.sync --library` — uploads the manuscript **plus prepared companion documents** (figures, rubric, voice profile, exposé). Deliberately in place of book tools on the MCP server: seven of the eight tools that server would offer are answered just as well by a well-made document, the eighth is what a library is for — and a document needs no KV store, no deployment and no second staleness track. For the *live* state there is a workflow, because its worker runs where the file is. |
 
 **Two 404s that mean different things.** `{"detail":"Not Found"}` comes from the application — the
 route exists, the account may not use it. `{"message":"no Route matched with those values"}` comes

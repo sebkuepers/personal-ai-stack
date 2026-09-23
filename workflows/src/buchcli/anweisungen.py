@@ -50,8 +50,12 @@ def anweisungen(slug: str) -> str:
         "",
         "## Woran du dich hältst",
         "",
-        "- Die Zahlen zum Umfang stehen im Block „Umfang“ oben in manuskript.md. Nimm sie von dort, "
-        "zähle keine Überschriften — Kapitel, Untergruppen und Abschnitte sind drei Ebenen.",
+        "- **kennzahlen.md** hat alle Zahlen: Umfang, Kapitel, Status, Etiketten, wo es dünn ist. "
+        "Nimm sie von dort und zähle keine Überschriften in manuskript.md — Kapitel, Untergruppen "
+        "und Abschnitte sind drei Ebenen und stehen dort alle als Überschrift.",
+        "- **rubrik.md** ist mein Maßstab: die zwei Fragen an jedes Kapitel, die Erzählregeln, und "
+        "je Kapitel, was es beweisen und tragen muss. Daran wird gemessen, nicht an allgemeiner "
+        "Schreiblehre.",
         "- Das Exposé (expose.md) beschreibt, was das Buch werden SOLL. Das Manuskript ist, was es IST. "
         "Verwechsle die beiden nicht: Eine Abweichung vom Exposé ist ein Befund, kein Fehler.",
         "- Der Kapitelplan (kapitelplan.md) ist ein älterer Stand mit Arbeitstiteln. Maßgeblich ist, "
