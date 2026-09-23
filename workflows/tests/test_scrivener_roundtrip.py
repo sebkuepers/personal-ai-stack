@@ -37,8 +37,14 @@ KOPF = (
 )
 
 
-def _paket():
-    pfad = c.scrivener_pfad(SLUG)
+def _paket(slug: str = SLUG):
+    # Die Werk-Konfiguration ist gitignored — auf einem frischen Klon (CI) fehlt
+    # sie, und scrivener_pfad() wirft, bevor ein Pfad geprüft werden könnte.
+    # Beide Fälle sind „nicht vorhanden“ und überspringen den Test.
+    try:
+        pfad = c.scrivener_pfad(slug)
+    except FileNotFoundError as e:
+        pytest.skip(f"Werk-Konfiguration nicht vorhanden: {e}")
     if not pfad.is_dir():
         pytest.skip(f"Scrivener-Projekt nicht vorhanden: {pfad}")
     return pfad
@@ -233,9 +239,7 @@ def test_wurzel_begrenzt_auf_den_manuskriptzweig():
     ``wurzel`` würden sie als Kapitel gezählt. Genau daran ist der erste Lauf
     aufgefallen.
     """
-    pfad = c.scrivener_pfad("autobiographie")
-    if not pfad.is_dir():
-        pytest.skip("Autobiographie-Projekt nicht vorhanden")
+    pfad = _paket("autobiographie")
 
     ohne = lies_binder(pfad, "autobiographie")
     assert "Personen" in ohne.kapitel, "Vorbedingung: Recherche liegt im Entwurf"
@@ -257,9 +261,7 @@ def test_wurzel_begrenzt_auf_den_manuskriptzweig():
 
 def test_unbekannte_wurzel_schlaegt_fehl():
     """Lieber ein klarer Fehler als ein stillschweigend leerer Export."""
-    pfad = c.scrivener_pfad("autobiographie")
-    if not pfad.is_dir():
-        pytest.skip("Autobiographie-Projekt nicht vorhanden")
+    pfad = _paket("autobiographie")
     with pytest.raises(ValueError, match="nicht im Entwurf"):
         lies_binder(pfad, "autobiographie", wurzel="Gibtsnicht")
 
