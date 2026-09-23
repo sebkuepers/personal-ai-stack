@@ -22,6 +22,19 @@ worker-configuration.d.ts
 !.env.example
 .dev.vars.*
 
+# Arbeitsdaten der Workflows (Manuskript-Exporte, Entscheidungslog, Patches).
+# Enthält unveröffentlichten Werktext — gehört nicht ins Repo.
+workflows/data/
+
+# Werk-Konfigurationen und Stimmprofile: Kapitelpläne, Prüfsteine, Verlagsstrategie
+# und Belegzitate aus unveröffentlichten Manuskripten. Dieses Repo ist öffentlich —
+# die DOMÄNE (Code, Agents, Doku) wird geteilt, das WERK bleibt lokal.
+# Als Vorlage dient shared/buch/*.example.json.
+shared/buch/*.json
+!shared/buch/*.example.json
+skills/buch-stimme/*.md
+!skills/buch-stimme/SKILL.md
+
 # Tooling caches
 .mypy_cache/
 .ruff_cache/

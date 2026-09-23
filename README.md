@@ -15,6 +15,10 @@ is built to grow into a general personal automation system.
 | **MCP server** | My personal function library, callable by *every* agent (Studio, Le Chat, Vibe Work, and the workflows) | TypeScript · Cloudflare Worker | [`mcp-server/`](mcp-server/) |
 | **Skills** | Agent Skills (`SKILL.md`) that teach Mistral **Vibe Work** when/how to use the MCP tools + workflows | Markdown · open Agent Skills standard | [`skills/`](skills/) |
 
+The workflows pillar currently hosts **two domains**: the personal CRM and a **book-editing**
+domain that supports writing manuscripts in Scrivener — export, a distilled *voice profile*, and
+layered copy-editing. See [`docs/BUCH.md`](docs/BUCH.md).
+
 A fourth folder, [`worker-host/`](worker-host/), is the Cloudflare Worker that hosts the workflows
 worker in a scale-to-zero container **and** triggers the scheduled batch runs (cron).
 [`shared/crm.json`](shared/crm.json) is the **single source of truth** (IDs, schema, vocab) that both
@@ -51,8 +55,8 @@ personal-ai-stack/
 ├── worker-host/   # TypeScript · Cloudflare Worker — hosts the worker container + cron
 ├── Dockerfile     # the workflows worker image (built by worker-host)
 ├── skills/        # Agent Skills (SKILL.md) for Vibe Work
-├── shared/        # crm.json — single source of truth (IDs, schema, vocab)
-├── docs/          # CRM.md (workflow map), architecture.md (infra rationale)
+├── shared/        # one <domain>.json per domain — single source of truth (IDs, schema, vocab)
+├── docs/          # CRM.md, BUCH.md (workflow maps), architecture.md (infra rationale)
 ├── README.md      # this file
 └── CLAUDE.md      # engineering conventions across the monorepo
 ```
@@ -74,8 +78,12 @@ READMEs as they come online.
 
 ## Status
 
-- ✅ Workflows pillar: 4 CRM workflows + shared package, verified against the live agent.
-- 🚧 MCP server, container hosting, cron trigger, and skills: in progress (see the build plan).
+- ✅ **CRM domain**: 5 workflows + shared package, verified against the live agent.
+- ✅ **Book domain**: Scrivener export (RTF round-trip verified against `textutil`), 5 Studio
+  agents, and the `buch-stimmprofil` map/reduce workflow. See [`docs/BUCH.md`](docs/BUCH.md).
+- ✅ MCP server, container hosting, cron trigger, and skills: built (Phases 1–5).
+- 🚧 Book domain: write-back to Scrivener, the conversational editing workflow, and PDF
+  typesetting are next.
 
 > Personal project. `shared/crm.json` contains non-secret identifiers (agent id, Notion data-source
 > IDs) — usable only with my API key/OAuth, which never leave the gitignored `.env` / Worker secrets.

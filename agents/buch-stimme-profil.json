@@ -1,0 +1,150 @@
+{
+  "id": "ag_01a0cd6a54a97001875a8592a1ec319f",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.3,
+    "top_p": 1.0,
+    "max_tokens": 8192,
+    "random_seed": null,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stimmprofil",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+          "properties": {
+            "erzaehlhaltung": {
+              "title": "Erzaehlhaltung",
+              "type": "string"
+            },
+            "tempus": {
+              "title": "Tempus",
+              "type": "string"
+            },
+            "person": {
+              "title": "Person",
+              "type": "string"
+            },
+            "regeln": {
+              "items": {
+                "additionalProperties": false,
+                "description": "Eine Regel, wie der Reduce-Agent sie vorschlägt (noch ungeprüft).",
+                "properties": {
+                  "id": {
+                    "description": "Kurzer Bezeichner, z. B. R-behauptung-statt-bild",
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "titel": {
+                    "title": "Titel",
+                    "type": "string"
+                  },
+                  "regel": {
+                    "description": "Die Regel als Anweisung, die man befolgen oder verletzen kann",
+                    "title": "Regel",
+                    "type": "string"
+                  },
+                  "warum": {
+                    "title": "Warum",
+                    "type": "string"
+                  },
+                  "beweis": {
+                    "description": "Mindestens zwei wörtliche Sätze aus dem Manuskript",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Beweis",
+                    "type": "array"
+                  },
+                  "gegenbeispiel": {
+                    "description": "Wie ein Verstoß gegen die Regel klänge",
+                    "title": "Gegenbeispiel",
+                    "type": "string"
+                  },
+                  "pruefbar_als": {
+                    "description": "Woran ein Lektor oder Agent den Verstoß erkennt",
+                    "title": "Pruefbar Als",
+                    "type": "string"
+                  },
+                  "quelle": {
+                    "enum": [
+                      "manuskript",
+                      "notizen"
+                    ],
+                    "title": "Quelle",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "titel",
+                  "regel",
+                  "warum",
+                  "beweis",
+                  "gegenbeispiel",
+                  "pruefbar_als",
+                  "quelle"
+                ],
+                "title": "StimmregelRoh",
+                "type": "object"
+              },
+              "title": "Regeln",
+              "type": "array"
+            },
+            "wiederkehrende_motive": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Wiederkehrende Motive",
+              "type": "array"
+            },
+            "vermeidungen": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Vermeidungen",
+              "type": "array"
+            },
+            "offene_fragen": {
+              "description": "Wo die Belege widersprüchlich waren oder die Datenlage zu dünn",
+              "items": {
+                "type": "string"
+              },
+              "title": "Offene Fragen",
+              "type": "array"
+            }
+          },
+          "required": [
+            "erzaehlhaltung",
+            "tempus",
+            "person",
+            "regeln",
+            "wiederkehrende_motive",
+            "vermeidungen",
+            "offene_fragen"
+          ],
+          "title": "Buch · Stimmprofil",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+        "strict": false
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Buch · Stimmprofil",
+  "instructions": "Du verdichtest viele Einzelbeobachtungen zur Erzählstimme eines deutschsprachigen Autors zu einem\nkompakten, PRÜFBAREN Profil.\n\nDu bekommst:\n1. Beobachtungen zu allen Abschnitten des Manuskripts, jeweils mit wörtlichen Belegen.\n2. Gemessene Kennzahlen (Satzlängen, Dialoganteil, Passivquote und anderes) — die sind FAKTEN und\n   dürfen nicht umgedeutet werden.\n3. Regeln, die der Autor in seinen eigenen Lektoratsnotizen bereits selbst formuliert hat.\n\nDIE ENTSCHEIDENDE ANFORDERUNG: Jede Regel muss VERLETZBAR sein.\nEine Regel, gegen die man nicht verstoßen kann, kann keinen Verstoß erkennen und ist wertlos.\nPrüfe bei jeder Regel: Könnte ich einen Satz schreiben, der eindeutig dagegen verstößt? Wenn nein,\nformuliere sie schärfer oder lass sie weg.\n\n  UNBRAUCHBAR: \"Der Autor schreibt lebendig und konkret.\"\n  BRAUCHBAR:   \"Kündigt nie an, was das folgende Bild ohnehin zeigt. Erst das Bild, keine\n                Einordnung davor, keine Bewertung danach.\"\n\nWEITERE REGELN:\n\n1. HÖCHSTENS 12 REGELN. Ein Profil, das niemand liest, wirkt nicht. Nimm die tragenden, nicht alle.\n\n2. JEDE Regel braucht MINDESTENS ZWEI wörtliche Belege aus dem Manuskript. Die Belege müssen\n   wortgleich aus den gelieferten Beobachtungen stammen — sie werden maschinell gegen den\n   Originaltext geprüft. Ein erfundener Beleg lässt die ganze Regel verwerfen.\n\n3. Die eigenen Notizen des Autors haben VORRANG. Wenn er eine Regel selbst benannt hat, übernimm\n   seine Formulierung und seinen Namen dafür, statt eine eigene zu erfinden. Setze dann\n   quelle = \"notizen\".\n\n4. Jede Regel braucht ein GEGENBEISPIEL: ein selbst formulierter Satz, der zeigt, wie ein Verstoß\n   klänge. Das macht die Regel für andere überprüfbar.\n\n5. \"pruefbar_als\" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.\n\n6. VERMEIDUNGEN: Was tut dieser Autor nie? Sammle das getrennt von den Regeln.\n\n7. OFFENE FRAGEN: Wo die Beobachtungen einander widersprachen oder die Belege zu dünn waren, sag es.\n   Eine ehrliche offene Frage ist mehr wert als eine erfundene Regel.\n\n8. Die IDs folgen dem Muster R-<kurz-und-sprechend>, z. B. R-kein-etikett-vor-dem-bild.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+  "tools": [],
+  "metadata": {
+    "domaene": "buch"
+  }
+}

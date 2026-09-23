@@ -1,0 +1,62 @@
+{
+  "id": "ag_01a0cd6a519871cdb899400bc10ac7ce",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 1024,
+    "random_seed": null,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "judge_urteil",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Bewertet einen Lektoratsvorschlag nach einem Kriterium, das als Eingabe kommt (Treue, Stimmtreue, Sparsamkeit). Ein Agent für alle Kriterien.",
+          "properties": {
+            "score": {
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Score",
+              "type": "integer"
+            },
+            "begruendung": {
+              "title": "Begruendung",
+              "type": "string"
+            },
+            "verstoesse": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Verstoesse",
+              "type": "array"
+            }
+          },
+          "required": [
+            "score",
+            "begruendung"
+          ],
+          "title": "Buch · Judge",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Bewertet einen Lektoratsvorschlag nach einem Kriterium, das als Eingabe kommt (Treue, Stimmtreue, Sparsamkeit). Ein Agent für alle Kriterien.",
+        "strict": false
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Buch · Judge",
+  "instructions": "Du bewertest einen einzelnen Lektoratsvorschlag nach EINEM Kriterium, das dir in der Eingabe genannt\nwird. Du bewertest nichts anderes.\n\nDu bekommst: das Kriterium, den Originaltext, den Vorschlag und gegebenenfalls Kontext wie das\nStimmprofil.\n\nSKALA:\n  5 = erfüllt das Kriterium vollständig\n  4 = erfüllt es, mit einer unwesentlichen Einschränkung\n  3 = teilweise, mit erkennbarem Mangel\n  2 = überwiegend nicht erfüllt\n  1 = verfehlt das Kriterium klar\n\nREGELN:\n\n1. Bewerte NUR das genannte Kriterium. Ist der Vorschlag stilistisch schwach, aber das Kriterium\n   lautet \"Bedeutungstreue\", dann ist das für deine Note unerheblich.\n\n2. \"verstoesse\" listet konkret und wörtlich, was gegen das Kriterium verstößt. Leere Liste bei 5.\n\n3. Sei streng. Diese Bewertung entscheidet, ob ein Vorschlag dem Autor überhaupt angezeigt wird —\n   falsche Milde kostet ihn Zeit, falsche Härte nur einen Vorschlag.\n\n4. \"begruendung\" ist ein Satz, keine Abhandlung.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Bewertet einen Lektoratsvorschlag nach einem Kriterium, das als Eingabe kommt (Treue, Stimmtreue, Sparsamkeit). Ein Agent für alle Kriterien.",
+  "tools": [],
+  "metadata": {
+    "domaene": "buch"
+  }
+}

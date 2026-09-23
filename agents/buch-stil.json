@@ -1,0 +1,111 @@
+{
+  "id": "ag_01a0cd6a532073cc82376c3f36dab377",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.4,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "random_seed": null,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stilvorschlaege",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "vorschlaege": {
+              "items": {
+                "additionalProperties": false,
+                "description": "Ein Befund von ``buch-stil``.\n\n``regel_id`` ist der Durchsetzungshaken: Jeder Vorschlag muss eine Regel des\nStimmprofils zitieren oder ``kein-bezug`` sagen. Vorschläge mit\n``kein-bezug`` werden in Workflow-Code verworfen, außer bei Schwere „hoch\" —\nsonst bleibt das Profil Dekoration.",
+                "properties": {
+                  "absatz_index": {
+                    "title": "Absatz Index",
+                    "type": "integer"
+                  },
+                  "search": {
+                    "title": "Search",
+                    "type": "string"
+                  },
+                  "replace": {
+                    "title": "Replace",
+                    "type": "string"
+                  },
+                  "problem": {
+                    "enum": [
+                      "wiederholung",
+                      "satzlaenge",
+                      "rhythmus",
+                      "fuellwort",
+                      "klischee",
+                      "passiv",
+                      "nominalstil",
+                      "erklaert_statt_gezeigt",
+                      "perspektivbruch",
+                      "stimmbruch"
+                    ],
+                    "title": "Problem",
+                    "type": "string"
+                  },
+                  "schwere": {
+                    "enum": [
+                      "hoch",
+                      "mittel",
+                      "niedrig"
+                    ],
+                    "title": "Schwere",
+                    "type": "string"
+                  },
+                  "warum": {
+                    "title": "Warum",
+                    "type": "string"
+                  },
+                  "regel_id": {
+                    "description": "ID einer Stimmprofil-Regel oder 'kein-bezug'",
+                    "title": "Regel Id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "absatz_index",
+                  "search",
+                  "replace",
+                  "problem",
+                  "schwere",
+                  "warum",
+                  "regel_id"
+                ],
+                "title": "Stilvorschlag",
+                "type": "object"
+              },
+              "title": "Vorschlaege",
+              "type": "array"
+            }
+          },
+          "required": [
+            "vorschlaege"
+          ],
+          "title": "Buch · Stil",
+          "type": "object",
+          "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+        "strict": false
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Buch · Stil",
+  "instructions": "Du bist Stillektor für ein deutschsprachiges Buchmanuskript und arbeitest gegen ein STIMMPROFIL,\ndas dir mitgeliefert wird.\n\nDEIN AUFTRAG IST NICHT, DEN TEXT BESSER ZU MACHEN.\nDein Auftrag ist, ihn dem Autor ÄHNLICHER zu machen. Das ist ein Unterschied. Glätten, vereinheit-\nlichen und \"professioneller\" klingen lassen ist genau das, was hier schadet.\n\nREGELN:\n\n1. Jeder Vorschlag nennt in \"regel_id\" die Regel des Stimmprofils, auf die er sich beruft. Findest\n   du keine, schreibe \"kein-bezug\" — solche Vorschläge werden nur bei schwere = \"hoch\" überhaupt\n   angezeigt. Erfinde keine Regel-ID.\n\n2. HÖCHSTENS 12 VORSCHLÄGE, nach Schwere sortiert. Lieber fünf gute als zwanzig beliebige.\n\n3. \"search\" muss GENAU EINMAL im angegebenen Absatz vorkommen.\n\n4. Die kleinste Änderung, die das benannte Problem löst. Schreibe niemals einen ganzen Absatz neu.\n\n5. Die Bedeutung bleibt unangetastet. Keine Fakten, Namen, Orte oder Aussagen verändern.\n\n6. Was das Stimmprofil als Stärke oder Vermeidung führt, ist tabu. Wenn der Autor Wiederholung als\n   Mittel einsetzt, ist sie kein Fehler.\n\n7. \"warum\" nennt das Problem konkret und in einem Satz. Kein Schreibratgeber-Ton.\n\n8. Eine leere Liste ist ein gutes Ergebnis, wenn der Abschnitt trägt.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+  "tools": [],
+  "metadata": {
+    "domaene": "buch"
+  }
+}

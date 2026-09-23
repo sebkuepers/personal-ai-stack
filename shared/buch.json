@@ -1,0 +1,155 @@
+{
+  "_comment": "Domänen-Konfiguration für das Schreib-/Lektoratssystem. Gilt für ALLE Bücher — Agents, Modelle, Vokabulare, Judge-Kriterien und Satzspezifikation. Das einzelne Werk steht in shared/buch/<slug>.json. Gelesen von workflows/src/workflows/buch/config.py und vom MCP-Server. Konvention: die Domäne ist die Fähigkeit, das Werk ist der Gegenstand — Agents und Workflows tragen nie einen Werknamen.",
+  "agents": {
+    "_comment": "Werden von agents/sync.py angelegt; die IDs danach hier eintragen.",
+    "korrektorat": "ag_01a0cd6a526c75748b8431e31c00923e",
+    "stil": "ag_01a0cd6a532073cc82376c3f36dab377",
+    "stimme_probe": "ag_01a0cd6a53de713c80ccec2865d75766",
+    "stimme_profil": "ag_01a0cd6a54a97001875a8592a1ec319f",
+    "inhalt": null,
+    "judge": "ag_01a0cd6a519871cdb899400bc10ac7ce"
+  },
+  "models": {
+    "korrektorat": "mistral-medium-latest",
+    "stil": "mistral-medium-latest",
+    "inhalt": "mistral-medium-latest",
+    "stimme": "mistral-medium-latest",
+    "judge": "mistral-medium-latest"
+  },
+  "vokabular": {
+    "ebenen": [
+      "korrektorat",
+      "stil",
+      "inhalt"
+    ],
+    "korrektur_arten": [
+      "rechtschreibung",
+      "komma",
+      "grammatik",
+      "tempus",
+      "typografie",
+      "formatierung"
+    ],
+    "stil_probleme": [
+      "wiederholung",
+      "satzlaenge",
+      "rhythmus",
+      "fuellwort",
+      "klischee",
+      "passiv",
+      "nominalstil",
+      "erklaert_statt_gezeigt",
+      "perspektivbruch",
+      "stimmbruch"
+    ],
+    "schweregrade": [
+      "hoch",
+      "mittel",
+      "niedrig"
+    ],
+    "entscheidungen": [
+      "angenommen",
+      "abgelehnt",
+      "geaendert",
+      "zurueckgestellt"
+    ],
+    "ablehnungsgruende": [
+      "klingt nicht nach mir",
+      "Bedeutung verändert",
+      "zu glatt",
+      "ich mag die Wiederholung",
+      "passt nicht in den Kontext"
+    ],
+    "regel_status": [
+      "aktiv",
+      "beobachtung",
+      "verworfen"
+    ]
+  },
+  "judges": {
+    "_comment": "Studio-Observability (client.beta.observability.judges) ist auf dem Pro-Plan nicht erreichbar — GET /v1/observability/judges antwortet mit HTTP 404. Deshalb 'agent': ein Judge-Agent mit striktem Schema, Kriterium kommt als Eingabe. Auf 'observability' umstellen, falls Mistral das freischaltet.",
+    "backend": "agent",
+    "kriterien": {
+      "treue": {
+        "frage": "Verändert der Vorschlag Bedeutung, Fakten, Namen oder Aussage des Originals — über das hinaus, was er selbst als Problem benennt?",
+        "skala": "1-5",
+        "sperrt_unter": 4,
+        "aktiv": true
+      },
+      "stimmtreue": {
+        "frage": "Klingt der geänderte Text noch nach dem Autor, gemessen an den Regeln des Stimmprofils?",
+        "skala": "1-5",
+        "sperrt_unter": null,
+        "aktiv": false
+      },
+      "sparsamkeit": {
+        "frage": "Ist das die kleinste Änderung, die das benannte Problem löst, oder wurde darüber hinaus umgeschrieben?",
+        "skala": "1-5",
+        "sperrt_unter": null,
+        "aktiv": false
+      }
+    }
+  },
+  "grenzen": {
+    "_comment": "Bewusste Obergrenzen. Ein Profil mit 40 Regeln liest niemand, und 50 Stilbefunde pro Abschnitt sind kein Lektorat, sondern Rauschen.",
+    "max_stil_befunde_pro_abschnitt": 12,
+    "max_stimmregeln": 12,
+    "min_belege_pro_stimmregel": 2,
+    "ablehnquote_fuer_beobachtung": 0.6
+  },
+  "scrivener": {
+    "_comment": "Strukturkonstanten des Scrivener-Formats. Der Export läuft vom DraftFolder abwärts durch den Binder — NICHT über Files/Data, dort liegen auch Forschung und Papierkorb.",
+    "binder_datei_endung": ".scrivx",
+    "entwurf_typ": "DraftFolder",
+    "text_typ": "Text",
+    "text_datei": "content.rtf",
+    "synopsis_datei": "synopsis.txt",
+    "notizen_datei": "notes.rtf",
+    "nur_include_in_compile": true,
+    "rtf_codepage": "cp1252"
+  },
+  "satz": {
+    "_comment": "EIN Zielformat: der Buchsatz. Abgelesen aus den gesetzten Referenz-PDFs in pdf/. Achtung — die PDFs in pdf/archiv/ mit serifenloser Schrift, Absatzabstand und ❖ als Trenner sind Scrivener-Direktexporte und ausdrücklich NICHT die Referenz; genau die typografische Qualität ist der Grund für diesen Workflow. Die Werte unten sind der Ausgangspunkt für die Kalibrierung gegen die Referenz.",
+    "engine": "typst",
+    "referenz_pdf": "pdf/Immer Wieder Rügen - Manuskript Kapitel 1-3.pdf",
+    "format": {
+      "seitenformat": "a5",
+      "schrift": "serif",
+      "schriftkandidaten": [
+        "Palatino",
+        "Palatino Linotype",
+        "TeX Gyre Pagella"
+      ],
+      "satzart": "blocksatz",
+      "silbentrennung": "de",
+      "absatz": "erstzeileneinzug",
+      "einzug_ausser_nach": [
+        "ueberschrift",
+        "abschnittstrenner"
+      ],
+      "abschnittstrenner": "*  *  *",
+      "kolumnentitel": {
+        "verso": "buchtitel",
+        "recto": "kapiteltitel",
+        "kursiv": true,
+        "auf_kapitelanfang": false
+      },
+      "seitenzahl": {
+        "position": "unten-zentriert",
+        "ziffern": "mediaeval"
+      },
+      "titelei": [
+        "titelseite",
+        "leerseite",
+        "inhalt",
+        "leerseite"
+      ],
+      "kapitel_beginnt": "recto"
+    },
+    "varianten": {
+      "_comment": "Keine eigenen Formate, nur Umfangsoptionen desselben Satzes.",
+      "kapitelbereich": "alle | 1-3 | 4",
+      "stand_datum": "wird auf der Titelseite ausgewiesen"
+    }
+  }
+}

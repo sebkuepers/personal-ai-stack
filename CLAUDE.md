@@ -9,7 +9,7 @@ A personal AI system with three composable pillars on Mistral + Cloudflare:
 
 | Pillar | Stack | Deep doc |
 |---|---|---|
-| `workflows/` — durable Mistral Workflows | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
+| `workflows/` — durable Mistral Workflows (domains: `crm/`, `buch/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
 | `mcp-server/` — personal MCP server (a Mistral custom connector) | TypeScript · Cloudflare Worker | `mcp-server/README.md` |
 | `skills/` — Agent Skills for Vibe Work | Markdown (`SKILL.md`) | `skills/README.md` |
 
@@ -22,9 +22,15 @@ for the infra rationale.
 
 1. **Reuse, don't recreate.** Trigger existing Studio agents; reference existing connectors; read
    IDs from `shared/crm.json`. Never hardcode an ID or re-implement an agent's prompt.
-2. **`shared/crm.json` is the single source of truth.** Agent id, Notion data-source IDs, connector
-   slugs/tools, and the category vocab live there. Python reads it via
-   `workflows/src/workflows/crm/config.py`; the MCP server imports it. Change it in **one** place.
+2. **One `shared/<domain>.json` per domain is the single source of truth.** IDs, connector
+   slugs/tools and vocabularies live there, never in code. Each domain has its own config module
+   (`workflows/src/workflows/<domain>/config.py`); the MCP server imports the same JSON.
+   Change it in **one** place.
+
+   **Domain vs. work.** A domain is a *capability*, so its agents, workflows and skills are named
+   `<domain>-*` and never carry the name of a concrete subject. What they operate on comes in as a
+   parameter — e.g. `make buch-sync werk=immer-wieder-ruegen`. Per-subject config lives in
+   `shared/<domain>/<slug>.json`. See [`docs/BUCH.md`](docs/BUCH.md).
 3. **Verify against the installed SDK / live account, not from memory.** When unsure about a Mistral
    symbol or a connector tool name, check the venv (`workflows/.venv/.../plugins/mistralai/`) or call
    `client.beta.connectors.list_async()` / `.agents.list_async()`.

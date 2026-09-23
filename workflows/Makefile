@@ -1,4 +1,4 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe
 
 ## Install dependencies
 installdeps:
@@ -69,3 +69,30 @@ crm-digest:
 ## Usage: make crm-ingest input='{"window_hours":13,"max_emails":50,"dry_run":false}'
 crm-ingest:
 	uv run python -m entrypoints.start --workflow crm-ingest-recent $(if $(input),--input '$(input)',--input '{"window_hours":13,"max_emails":50,"dry_run":true}')
+
+# ===========================================================================
+# Buch / Lektorat  (Domäne "buch" — das Werk kommt als werk=<slug> herein)
+# ===========================================================================
+
+## EXPORT — Scrivener lesen und den kanonischen Export neu bauen
+## Der Export wird IMMER neu erzeugt, nie von Hand gepflegt.
+## Usage: make buch-sync werk=immer-wieder-ruegen
+buch-sync:
+	uv run python -m buchcli.sync --werk $(or $(werk),immer-wieder-ruegen) --markdown
+
+## EXPORT + Library — zusätzlich in die Mistral Library laden
+buch-export:
+	uv run python -m buchcli.sync --werk $(or $(werk),immer-wieder-ruegen) --markdown --library
+
+## TESTS — Scrivener-Roundtrip gegen das echte Projekt und gegen textutil
+buch-test:
+	uv run pytest tests/ -q
+
+## STIMMPROFIL — die Erzählstimme eines Werks destillieren (Worker muss laufen)
+## Usage: make buch-stimmprofil werk=immer-wieder-ruegen
+buch-stimmprofil:
+	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --schreiben
+
+## STIMMPROFIL (Probelauf) — nur 6 Abschnitte, schreibt nichts
+buch-stimmprofil-probe:
+	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --limit 6

@@ -1,0 +1,123 @@
+{
+  "id": "ag_01a0cd6a53de713c80ccec2865d75766",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.2,
+    "top_p": 1.0,
+    "max_tokens": 2048,
+    "random_seed": null,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stimmprobe",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Beobachtet die Erzählstimme an EINEM Abschnitt und belegt jede Beobachtung wörtlich. Map-Schritt des Stimmprofils.",
+          "properties": {
+            "beispielsaetze": {
+              "description": "3-5 wörtliche Sätze, die für die Stimme des Autors typisch sind",
+              "items": {
+                "type": "string"
+              },
+              "title": "Beispielsaetze",
+              "type": "array"
+            },
+            "erzaehlhaltung": {
+              "title": "Erzaehlhaltung",
+              "type": "string"
+            },
+            "tempus": {
+              "title": "Tempus",
+              "type": "string"
+            },
+            "person": {
+              "title": "Person",
+              "type": "string"
+            },
+            "beobachtungen": {
+              "items": {
+                "additionalProperties": false,
+                "description": "Eine einzelne Auffälligkeit mit Beleg — die Währung des Map-Schritts.",
+                "properties": {
+                  "beobachtung": {
+                    "description": "Was auffällt, in einem Satz",
+                    "title": "Beobachtung",
+                    "type": "string"
+                  },
+                  "beleg": {
+                    "description": "Wörtliches Zitat aus dem Abschnitt",
+                    "title": "Beleg",
+                    "type": "string"
+                  },
+                  "art": {
+                    "description": "Stärke = trägt die Stimme, Schwäche = schadet ihr, Eigenart = fällt auf, ist aber neutral",
+                    "enum": [
+                      "staerke",
+                      "schwaeche",
+                      "eigenart"
+                    ],
+                    "title": "Art",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "beobachtung",
+                  "beleg",
+                  "art"
+                ],
+                "title": "Beobachtung",
+                "type": "object"
+              },
+              "title": "Beobachtungen",
+              "type": "array"
+            },
+            "wiederkehrende_konstruktionen": {
+              "description": "Satzmuster, die mehrfach vorkommen",
+              "items": {
+                "type": "string"
+              },
+              "title": "Wiederkehrende Konstruktionen",
+              "type": "array"
+            },
+            "vermeidungen": {
+              "description": "Was der Autor erkennbar NICHT tut — oft aussagekräftiger als das, was er tut",
+              "items": {
+                "type": "string"
+              },
+              "title": "Vermeidungen",
+              "type": "array"
+            }
+          },
+          "required": [
+            "beispielsaetze",
+            "erzaehlhaltung",
+            "tempus",
+            "person",
+            "beobachtungen",
+            "wiederkehrende_konstruktionen",
+            "vermeidungen"
+          ],
+          "title": "Buch · Stimmprobe",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Beobachtet die Erzählstimme an EINEM Abschnitt und belegt jede Beobachtung wörtlich. Map-Schritt des Stimmprofils.",
+        "strict": false
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Buch · Stimmprobe",
+  "instructions": "Du beobachtest die Erzählstimme eines deutschsprachigen Autors an EINEM Abschnitt seines Manuskripts.\n\nDEINE AUFGABE IST BEOBACHTEN, NICHT VERBESSERN.\nDu schlägst nichts vor, du korrigierst nichts, du bewertest die Qualität nicht. Du beschreibst, was\ntatsächlich dasteht — so genau, dass jemand anderes den Autor daran wiedererkennen würde.\n\nREGELN:\n\n1. JEDE Beobachtung braucht einen wörtlichen Beleg aus DIESEM Abschnitt. Zitiere exakt, Zeichen für\n   Zeichen. Erfinde niemals ein Zitat. Wenn du keinen Beleg findest, lass die Beobachtung weg.\n\n2. Sei konkret statt allgemein. \"Kurze Sätze\" ist wertlos. \"Stellt regelmäßig einen Satz aus zwei\n   Wörtern hinter einen langen, als Pointe\" ist brauchbar.\n\n3. Vermeide Schreibratgeber-Vokabular. Wörter wie \"atmosphärisch\", \"bildhaft\", \"lebendig\",\n   \"mitreißend\" sagen nichts über diesen Autor und sind verboten.\n\n4. VERMEIDUNGEN sind besonders wertvoll: Was tut dieser Autor erkennbar NICHT? Keine Metaphern?\n   Keine Adjektivketten? Nie ein Ausrufezeichen im Erzähltext? Das schärft ein Profil stärker als\n   jede Aufzählung dessen, was er tut.\n\n5. BEISPIELSÄTZE: Wähle 3 bis 5 Sätze, an denen man die Stimme am deutlichsten hört. Wörtlich, ohne\n   Auslassungen, ohne Kürzung.\n\n6. Art der Beobachtung:\n   - \"staerke\"  = trägt die Stimme, sollte erhalten bleiben\n   - \"schwaeche\" = arbeitet gegen die Stimme\n   - \"eigenart\"  = fällt auf, ist weder gut noch schlecht\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema. Kein Markdown, kein\nVorspann, keine Erklärung außerhalb des JSON.",
+  "handoffs": null,
+  "description": "Beobachtet die Erzählstimme an EINEM Abschnitt und belegt jede Beobachtung wörtlich. Map-Schritt des Stimmprofils.",
+  "tools": [],
+  "metadata": {
+    "domaene": "buch"
+  }
+}
