@@ -85,14 +85,24 @@ Scrivener-Auto-Backups liegen deshalb bewusst weiter unter `~/Documents/Scrivene
 
 > **Lokal lesen und rechnen, in Mistral orchestrieren.**
 
-Alles, was Dateisystem oder Determinismus braucht — Scrivener lesen, Kennzahlen messen, Notizen
-auswerten, PDF setzen, zurückschreiben — passiert in `buchcli` auf dem eigenen Rechner. Die
-Workflows bekommen fertigen Text als Eingabe und kümmern sich um Agent-Aufrufe, Wiederholungen,
-Parallelität und die Ausführungshistorie.
+Alles Deterministische — Kennzahlen messen, PDF setzen, zurückschreiben — passiert in `buchcli`
+auf dem eigenen Rechner. Die Workflows kümmern sich um Agent-Aufrufe, Wiederholungen, Parallelität
+und die Ausführungshistorie.
 
-Das ist keine Willkür: Scrivener-Lesen und Kennzahlen-Rechnen sind deterministisch und würden bei
-jedem Wiederanlauf eines Workflows erneut durchlaufen. Und ein Workflow, der Dateipfade kennt,
-ist an einen Rechner gebunden.
+**Eine frühere Fassung dieser Regel war strenger und ist gefallen:** „Kein Workflow fasst das
+`.scriv` an." Der Grund dafür war, dass der Worker im Cloudflare-Container laufen sollte, wo
+`~/Werk/…` nicht existiert. Der Buch-Worker läuft aber lokal — damit fiel der Grund weg, und mit
+ihm eine Einschränkung, die einen echten Preis hatte: Ein Gesprächs-Workflow, der die Kapitelliste
+nicht selbst lesen darf, braucht sie als Parameter, und dann kann man ihn in Le Chat nicht ohne
+Vorarbeit starten.
+
+Was bleibt, ist die Trennung, auf die es ankommt: **I/O steht in Aktivitäten, nie im
+Workflow-Körper.** Der Körper wird bei einer Wiederholung erneut abgespielt; eine Datei, die sich
+zwischendurch geändert hat, würde ihn aus der Bahn werfen. Eine Aktivität liest genau einmal, und
+ihr Ergebnis steht danach in der Ereignishistorie. Die lesenden Aktivitäten stehen gesammelt in
+`buch/lokal.py`.
+
+Geschrieben wird weiterhin nirgends aus einem Workflow heraus.
 
 Der **Worker** — der Prozess, der den Workflow-Code ausführt — läuft lokal und meldet sich
 ausgehend bei Mistral. Die Orchestrierung, die Historie und die Timeline liegen in Mistrals Cloud.
@@ -126,10 +136,40 @@ make buch-stimmprofil werk=immer-wieder-ruegen     # voller Lauf, legt das Profi
 Erst der Probelauf. Er kostet Minuten statt einer Viertelstunde und zeigt sofort, ob die Regeln
 konkret werden oder Schreibratgeber-Prosa herauskommt.
 
-### 3. Prüfen
+### 3. Lektorieren
+
+Der **Gesprächs-Workflow** ist der eigentliche Arbeitsplatz: in Vibe Work über `+` → Workflows
+→ *Buch · Lektorat (im Gespräch)*. Er braucht keine Eingabe und liest Scrivener **live** — ein
+`buch-sync` vorher ist nicht nötig. Nur gespeichert muss Scrivener haben; es schreibt die
+`content.rtf` erst nach einer Tipppause.
+
+Dieselben Ebenen einzeln im Terminal:
 
 ```bash
-uv run ruff check src/workflows src/buchcli
+make buch-lektorat abschnitt="Einführung Strand"        # Ebene 1, headless
+make buch-inhalt kapitel="Voll zur Oma"                 # Ebene 3, ein ganzes Kapitel
+make buch-uebersicht                                     # Struktur, Dichte, Stand
+```
+
+### 4. Setzen
+
+```bash
+make buch-pdf kapitel=1-3 vergleich=1     # setzt und hält die Seitenzahl gegen die Referenz
+make buch-pdf                             # das ganze Manuskript
+```
+
+Braucht `typst` (`brew install typst`). Die Maße stehen in `shared/buch.json` unter `satz.format`
+und sind aus dem Referenz-PDF **ausgemessen**: 170 × 245 mm, Satzbreite 126,8 mm, innen 23,6 /
+außen 19,5, Palatino 10,9 pt. Erreicht werden 71 Seiten gegen 70 der Referenz.
+
+`trenner_zwischen` ist bewusst eine Einstellung (`alle` · `gruppen` · `keine`): Die Referenz hat
+15 Trenner bei 37 möglichen Abschnittsübergängen, ohne erkennbare Regel. Abschnittstitel werden
+nicht gesetzt, die Grenzen sind also unsichtbar — das ließ sich nicht ableiten, nur entscheiden.
+
+### 5. Prüfen
+
+```bash
+uv run ruff check src/workflows src/buchcli src/evalkit
 uv run pytest tests/ -q
 uv run python -c "from entrypoints.worker import discover_workflows as d; print(len(d()))"
 ```
@@ -151,18 +191,31 @@ Vier Mechanismen erzwingen Substanz:
    Kurzsatzanteil, Absatzlängen, Dialoganteil, Nominalstil- und Passivquote. Aus „kurze Sätze"
    wird „Median 9 Wörter, 25 % höchstens 5 Wörter, längster im Buch 55".
 
-2. **Die eigenen Notizen des Autors auswerten.** In den `notes.rtf` steckt oft schon Lektorat —
-   im Fall von „Immer wieder Rügen" 102 Blöcke mit dem Muster *ÜBERSCHRIFT / VORHER / NACHHER /
-   WARUM*. `notizen.py` parst sie; der Reduce-Agent bekommt sie mit dem Auftrag, die Formulierung
-   und den Namen des Autors zu übernehmen. Das ist der Grund, warum das Profil nach ihm klingt.
+2. **Nur das Manuskript, nichts sonst.** Die Lektoratsnotizen des Autors (`notes.rtf`) flossen
+   einmal mit **Vorrang** in den Reduce-Schritt — und prompt kamen 9 von 10 Regeln aus ihnen statt
+   aus dem Text. Das ist kein Stimmprofil: Die Notizen sagen, was der Autor an einzelnen Stellen
+   korrigiert hat, nicht, wie er schreibt. Sie sind draußen.
 
-3. **Belegpflicht, in Python durchgesetzt.** Jede Regel braucht mindestens zwei wörtliche Belege,
-   und jeder Beleg wird gegen den **Werktext** geprüft. Belegbasis sind Manuskript plus die
-   VORHER/NACHHER-Fassungen aus den Notizen — ausdrücklich **nicht** die Kommentartexte, denn ein
-   Zitat aus einem Kommentar über das Buch ist kein Beleg aus dem Buch. Regeln, die das verfehlen,
-   landen mit Begründung unter `verworfene_regeln`.
+3. **Jede Regel beschreibt, was der Autor TUT — niemals ein Verbot.** Der zwingende Grund: Der
+   Agent sieht nur den fertigen Text. Darin stehen keine Verstöße gegen ein Verbot, also lässt
+   sich ein Verbot nicht belegen. Ein Lauf ohne diese Vorgabe lieferte 8 von 12 Regeln als Verbote,
+   und **jede** Fundstelle zeigte einen Satz, der das Verbot einhält — zirkulär und wertlos. Eine
+   dieser Regeln lautete „Vermeidet elliptische Sätze"; elliptische Sätze sind die Handschrift
+   dieses Autors. Was er nicht tut, steht unter `vermeidungen`, wo kein Beleg verlangt wird.
 
-4. **Höchstens zwölf Regeln.** Ein Profil mit vierzig Regeln liest niemand und befolgt kein Agent.
+4. **Belegpflicht, in Python durchgesetzt.** Der Reduce-Agent bekommt einen **nummerierten
+   Satzkatalog** aus dem Map-Schritt und wählt daraus, statt Zitate abzutippen. Vorher tat er
+   Letzteres und paraphrasierte dabei: 10 von 12 Regeln fielen durch die Belegprüfung, weil ihre
+   „wörtlichen" Fundstellen so nicht im Manuskript standen. Der Auflöser nimmt Nummer **oder**
+   Wortlaut — `strict: true` erzwingt Enums, aber keine Zahlentypen, und das Modell schreibt
+   trotzdem Sätze. Was im Katalog nicht steht, fällt raus.
+
+5. **Höchstens zwölf Regeln.** Ein Profil mit vierzig Regeln liest niemand und befolgt kein Agent.
+
+Die Felder heißen nach ihrem Inhalt: `fundstellen` (Stellen, an denen man die Regel sieht) und
+`so_geht_es` (dieselbe Stelle, wie sie von jemand anderem klänge). Eine frühere Fassung hieß
+`beweis` und `gegenbeispiel` — und enthielt das Gegenteil dessen, was die Namen versprachen. Der
+Stil-Agent las daraus, der Autor schreibe bürosprachlich, und schlug prompt Bürosprache vor.
 
 Das Ergebnis wird zweifach verwendet: als versionierte JSON (Quelle der Wahrheit) und zur
 **Aufrufzeit** als Kontextblock für den Stil-Agent — bewusst nicht in dessen
@@ -181,7 +234,9 @@ Alle in `agents/buch-*.json`, alle mit erzwungenem `response_format.json_schema`
 | `buch-stimme-profil` | Reduce — verdichtet alle Beobachtungen zu höchstens zwölf prüfbaren Regeln |
 | `buch-korrektorat` | Ebene 1: Rechtschreibung, Zeichensetzung, Grammatik, Tempus, Typografie. Fasst Stil nicht an |
 | `buch-stil` | Ebene 2: macht den Text dem Autor **ähnlicher**, nicht glatter. Muss jede Regel des Stimmprofils zitieren |
-| `buch-gegenlesen` | Das zweite Augenpaar: sieht denselben Abschnitt wie Stufe 1 plus deren Befunde und meldet, was fehlt und was keiner ist |
+| `buch-gegenlesen` | Zweites Augenpaar über Ebene 1: sieht denselben Abschnitt wie Stufe 1 plus deren Befunde und meldet, was fehlt und was keiner ist |
+| `buch-stil-gegenlesen` | Zweites Augenpaar über Ebene 2: prüft je Vorschlag, ob er hält, was seine Regel verspricht — `traegt`, `verdreht_die_regel`, `kein_verstoss`, `greift_zu_weit` |
+| `buch-inhalt` | Ebene 3: prüft ein ganzes **Kapitel** gegen die Rubrik des Autors. Ändert nichts, stellt Fragen |
 
 Die JSON-Schemata werden **aus** den Pydantic-Modellen in `buch/models.py` generiert
 (`agents/build_buch_agents.py`), mit aufgelösten `$defs`. So können Schema und Modell nicht
@@ -427,6 +482,87 @@ bleibt die Frage offen — Rhythmus und Wiederholung sind absatzübergreifend.
 Was **keine** der beiden Betriebsarten fand: dieselbe Sache in Absatz 2 und 5 unterschiedlich
 geschrieben. Konsistenz über den Abschnitt hinweg prüft bisher niemand.
 
+### Ebene 2 — eine Beschreibung ist keine Vorschrift
+
+Der teuerste Fehler dieses Projekts, weil ich ihn selbst erzeugt habe. Als das Stimmprofil von
+Verboten auf Beschreibungen umgestellt wurde — richtig —, las der Stil-Agent die Beschreibung als
+Vorschrift:
+
+```
+Profil:  „Nutzt elliptische Sätze für Tempo"
+Agent:   macht aus vollständigen Sätzen Ellipsen
+
+Profil:  „Lässt direkte Rede oft ohne Begleitsatz"
+Agent:   entfernt alle Redebegleiter
+
+Profil:  „Verwendet Umgangssprache"
+Agent:   ersetzt ein Wort durch ein umgangssprachlicheres
+```
+
+Sieben Vorschläge auf einem Abschnitt, fast alle so. Die Heilung der einen Seite hatte die andere
+gebrochen.
+
+Zwei Änderungen, beide gegen `eval-stil.json` gemessen (sieben Fälle aus echten Fehlvorschlägen,
+mit synthetischem Profil und synthetischem Text, deshalb im Repo):
+
+1. **Der Prompt sucht Abweichungen statt Anwendungsgelegenheiten.** Die Prüffrage je Vorschlag
+   lautet: *Klingt die Stelle, SO WIE SIE DASTEHT, nach einem anderen Autor?* Nicht: Könnte sie
+   noch mehr nach ihm klingen? Fallenquote 62 % → 42 %.
+
+2. **`buch-stil-gegenlesen`** mit vier Urteilen, benannt nach den echten Fehlerarten: `traegt`,
+   `verdreht_die_regel`, `kein_verstoss`, `greift_zu_weit`.
+
+Es fragt bewusst **nicht**, ob etwas fehlt — anders als bei Ebene 1. Ein übersehener Stilbruch
+kostet nichts; ein aufgedrängter Vorschlag kostet den Autor seine Stimme. Das ist kein
+symmetrischer Tausch, und die Prüfung muss das abbilden.
+
+Über beide Stufen: von zehn Vorschlägen fielen fünf zu Recht durch, die drei zum echten Stimmbruch
+blieben stehen. Live auf einem echten Abschnitt: sieben Vorschläge vorher, einer nachher.
+
+### Ebene 3 — die Rubrik des Autors als Maßstab
+
+`buch-inhalt` prüft ein ganzes **Kapitel** gegen drei Maßstäbe, absteigend verbindlich: die
+Kapitelrubrik aus `shared/buch/<slug>.json` (`beweist`, `muss_tragen`, `muss_nicht_tragen`,
+Register, Historie-Budget), die zwei Prüfsteine des Werks, und das Exposé aus `kontext/expose.md`.
+
+Das Exposé steht zuletzt und wird ausdrücklich als **Absicht** gekennzeichnet: Es beschreibt das
+Buch, wie es Verlagen angeboten wird, nicht wie das Manuskript ist. Wer beides verwechselt, hält
+jede Abweichung für einen Fehler.
+
+Diese Ebene ändert nichts — kein `search`, kein `replace`, nirgends im Schema. Die Antwort auf ein
+inhaltliches Problem ist Schreiben, nicht Ersetzen.
+
+**Was dabei zu lernen war: Pflicht gehört ins Schema, nicht in die Prosa.** `pruefsteine` und
+`traegt` blieben zweimal leer — auch nach einer ausdrücklichen Anweisung im Prompt und mit
+verdoppeltem Token-Budget. Der Grund war ein `default_factory=list` am Pydantic-Feld: Damit steht
+es nicht unter `required`, und dann lässt das Modell es weg. Das Entfernen des Standardwerts hat es
+sofort behoben.
+
+### Fremdmodelle: GLM 5.3 gemessen, nicht geglaubt
+
+Die veröffentlichten GLM-Benchmarks (Terminal Bench, SWE-Marathon, Toolathlon) zeigen deutliche
+Vorsprünge — aber sie messen agentisches Arbeiten mit Werkzeugen. Unsere Aufgabe ist strukturierte
+Ausgabe auf deutschem Prosatext. Deshalb gemessen, am 23.09.2026, drei Läufe je Stufe:
+
+| | Treffer | Fallen | Zeit | Tokens |
+|---|---|---|---|---|
+| **Korrektorat** medium/none | **18/21** | 2/63 | **1,0 s** | **2.083** |
+| glm-5-3/max | 17/21 | **0/63** | 6,4 s | 17.515 |
+| **Gegenlesen** large/none | **30/30** | 1/51 | **2,4 s** | **3.847** |
+| glm-5-3/max | 29/30 | 3/51 | 8,0 s | 37.471 |
+
+Der Ausschlussgrund ist nicht die Qualität — die liegt dicht beieinander — sondern dass GLM in
+etwa einem von 30 Aufrufen **ungültiges JSON** liefert, abgeschnitten oder leer, auch mit 12.000
+Token Budget. In einer Kette ist das ein fehlgeschlagener Workflow.
+
+Ein Nebenbefund, der beim Vergleichen fast alles entschieden hätte: Mit dem ursprünglichen Budget
+von 4.000 Tokens brachen GLM-Antworten mitten im JSON ab und zählten als Modellfehler. Das sah wie
+ein Qualitätsproblem aus und war ein Budgetfehler. **Wer Modelle vergleicht, muss ihnen denselben
+Platz geben.**
+
+Die Reasoning-Stufen sind modellabhängig: Mistral kennt `none|high` (alles andere HTTP 400), GLM 5.3
+`low|high|max`. In `evalkit` über `--modelle modell:stufe` wählbar.
+
 ## Ein neues Werk anlegen
 
 1. Projekt nach `~/Werk/buch/<slug>/<slug>.scriv` legen (außerhalb jeder Synchronisation).
@@ -468,38 +604,44 @@ Der RTF-Roundtrip ist durch Tests abgesichert: alle `content.rtf` müssen zeiche
 
 ## Stand
 
-**Fertig und erprobt**
+**Fertig und gemessen**
 
-- Scrivener-Export über den Binder, mit `synopsis.txt` und `notes.rtf`; zwei Werke im Betrieb
+- Scrivener-Export über den Binder, mit `synopsis.txt`, `notes.rtf`, **Etikett und Status**;
+  zwei Werke im Betrieb
 - RTF-Dekodierer und -Kodierer, gegen `textutil` verifiziert, 20 Tests
-- Parser für die Lektoratsnotizen des Autors
 - Deterministische Stilkennzahlen
-- Fünf Studio-Agents, Schemata aus den Modellen generiert
-- Workflow `buch-stimmprofil` (Map/Reduce) samt Belegprüfung
-- Workflow `buch-korrektorat` mit Vier-Augen-Prinzip, beide Stufen gemessen
-- Mistral Library mit dem Manuskriptstand
+- Sieben Studio-Agents, Schemata aus den Modellen generiert
+- `buch-stimmprofil` (Map/Reduce) mit Satzkatalog und Belegprüfung — 12 beschreibende Regeln
+- `buch-korrektorat` (Ebene 1) mit Vier-Augen-Prinzip · 18/21 Treffer, 2/63 Fallen;
+  Gegenlesen 30/30, 1/51
+- `buch-stil` (Ebene 2) mit eigenem Gegenlesen · 8 von 10 Urteilen richtig
+- `buch-inhalt` (Ebene 3) gegen die Kapitelrubrik · Prüfsteine und `muss_tragen` je Punkt belegt
+- `buch-lektorat` — der Gesprächs-Workflow für Vibe Work
+- `buch-uebersicht` — Struktur, Dichte, Stand; rein deterministisch
+- `buch-pdf` — Typst-Satz, kalibriert auf 71 Seiten gegen 70 der Referenz
+- Mistral Library mit Manuskript, Exposé und Kapitelplan
 
 **Als Nächstes**
 
-- Write-back nach Scrivener (`buch-anwenden`) mit der Disziplin von oben
-- Der conversational Workflow `buch-lektorat` für Vibe Work
-- PDF-Satz (`buch-pdf`) mit Typst, kalibriert gegen die vorhandenen Referenz-PDFs
-- Entscheidungslog → Verfeinerung des Stimmprofils
-- Ebene 3 (Inhalt) gegen die Kapitelrubrik
+- **Write-back nach Scrivener** (`buch-anwenden`) mit der Disziplin von unten. Das einzige Stück,
+  das schreibt, und bewusst das letzte.
+- Entscheidungslog → Verfeinerung des Stimmprofils über die Annahmequote je Regel
+- Die Fundstellen im Stimmprofil belegen ihre Regel nicht immer. Die Prüfung stellt sicher, dass
+  ein Satz **existiert**, nicht dass er die Regel **zeigt**.
 
 **Langfristige Verbesserungen**
 
-- **Judge über einen anderen Anbieter.** Die Forschung zu *self-preference bias* empfiehlt
-  ausdrücklich einen Judge von einem fremden Anbieter, nicht nur ein anderes Modell derselben
-  Familie. Auf dem Konto liegt mit `zai-glm-5` bereits eine fremde Familie; sie war in der ersten
-  Messung schwächer (11/12, 2 Fallen, fünffache Tokenzahl), aber das ist eine Momentaufnahme an
-  sieben Fällen. Erneut prüfen, sobald es mehr Fälle gibt — oder eine echte Fremdanbieter-Option.
+- **Gegenlesen über einen fremden Anbieter.** Die Forschung zu *self-preference bias* empfiehlt
+  ausdrücklich einen Prüfer von einem anderen Anbieter, nicht nur ein anderes Modell derselben
+  Familie. GLM 5.3 wurde am 23.09.2026 über beide Evals gemessen und verliert — nicht an der
+  Qualität (die liegt dicht beieinander), sondern daran, dass es in etwa einem von 30 Aufrufen
+  ungültiges JSON liefert. Ein Pluspunkt bleibt notiert: null Fallen im Korrektorat, es ist
+  vorsichtiger. Neu messen, wenn die Eval-Sätze größer sind oder Z.ai die JSON-Treue verbessert.
 - **Konsistenz über den Abschnitt hinweg.** Dieselbe Sache in Absatz 2 und 5 unterschiedlich
   geschrieben findet derzeit keine Stufe. Das ist deterministisch prüfbar (Wortformen vergleichen,
   Eigennamen sammeln) und braucht kein Modell.
-- **Ein zweites Augenpaar für Ebene 2.** Bisher bewusst nicht gebaut: Stilvorschläge werden ohnehin
-  nie ohne Zustimmung angewendet, der Autor *ist* dort der Zweite. Erst bauen, wenn eine Messung
-  zeigt, dass es die Vorschläge verbessert, die er zu sehen bekommt.
+- **Abschnittstrenner aus der Referenz ableiten.** Derzeit eine Einstellung, weil das gesetzte PDF
+  keine erkennbare Regel zeigt. Ein Abgleich Seite für Seite mit dem Binder könnte sie finden.
 
 **Bewusst nicht gebaut**
 
@@ -508,6 +650,10 @@ Endpunkte antworten mit HTTP 404. Das Gegenlesen läuft deshalb als eigener Agen
 Umstieg bliebe klein: Mistrals Judge bewertet eine Antwort im Kontext ihrer Anfrage, bekommt also
 wie `buch-gegenlesen` den vollen Zusammenhang; die Kriterien stehen als versionierter Text in
 `agents/build_buch_agents.py` und müssten nur registriert werden.
+
+Ein **Korrektheits-Judge** für Ebene 1 und ein **Gesamtqualitäts-Score** stehen ebenfalls nicht
+hier: Ein zweites Modell über deutsche Kommas urteilen zu lassen kostet und rauscht, und ein
+Gesamtscore ist unfalsifizierbar.
 
 ---
 

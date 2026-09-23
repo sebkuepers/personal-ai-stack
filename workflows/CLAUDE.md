@@ -41,19 +41,23 @@ src/
 │   ├── worker.py           #   discovers + runs workflows
 │   ├── dev.py              #   worker + file-watch reload  (make start-worker)
 │   └── start.py            #   triggers an execution        (make execute ...)
-├── workflows/              # YOUR workflows — auto-discovered
-│   ├── crm/                #   shared subpackage (SKIPPED by discovery)
-│   └── crm_*.py            #   one workflow per top-level module
+├── workflows/              # YOUR workflows — auto-discovered, recursively
+│   ├── crm/                #   domain package: shared code AND workflows
+│   ├── buch/               #   domain package (agents, models, scrivener, satz/)
+│   ├── crm_*.py            #   top-level workflows
+│   └── lektorat.py …       #   top-level workflows of the book domain
 └── examples/               # cookbooks (opt-in: make start-examples)
 ```
 
-**How discovery works** (`entrypoints/worker.py`): it scans **top-level modules**
-in the `workflows` package for any class carrying `__workflows_workflow_def`
-(set by `@workflows.workflow.define`). Consequences:
+**How discovery works** (`entrypoints/worker.py`): it walks the **whole** `workflows`
+package for any class carrying `__workflows_workflow_def` (set by
+`@workflows.workflow.define`). Consequences:
 
-- ⚠️ **Subpackages are skipped** (`if ispkg: continue`). A workflow class inside
-  `workflows/crm/` would **not** be found. Put each workflow in a *top-level*
-  module (`workflows/crm_foo.py`); put shared code in the `crm/` subpackage.
+- ✅ **Subpackages ARE scanned.** `discover_workflows()` uses `pkgutil.walk_packages`,
+  so a workflow class in `workflows/buch/korrektorat.py` is found. (An earlier
+  version of this file said the opposite — it was written before discovery became
+  recursive. Results are de-duplicated by identity, so a class imported into
+  another module is counted once.)
 - **Activities auto-register** via the `@activity()` decorator — `run_worker()`
   only needs the workflow classes; you never list activities.
 
@@ -61,7 +65,8 @@ in the `workflows` package for any class carrying `__workflows_workflow_def`
 
 ## 3. Recipe: add a new workflow
 
-1. Create `src/workflows/<name>.py` (top-level, not under `crm/`).
+1. Create `src/workflows/<name>.py` — top level or in a domain subpackage,
+   both are found.
 2. Import activities through the sandbox boundary; import pure code normally:
    ```python
    import mistralai.workflows as workflows
@@ -188,13 +193,37 @@ in the examples.
     `import paket.modul as m`, aber `from paket import modul` nicht — Python löst
     das als Attributzugriff auf und die Sandbox greift trotzdem.
 
-11. **Auto-angelegte Deployments sind nicht „hardened".** Ein Worker mit einem
+11. **Conversational workflows: Das Eingabeschema entscheidet über den Start.**
+    Ein `@le_chat_input`-Modell verträgt **kein** Extrafeld und **kein** `message`
+    mit Standardwert — beides lässt Vibe auf einen rohen JSON-Editor zurückfallen.
+    Mit `message` als Pflichtfeld fragt Le Chat die getippte Nachricht ein zweites
+    Mal ab. Wer sie nicht braucht, definiert **gar kein** Eingabeschema; dann läuft
+    der Workflow sofort los. Gemessen am lebenden Objekt, in dieser Reihenfolge.
+
+12. **Die `TodoList` rendert Vibe nicht im Verlauf,** sondern als festes Feld über
+    dem Eingabefeld — und nur, solange der Kontextmanager offen ist. Umschließt sie
+    nur einen kurzen Schritt, ist sie weg, bevor jemand hinsieht. Sie gehört um die
+    ganze Sitzung, inklusive der Wartezeiten auf Eingaben.
+
+13. **Es gibt keine Tabellen-Komponente und keine wählbare Tabellenzeile.**
+    Laut Doku: `SingleChoice` = Dropdown, `ConfirmationInput` = Knöpfe, sonst
+    nichts. Eine Tabelle zum Scannen plus **ein** Formular zum Wählen ist die
+    einzige brauchbare Form; eine Knopfreihe, die jede Tabellenzeile wiederholt,
+    ist dieselbe Liste zweimal.
+
+14. **`strict: true` erzwingt Enums, aber keine Zahlentypen.** Ein `list[int]` im
+    Schema hindert das Modell nicht daran, Strings zu liefern. Und ein Feld mit
+    `default_factory` steht nicht unter `required` — dann lässt das Modell es weg,
+    auch wenn der Prompt es ausdrücklich verlangt. **Was Pflicht ist, gehört ins
+    Schema, nicht in die Prosa.**
+
+15. **Auto-angelegte Deployments sind nicht „hardened".** Ein Worker mit einem
     `DEPLOYMENT_NAME`, den Mistral selbst angelegt hat, bekommt beim Registrieren
     **HTTP 403 / `WF_1104`**. Die Freigabe erfolgt einmalig im Admin-Panel
     (der Fehler liefert den Link mit). Das ist serverseitig neu — ein Worker, der
     früher lief, kann daran ohne Codeänderung scheitern.
 
-12. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
+16. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
 
@@ -236,7 +265,7 @@ uv run ruff check src/workflows
 
 # 2. Offline discovery — catches import/syntax/annotation errors WITHOUT the cloud
 uv run python -c "from entrypoints.worker import discover_workflows as d; \
-print('discovered', len(d()))"
+print('discovered', len(d()))"        # 12 as of 2026-09-23
 
 # 3. (optional) Live smoke test of the agent path — triggers the real agent,
 #    no worker/Temporal needed. See the pattern used during the initial build:

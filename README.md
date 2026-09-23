@@ -16,8 +16,8 @@ is built to grow into a general personal automation system.
 | **Skills** | Agent Skills (`SKILL.md`) that teach Mistral **Vibe Work** when/how to use the MCP tools + workflows | Markdown · open Agent Skills standard | [`skills/`](skills/) |
 
 The workflows pillar currently hosts **two domains**: the personal CRM and a **book-editing**
-domain that supports writing manuscripts in Scrivener — export, a distilled *voice profile*, and
-layered copy-editing. See [`docs/BUCH.md`](docs/BUCH.md).
+domain that supports writing manuscripts in Scrivener — export, a distilled *voice profile*,
+three layers of editing, and typesetting. See [`docs/BUCH.md`](docs/BUCH.md).
 
 A fourth folder, [`worker-host/`](worker-host/), is the Cloudflare Worker that hosts the workflows
 worker in a scale-to-zero container **and** triggers the scheduled batch runs (cron).
@@ -37,6 +37,13 @@ the Python and TypeScript sides read.
  Mistral Studio   →  agents · connectors (notion / gmail) · durable orchestration · observability
 ```
 
+**Two deployment shapes, on purpose.** The CRM domain runs in the Cloudflare container: it is
+scheduled, touches no local files, and nobody is watching. The **book domain runs on the laptop**
+(`make start-worker`), because its activities read the live Scrivener package in `~/Werk/…` — a path
+that does not exist in a container. That is a deliberate split, not an inconsistency: the rule is
+not *"workflows never touch the disk"* but *"I/O lives in activities, and an activity can only reach
+what its worker can reach."*
+
 **Why this shape** (full rationale in [`docs/architecture.md`](docs/architecture.md)):
 - **Mistral Workflows** for durable execution + AI-Studio observability + native agent/connector integration.
 - The **schedule lives just outside Mistral** (a Cloudflare cron) because OAuth connector workflows
@@ -55,7 +62,7 @@ re-checked when Mistral changes something.
 | Studio feature | On this account | How the repo solves it instead |
 |---|---|---|
 | **Judges** (`/v1/observability/judges`) | ✗ HTTP 404 · *"Private Preview … Enterprise-tier organizations only"* | A second-reader **agent** with a strict schema, called as a normal workflow step. It sees the same input as the first stage, so a later migration stays small — Mistral's judge also scores a response in the context of its request. |
-| **Datasets / Campaigns** (`/v1/observability/*`) | ✗ HTTP 404 (`campaigns` is gone from the SDK entirely) | `evalkit/` — a domain-independent harness: cases × configurations → hit rate and trap rate. |
+| **Datasets / Campaigns** (`/v1/observability/*`) | ✗ HTTP 404 (`campaigns` is gone from the SDK entirely) | `evalkit/` — a domain-independent harness: cases × configurations → hit rate and trap rate. Compares arbitrary models (`--modelle mistral-large-latest,zai-glm-5-3:max`), which is how the model choice for every agent in this repo was decided. |
 | **Traces / Explorer** | ✗ Enterprise only | Studio's execution timeline still shows every workflow run, retry and failure — that part is not gated. |
 | **Prompts** (`/v2/prompts`) | ✓ available | `prompts/` + `prompts/sync.py` |
 | **Skills** (`/v2/skills`) | ✓ available | `skills/` + `skills/sync.py` |
@@ -114,11 +121,21 @@ READMEs as they come online.
 ## Status
 
 - ✅ **CRM domain**: 5 workflows + shared package, verified against the live agent.
-- ✅ **Book domain**: Scrivener export (RTF round-trip verified against `textutil`), 5 Studio
-  agents, and the `buch-stimmprofil` map/reduce workflow. See [`docs/BUCH.md`](docs/BUCH.md).
+- ✅ **Book domain**: Scrivener export (RTF round-trip verified against `textutil`), 7 Studio
+  agents, a voice profile distilled from the manuscript, **three editing layers** (copy-editing,
+  style, chapter-level content), a **conversational workflow** for Vibe Work, an **overview**
+  workflow, and **PDF typesetting** calibrated against the author's reference PDF.
+  See [`docs/BUCH.md`](docs/BUCH.md).
 - ✅ MCP server, container hosting, cron trigger, and skills: built (Phases 1–5).
-- 🚧 Book domain: write-back to Scrivener, the conversational editing workflow, and PDF
-  typesetting are next.
+- 🚧 Book domain: **write-back to Scrivener** is the one piece deliberately left for last —
+  everything else reads.
+
+**Every agent in this repo earns its model by measurement**, not by reputation. `evalkit` runs
+constructed cases against arbitrary models and reports hit rate *and* trap rate; the numbers and
+the reasoning live in `shared/<domain>.json` next to the setting they justify. Two findings worth
+knowing before repeating the experiment: reasoning effort helped **no** agent here, and GLM 5.3 —
+despite strong public benchmarks on agentic coding — lost on both editing tasks, mainly because it
+returns invalid JSON in roughly one call out of thirty.
 
 > Personal project. `shared/crm.json` contains non-secret identifiers (agent id, Notion data-source
 > IDs) — usable only with my API key/OAuth, which never leave the gitignored `.env` / Worker secrets.

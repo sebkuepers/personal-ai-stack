@@ -46,6 +46,22 @@ exists only for the minutes around each run — no always-on daemon. Durability 
 cloud, so sleeping between runs loses nothing; a paused (e.g. awaiting OAuth) run resumes when the
 container is next awake.
 
+### 3b. …except the book domain, which runs on the laptop
+
+The container hosts the workflows that are **scheduled and headless** — the CRM pipeline. The book
+domain runs under a local worker (`make start-worker`), because its activities read the live
+Scrivener package in `~/Werk/…`, a path no container has.
+
+That is a deliberate split, and it replaced a stricter rule that had a real price. The original
+design said *"no workflow touches the `.scriv`"* — correct while the worker was meant to be remote,
+but it forced every conversational workflow to receive its chapter list as a parameter, which makes
+it unstartable from Le Chat without preparation.
+
+The rule that actually matters survives unchanged: **I/O lives in activities, never in the workflow
+body.** The body is replayed on retry; a file that changed in between would derail it. An activity
+reads once, and its result is in the event history from then on. The reading activities are
+collected in `workflows/buch/lokal.py`. Nothing writes to the manuscript from inside a workflow.
+
 ### 4. The MCP server is a Cloudflare Worker
 The personal MCP server is **inbound HTTPS** (Mistral's cloud calls *it* when an agent uses a tool)
 — the exact shape a serverless Worker is built for. Cloudflare has first-class remote-MCP support

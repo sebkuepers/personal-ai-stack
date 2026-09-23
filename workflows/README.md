@@ -85,6 +85,22 @@ You can also trigger any workflow from the Studio Console (**Workflows** tab).
 
 ---
 
+## Book domain
+
+```bash
+make buch-sync werk=immer-wieder-ruegen           # Scrivener → export/ (+ --library)
+make buch-stimmprofil werk=immer-wieder-ruegen    # voice profile, map/reduce
+make buch-uebersicht                              # structure, density, status
+make buch-lektorat abschnitt="…"                  # level 1, headless
+make buch-inhalt kapitel="…"                      # level 3, a whole chapter
+make buch-pdf kapitel=1-3 vergleich=1             # typeset, compare to the reference
+make eval agent=buch-korrektorat faelle=shared/buch/eval-korrektorat.json
+```
+
+The conversational workflow (*Buch · Lektorat (im Gespräch)*) is started from Vibe Work, not
+from the CLI — it needs no input and reads Scrivener live. All book workflows require a **local**
+worker, because they read `~/Werk/…`. See [`../docs/BUCH.md`](../docs/BUCH.md).
+
 ## Project layout
 
 ```

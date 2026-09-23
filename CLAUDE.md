@@ -41,6 +41,24 @@ for the infra rationale.
    `client.beta.connectors.list_async()` / `.agents.list_async()`.
 5. **Secrets never get committed.** API keys live in gitignored `.env` (workflows) and
    `wrangler secret` (Cloudflare). `shared/crm.json` holds only non-secret identifiers.
+   The repo is **public**: the *domain* (code, agents, docs) is shared, the *work* stays local
+   (`shared/<domain>/*.json`, `shared/<domain>/*.md`, `workflows/data/`). Eval cases live in the
+   repo only when they are constructed — no manuscript text, no real names.
+6. **Measure before you tune.** Every agent's model and setting is decided by `evalkit`, and the
+   numbers plus the reasoning sit in `shared/<domain>.json` next to the setting they justify.
+   Two results worth knowing before repeating the work: reasoning effort helped **no** agent here,
+   and a model with strong public benchmarks (GLM 5.3) lost on both editing tasks.
+
+   Three failure modes cost hours on 2026-09-23, all of them mine, all of them worth checking
+   **before** touching a prompt:
+   - **A silent default.** `max_befunde=12` truncated findings; `max_tokens=4000` cut responses
+     mid-JSON and made a model look worse than it is; `default_factory=list` keeps a field out of
+     `required`, and the model then omits it. *What is mandatory belongs in the schema, not in
+     the prose.*
+   - **A measuring instrument that is more tolerant than the thing it measures.** An invariant
+     that lower-cases will report every capitalisation fix as "unchanged".
+   - **Constructed cases only.** They prove what you already thought of. Run on real data first —
+     especially the boring case where the right answer is an empty list.
 
 ## Working in each pillar
 
