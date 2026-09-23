@@ -90,6 +90,12 @@ buch-test:
 
 ## STIMMPROFIL — die Erzählstimme eines Werks destillieren (Worker muss laufen)
 ## Usage: make buch-stimmprofil werk=immer-wieder-ruegen
+.PHONY: buch-pdf
+buch-pdf:  ## Manuskript setzen (kapitel=1-3, trenner=alle|gruppen|keine, vergleich=1)
+	uv run python -m buchcli.pdf --werk $${werk:-immer-wieder-ruegen} \
+		$(if $(kapitel),--kapitel $(kapitel)) $(if $(trenner),--trenner $(trenner)) \
+		$(if $(vergleich),--vergleich)
+
 .PHONY: buch-inhalt
 buch-inhalt:  ## Ebene 3 — ein Kapitel gegen seine Rubrik  (kapitel="Voll zur Oma")
 	uv run python -m buchcli.inhalt --werk $${werk:-immer-wieder-ruegen} --kapitel "$(kapitel)"

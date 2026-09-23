@@ -108,8 +108,8 @@
     "engine": "typst",
     "referenz_pdf": "pdf/Immer Wieder Rügen - Manuskript Kapitel 1-3.pdf",
     "format": {
-      "seitenformat": "a5",
-      "schrift": "serif",
+      "seitenformat": "170x245mm",
+      "schrift": "Palatino",
       "schriftkandidaten": [
         "Palatino",
         "Palatino Linotype",
@@ -122,7 +122,7 @@
         "ueberschrift",
         "abschnittstrenner"
       ],
-      "abschnittstrenner": "*  *  *",
+      "abschnittstrenner": "∗  ∗  ∗",
       "kolumnentitel": {
         "verso": "buchtitel",
         "recto": "kapiteltitel",
@@ -139,7 +139,23 @@
         "inhalt",
         "leerseite"
       ],
-      "kapitel_beginnt": "recto"
+      "kapitel_beginnt": "recto",
+      "_seitenformat_gemessen": "Aus dem Referenz-PDF: 481,89 × 694,49 pt = 170 × 245 mm. Nicht A5 (148 × 210) — die Angabe im ersten Entwurf war geschätzt.",
+      "satzspiegel": {
+        "_comment": "Gemessen an den Seiten 8 und 9 des Referenz-PDFs (verso/recto).",
+        "breite_mm": 126.8,
+        "innen_mm": 23.6,
+        "aussen_mm": 19.5,
+        "oben_mm": 20.0,
+        "unten_mm": 20.0
+      },
+      "_abschnittstrenner_zeichen": "U+2217 ASTERISK OPERATOR, nicht U+002A. So steht es im Referenz-PDF.",
+      "trenner_zwischen": "gruppen",
+      "_trenner_zwischen": "OFFEN — nicht aus der Referenz ableitbar. Das PDF hat 15 Trenner bei 37 möglichen Abschnittsübergängen in Kapitel 1-3; Abschnittstitel werden nicht gesetzt, die Grenzen sind also unsichtbar. Es gibt keine erkennbare Regel. Wählbar: 'alle' (zwischen allen Abschnitten), 'gruppen' (nur an Untergruppengrenzen), 'keine'. Vorgabe 'gruppen', weil das dem Bild am nächsten kommt — der Autor entscheidet.",
+      "_schrift": "Die Referenz nutzt TeX Gyre Pagella (XeTeX). macOS liefert Palatino, metrisch kompatibel mit demselben Entwurf.",
+      "schriftgroesse_pt": 10.9,
+      "zeilenabstand_em": 0.74,
+      "_kalibrierung": "Kalibriert am 23.09.2026 gegen 'Immer Wieder Rügen - Manuskript Kapitel 1-3.pdf' (XeTeX/TeX Gyre Pagella, 70 Seiten). Erreicht: 71 Seiten, 33 Zeilen/Seite gegen 34, 70 Zeichen/Zeile gegen 71 — unter 3 Prozent bei allen drei Maßen. Der grosse Fehler war NICHT der Satzspiegel: Ohne parbreak() zwischen den Absaetzen verband Typst alles zu EINEM Block — 56 Seiten bei identischer Wortzahl, 25 Prozent zu dicht, ohne Erstzeileneinzug. Vor jeder weiteren Justierung: nachsehen, ob die Absaetze ueberhaupt getrennt sind."
     },
     "varianten": {
       "_comment": "Keine eigenen Formate, nur Umfangsoptionen desselben Satzes.",
