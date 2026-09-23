@@ -31,10 +31,15 @@ for the infra rationale.
    `<domain>-*` and never carry the name of a concrete subject. What they operate on comes in as a
    parameter — e.g. `make buch-sync werk=immer-wieder-ruegen`. Per-subject config lives in
    `shared/<domain>/<slug>.json`. See [`docs/BUCH.md`](docs/BUCH.md).
-3. **Verify against the installed SDK / live account, not from memory.** When unsure about a Mistral
+3. **This is a Mistral *Pro* account.** Judges, Datasets and Traces (`/v1/observability/*`) answer
+   with HTTP 404 — they are Enterprise-only. Don't build against them; the repo has its own
+   substitutes (`evalkit/` for measurement, judge *agents* for scoring). Skills and Prompts *are*
+   available, but no agent can load a Skill and no API call can reference a Prompt by id — that is
+   an API limit, not a plan limit. See the table in `README.md` before assuming a feature exists.
+4. **Verify against the installed SDK / live account, not from memory.** When unsure about a Mistral
    symbol or a connector tool name, check the venv (`workflows/.venv/.../plugins/mistralai/`) or call
    `client.beta.connectors.list_async()` / `.agents.list_async()`.
-4. **Secrets never get committed.** API keys live in gitignored `.env` (workflows) and
+5. **Secrets never get committed.** API keys live in gitignored `.env` (workflows) and
    `wrangler secret` (Cloudflare). `shared/crm.json` holds only non-secret identifiers.
 
 ## Working in each pillar

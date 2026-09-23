@@ -1,4 +1,4 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe buch-korrektorat buch-stil
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe buch-korrektorat buch-stil buch-eval buch-eval-faelle eval
 
 ## Install dependencies
 installdeps:
@@ -106,3 +106,17 @@ buch-korrektorat:
 ## Usage: make buch-stil abschnitt="Einführung Strand"
 buch-stil:
 	uv run python -m buchcli.lektorat --werk $(or $(werk),immer-wieder-ruegen) --ebene stil $(if $(abschnitt),--abschnitt "$(abschnitt)",) $(if $(uuid),--uuid $(uuid),)
+
+## EVAL — Testfälle aus dem Manuskript erzeugen (Annotationen dann von Hand)
+buch-eval-faelle:
+	uv run python -m buchcli.eval --werk $(or $(werk),immer-wieder-ruegen) --erzeuge
+
+## EVAL — Modellkonfigurationen gegen die Testfälle messen (nutzt evalkit)
+## Usage: make buch-eval laeufe=3 nur=small/high
+buch-eval:
+	uv run python -m evalkit --agent buch-korrektorat --faelle shared/buch/eval-$(or $(werk),immer-wieder-ruegen).json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
+
+## EVAL — beliebigen Agent messen (domänenunabhängig)
+## Usage: make eval agent=crm-classification faelle=shared/crm/eval-faelle.json
+eval:
+	uv run python -m evalkit --agent $(agent) --faelle $(faelle) $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),) $(if $(zaehlpfad),--zaehlpfad "$(zaehlpfad)",)

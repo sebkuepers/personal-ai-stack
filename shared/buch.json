@@ -10,11 +10,12 @@
     "judge": "ag_01a0cd6a519871cdb899400bc10ac7ce"
   },
   "models": {
-    "korrektorat": "mistral-medium-latest",
+    "korrektorat": "mistral-small-latest",
     "stil": "mistral-medium-latest",
     "inhalt": "mistral-medium-latest",
     "stimme": "mistral-medium-latest",
-    "judge": "mistral-medium-latest"
+    "judge": "mistral-medium-latest",
+    "_comment": "Gemessen mit evalkit am 23.09.2026 (6 Fälle, 12 Fallen, buch-korrektorat): small/none 0/12 Fallen, 4.9s, 5599T · small/high 0/12, 13.7s, 13955T · medium/none 1/12 ✗, 8.6s, 8660T · medium/high 0/12 aber 6 Timeouts bei 48s. Deshalb small fürs Korrektorat. Vor einer Änderung: make buch-eval."
   },
   "vokabular": {
     "ebenen": [

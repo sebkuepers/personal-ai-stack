@@ -45,6 +45,41 @@ the Python and TypeScript sides read.
 - The MCP server is inbound HTTPS → a natural **Cloudflare Worker**.
 - Roughly **$5/mo** (Cloudflare Workers Standard floor) covers the lot.
 
+## Built for a Mistral **Pro** account — and what that changes
+
+This repo is deliberately shaped around a single-seat **Pro** plan. Several Studio features exist
+but are not reachable from such an account, so the repo solves those jobs itself. All of this was
+**verified against the live API**, not inferred from docs — with dates and method, so it can be
+re-checked when Mistral changes something.
+
+| Studio feature | On this account | How the repo solves it instead |
+|---|---|---|
+| **Judges** (`/v1/observability/judges`) | ✗ HTTP 404 · *"Private Preview … Enterprise-tier organizations only"* | A judge **agent** with a strict schema, called as a normal workflow step. Criteria live in `shared/<domain>.json`; a switch in `buch/judge.py` keeps a later migration local. |
+| **Datasets / Campaigns** (`/v1/observability/*`) | ✗ HTTP 404 (`campaigns` is gone from the SDK entirely) | `evalkit/` — a domain-independent harness: cases × configurations → hit rate and trap rate. |
+| **Traces / Explorer** | ✗ Enterprise only | Studio's execution timeline still shows every workflow run, retry and failure — that part is not gated. |
+| **Prompts** (`/v2/prompts`) | ✓ available | `prompts/` + `prompts/sync.py` |
+| **Skills** (`/v2/skills`) | ✓ available | `skills/` + `skills/sync.py` |
+| **Libraries** (`/v1/libraries`) | ✓ available | `buchcli.sync --library` |
+
+**Two 404s that mean different things.** `{"detail":"Not Found"}` comes from the application — the
+route exists, the account may not use it. `{"message":"no Route matched with those values"}` comes
+from the gateway — that path does not exist at all. Worth distinguishing before concluding a feature
+is missing; it cost one wrong conclusion here (`/v1/prompts` vs. the real `/v2/prompts`).
+
+### Not a plan limit, but an API limit
+
+Two things are unavailable to *everyone*, regardless of plan — verified with control probes against
+`/v1/chat/completions`, `/v1/conversations` and `/v1/agents`, all of which reject unknown fields
+with `extra_forbidden`:
+
+- **A Studio agent cannot load a Skill.** Allowed tool types are `code_interpreter`, `connector`,
+  `document_library`, `function`, `image_generation`, `web_search` — there is no skill type, and
+  `CreateAgentRequest` has no such field. Skills apply to **Vibe Work, Vibe Code and Projects**.
+- **No API call can reference a stored Prompt by id.** Prompts are a versioned text library; you
+  fetch the text and send it yourself.
+
+Details and the exact test method: [`docs/BUCH.md`](docs/BUCH.md).
+
 ## Repository layout
 
 ```

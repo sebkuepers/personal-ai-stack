@@ -260,6 +260,55 @@ Der Inhalt wird **beim Sync** eingesetzt. Im Repo steht nur das Gerüst, in Stud
 vollständige Fassung. Die eingebetteten Dateien (`*-stimme.md`, `*-kontext.md`) erzeugt
 `make buch-sync` bzw. `make buch-stimmprofil` und sind gitignored.
 
+## Messen statt raten
+
+`evalkit/` ist **domänenunabhängig** und liegt deshalb neben `workflows/`, nicht darin. Jeder Agent
+im Repo wirft dieselbe Frage auf: Liefert er das Richtige, und woran merkt man eine
+Verschlechterung?
+
+```bash
+make buch-eval-faelle          # Testfälle aus dem Manuskript bauen
+make buch-eval                 # alle Konfigurationen vergleichen
+make buch-eval nur=small/none  # eine einzelne
+make eval agent=<name> faelle=<pfad>   # beliebiger Agent, beliebige Fälle
+```
+
+Ein Fall hat zwei Listen, und die zweite ist die wertvollere:
+
+* **erwartet** — muss gefunden werden. Ergibt die *Trefferquote*.
+* **verboten** — darf nicht gemeldet werden. Ergibt die *Fallenquote*.
+
+Ein Agent, der alles meldet, hat perfekte Trefferquote und ist wertlos; einer, der nichts meldet,
+tappt in keine Falle und ist genauso wertlos. Erst beide Zahlen zusammen sagen etwas.
+
+Die Fallen werden beim Erzeugen automatisch gesetzt (aus der Liste geschützter Umgangssprache in
+`shared/buch.json`), die **Erwartungen bewusst nicht**: Welche Stelle ein echter Fehler ist und
+welche Stimme, kann nur der Autor entscheiden. Geratene Erwartungen wären schlimmer als keine, weil
+sie eine Messung vortäuschen.
+
+### Warum das mehr wert ist als der nächste Filter
+
+Nach dem ersten echten Lauf war die Versuchung groß, für jedes Fehlverhalten einen deterministischen
+Filter nachzuschieben. Das ergibt eine Sammlung von Workarounds, die über den nächsten, noch
+unbekannten Fehler nichts sagt. Die Messung zeigte stattdessen, dass die **Modellwahl** das Problem
+löste:
+
+| Konfiguration | Fallen | Zeit/Fall | Tokens |
+|---|---|---|---|
+| **small/none** | **0/12** | **4,9s** | **5.599** |
+| small/high | 0/12 | 13,7s | 13.955 |
+| medium/none *(vorher eingestellt)* | 1/12 ✗ | 8,6s | 8.660 |
+| medium/high | 0/12 | 48,0s | 6 Timeouts |
+
+Reasoning (`reasoning_effort`) kennen beide Modelle nur als `none` oder `high` — `low`/`medium`
+werden mit HTTP 400 abgelehnt. Bei `high` verbraucht das Modell leicht 2.000 Tokens, bevor die
+eigentliche Antwort beginnt; ist `max_tokens` zu knapp, kommt eine abgeschnittene Antwort zurück,
+die wie ein Modellfehler aussieht, aber ein Budgetfehler ist.
+
+**Die Filter bleiben trotzdem** — aber nur die, die *Invarianten* prüfen: Absatz-Index, Nicht-Befunde,
+Eindeutigkeit des Suchtexts. Das sind billige, absolute Prüfungen ohne Ermessen. Inhaltliche Urteile
+gehören in die Modellwahl und in den Judge, nicht in eine Wortliste.
+
 ## Ein neues Werk anlegen
 
 1. Projekt nach `~/Werk/buch/<slug>/<slug>.scriv` legen (außerhalb jeder Synchronisation).
