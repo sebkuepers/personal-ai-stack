@@ -177,6 +177,38 @@ def verwerfe_gewollte_umgangssprache(
     return behalten, hinweise
 
 
+# Anführungszeichen-Varianten, die Modelle beim Zitieren stillschweigend
+# vertauschen. Der Text hat „…“, das Modell schreibt "…" — und ein exakter
+# Vergleich verwirft einen richtigen Befund. Im ersten Live-Lauf traf das 2 von 4.
+_ZEICHEN = str.maketrans({
+    "„": '"', "“": '"', "”": '"', "»": '"', "«": '"',
+    "‚": "'", "‘": "'", "’": "'", "›": "'", "‹": "'",
+    "–": "-", "—": "-", "\u00a0": " ",
+})
+
+
+def _glatt(text: str) -> str:
+    return text.translate(_ZEICHEN)
+
+
+def _finde_wortlaut(absatz: str, suchtext: str) -> str | None:
+    """Den Wortlaut im Absatz, der dem Suchtext bis auf Anführungszeichen entspricht.
+
+    Gibt die ORIGINALSCHREIBUNG aus dem Absatz zurück, nicht den Suchtext des
+    Modells — damit alles Nachfolgende (Anzeige, Anwenden) exakt auf dem Text
+    arbeitet, wie er dasteht. None, wenn nicht genau einmal gefunden.
+    """
+    g_absatz, g_such = _glatt(absatz), _glatt(suchtext)
+    if len(g_absatz) != len(absatz):
+        # translate() ersetzt 1:1, also bleiben die Positionen gleich. Sollte
+        # sich das je ändern, lieber gar nicht normalisieren als falsch.
+        return absatz if absatz.count(suchtext) == 1 else None
+    if g_absatz.count(g_such) != 1:
+        return None
+    start = g_absatz.index(g_such)
+    return absatz[start : start + len(suchtext)]
+
+
 def korrigiere_absatz_index(
     befunde: list[BefundMitUrteil], absaetze: list[str]
 ) -> tuple[list[BefundMitUrteil], list[str]]:
@@ -197,22 +229,60 @@ def korrigiere_absatz_index(
     """
     behalten, hinweise = [], []
     for b in befunde:
-        passend = [i for i, p in enumerate(absaetze) if p.count(b.search) == 1]
+        # Je Absatz: der exakte Wortlaut, falls der Suchtext (bis auf
+        # Anführungszeichen) genau einmal darin steht.
+        treffer = {
+            i: w for i, p in enumerate(absaetze) if (w := _finde_wortlaut(p, b.search))
+        }
 
-        if b.absatz_index in passend:
-            behalten.append(b)
-        elif len(passend) == 1:
+        if b.absatz_index in treffer:
+            ziel = b.absatz_index
+        elif len(treffer) == 1:
+            ziel = next(iter(treffer))
             hinweise.append(
-                f"Absatz-Index korrigiert: {b.absatz_index} → {passend[0]} "
-                f"für {b.search[:40]!r}"
+                f"Absatz-Index korrigiert: {b.absatz_index} → {ziel} für {b.search[:40]!r}"
             )
-            b.absatz_index = passend[0]
-            behalten.append(b)
+            b.absatz_index = ziel
         else:
-            gesamt = sum(p.count(b.search) for p in absaetze)
+            gesamt = sum(_glatt(p).count(_glatt(b.search)) for p in absaetze)
             grund = "nicht gefunden" if gesamt == 0 else f"{gesamt}-mal im Abschnitt, nicht eindeutig"
             hinweise.append(f"verworfen ({grund}): {b.search[:50]!r}")
+            continue
+
+        wortlaut = treffer[ziel]
+        if wortlaut != b.search:
+            # Der Befund arbeitet ab hier mit dem Text, wie er dasteht. Der
+            # Ersatztext bekommt dieselbe Behandlung, sonst würde ein Komma-
+            # Befund nebenbei die Anführungszeichen des Autors austauschen.
+            hinweise.append(f"Anführungszeichen angeglichen: {b.search[:40]!r}")
+            b.replace = _angleichen(b.replace, b.search, wortlaut)
+            b.search = wortlaut
+        behalten.append(b)
     return behalten, hinweise
+
+
+def _angleichen(replace: str, alt_search: str, wortlaut: str) -> str:
+    """Überträgt die Anführungszeichen des Originals in den Ersatztext.
+
+    Nach REIHENFOLGE, nicht per Zeichentabelle: Das Modell schreibt für „ und “
+    dasselbe Zeichen ", eine Tabelle könnte also nur eines von beiden treffen.
+    Stattdessen: An welchen Stellen weicht der Suchtext vom Wortlaut ab? Diese
+    Originalzeichen werden der Reihe nach für dieselben Modellzeichen im
+    Ersatztext eingesetzt. Hat der Ersatztext mehr davon, bleibt der Rest, wie
+    er ist — hier wird nichts erraten.
+    """
+    if len(alt_search) != len(wortlaut):
+        return replace
+    folge = [(a, w) for a, w in zip(alt_search, wortlaut, strict=True) if a != w]
+    if not folge:
+        return replace
+    ergebnis: list[str] = []
+    for zeichen in replace:
+        if folge and zeichen == folge[0][0]:
+            ergebnis.append(folge.pop(0)[1])
+        else:
+            ergebnis.append(zeichen)
+    return "".join(ergebnis)
 
 
 def werk_kontext(kriterium: str, stimmprofil_text: str = "") -> str:

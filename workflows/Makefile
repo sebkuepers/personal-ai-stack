@@ -96,6 +96,11 @@ buch-pdf:  ## Manuskript setzen (kapitel=1-3, trenner=alle|gruppen|keine, vergle
 		$(if $(kapitel),--kapitel $(kapitel)) $(if $(trenner),--trenner $(trenner)) \
 		$(if $(vergleich),--vergleich)
 
+.PHONY: buch-entscheidungen
+buch-entscheidungen:  ## Entscheidungslog auszählen  (ebene=stil|korrektorat, eval=<datei> erzeugt Testfälle)
+	uv run python -m buchcli.entscheidungen --werk $${werk:-immer-wieder-ruegen} \
+		--ebene $${ebene:-stil} $(if $(eval),--eval $(eval)) --letzte 15
+
 .PHONY: buch-inhalt
 buch-inhalt:  ## Ebene 3 — ein Kapitel gegen seine Rubrik  (kapitel="Voll zur Oma")
 	uv run python -m buchcli.inhalt --werk $${werk:-immer-wieder-ruegen} --kapitel "$(kapitel)"

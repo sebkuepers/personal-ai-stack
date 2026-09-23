@@ -62,7 +62,7 @@ def baue_daten(slug: str, kapitel_namen: list[str], *, trenner_regel: str) -> di
 
     kapitel = []
     for nummer, name in enumerate(kapitel_namen, start=1):
-        drin = [a for a in m.abschnitte if a.hat_text and a.pfad and a.pfad[0] == name]
+        drin = [a for a in m.abschnitte if a.hat_text and a.kapitel == name]
         konf = c.kapitel_nach_titel(slug, name) or {}
         abschnitte = []
         vorige_gruppe: tuple[str, ...] | None = None

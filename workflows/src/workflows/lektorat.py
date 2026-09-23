@@ -55,6 +55,7 @@ with workflow.unsafe.imports_passed_through():
         lies_abschnitt,
         liste_abschnitte,
         liste_werke,
+        schreibe_entscheidungen,
     )
 
 import mistralai.workflows.conversational as wf_chat  # noqa: E402
@@ -338,6 +339,11 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
             uuid, ebenen = await self._auswaehlen(katalog, alle)
 
         abschnitt = await lies_abschnitt(werk, uuid)
+        # Eine Kennung je Sitzung, replay-sicher aus dem Workflow-Zufall.
+        # `workflow.info()` gibt es in Mistrals Wrapper nicht — das ist
+        # temporalio, und der Aufruf ließ die Aktivierung mit AttributeError
+        # scheitern, still, nach der ersten Freigabe.
+        sitzung_id = str(workflow.uuid4())
         absaetze: list[str] = list(abschnitt["absaetze"])
         hashes: list[str] = list(abschnitt["hashes"])
         sitzung = LektoratSitzung(
@@ -380,11 +386,35 @@ class BuchLektoratWorkflow(workflows.InteractiveWorkflow):
                 )
 
             async with schritt[f"{ebene}_freigabe"]:
-                entscheidungen = await self._durchgehen(
-                    ebene, ergebnis, absaetze, hashes, abschnitt
-                )
+                try:
+                    entscheidungen = await self._durchgehen(
+                        ebene, ergebnis, absaetze, hashes, abschnitt
+                    )
+                except TimeoutError:
+                    # Der Autor ist weg. Was bis hierher entschieden wurde, ist
+                    # bereits im Log (siehe unten) — die Sitzung endet als
+                    # Teilsitzung statt als Verlust.
+                    sitzung.abgebrochen = True
+                    sitzung.hinweise.append(
+                        f"{ebene}: Zeitüberschreitung beim Warten auf Freigaben — "
+                        "Sitzung als Teilsitzung beendet."
+                    )
+                    break
             sitzung.entscheidungen += entscheidungen
             sitzung.hinweise += ergebnis.hinweise
+
+            # SOFORT ins Log, nicht erst am Ende. Bricht danach etwas ab, sind
+            # diese Entscheidungen trotzdem da. Das Log ist das Kapital des
+            # Systems — jeder angetippte Ablehnungsgrund ist ein Datenpunkt fürs
+            # Stimmprofil, und bis hierher wurde er beim Schließen des Chats
+            # einfach weggeworfen.
+            if entscheidungen:
+                await schreibe_entscheidungen(
+                    werk=werk,
+                    abschnitt=abschnitt,
+                    sitzung_id=sitzung_id,
+                    entscheidungen=[e.model_dump(mode="json") for e in entscheidungen],
+                )
 
             # Ebene 1 anwenden, BEVOR Ebene 2 denselben Text sieht.
             absaetze, h = _anwenden(absaetze, entscheidungen)

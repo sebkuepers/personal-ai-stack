@@ -25,11 +25,13 @@ from pathlib import Path
 import mistralai.workflows as workflows
 
 from . import config
-from .models import Stimmprofil
+from . import entscheidungen as log
+from .models import Entscheidung, Stimmprofil
 from .scrivener import lies_binder
 from .stimme import render_fuer_agent
 
 REPO = Path(__file__).parents[4]
+DATEN = REPO / "workflows" / "data"
 
 
 def _geaendert(paket: Path, uuid: str) -> str:
@@ -63,7 +65,7 @@ async def liste_abschnitte(werk: str) -> dict:
         {
             "uuid": a.uuid,
             "titel": a.titel,
-            "kapitel": a.pfad[0] if a.pfad else "—",
+            "kapitel": a.kapitel or "—",
             "pfad": a.pfad,
             "woerter": a.woerter,
             "absaetze": len(a.absaetze),
@@ -83,7 +85,7 @@ async def liste_abschnitte(werk: str) -> dict:
         {
             "uuid": a.uuid,
             "titel": a.titel,
-            "kapitel": a.pfad[0] if a.pfad else "—",
+            "kapitel": a.kapitel or "—",
             "pfad": a.pfad,
             "ist_ordner": a.ist_ordner,
         }
@@ -176,7 +178,7 @@ async def lies_kapitel(werk: str, kapitel: str) -> dict:
     Abschnitt nicht zu sehen, deshalb kommt hier das Kapitel am Stück.
     """
     m = _manuskript(werk)
-    drin = [a for a in m.abschnitte if a.hat_text and a.pfad and a.pfad[0] == kapitel]
+    drin = [a for a in m.abschnitte if a.hat_text and a.kapitel == kapitel]
     if not drin:
         raise ValueError(f"Kapitel {kapitel!r} hat in {werk} keinen Text.")
     return {
@@ -212,3 +214,34 @@ async def lade_kontext(werk: str, name: str) -> str:
     if not datei.is_file():
         return ""
     return datei.read_text(encoding="utf-8")
+
+
+@workflows.activity(
+    retry_policy_max_attempts=3,
+    start_to_close_timeout=timedelta(seconds=30),
+)
+async def schreibe_entscheidungen(
+    werk: str,
+    abschnitt: dict,
+    sitzung_id: str,
+    entscheidungen: list[dict],
+) -> int:
+    """Hängt die Entscheidungen einer Ebene ans Log — sofort, nicht erst am Ende.
+
+    Wird nach JEDER freigegebenen Ebene aufgerufen. Bricht die Sitzung danach
+    ab oder läuft in den Timeout, ist bis hierher nichts verloren. Idempotent
+    genug: Ein Retry hängt dieselben Zeilen noch einmal an, und die
+    ``sitzung``-Kennung macht Dubletten später auszählbar.
+    """
+    zeilen = [
+        log.zeile(
+            Entscheidung.model_validate(e),
+            werk=werk,
+            abschnitt_uuid=abschnitt["uuid"],
+            abschnitt_titel=abschnitt["titel"],
+            pfad=abschnitt.get("pfad") or [],
+            sitzung_id=sitzung_id,
+        )
+        for e in entscheidungen
+    ]
+    return log.schreibe(log.log_datei(DATEN, werk), zeilen)
