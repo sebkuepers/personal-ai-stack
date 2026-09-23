@@ -214,15 +214,38 @@ uv run --project workflows python prompts/sync.py    # Prompts
 
 Damit ist alles im Git versioniert **und** im Studio-UI sichtbar.
 
-**Wichtige Einschränkung, gegen die Erwartung:** Ein Studio-Agent in einem Workflow kann *keinen*
-Skill laden. Die erlaubten Tool-Typen sind `code_interpreter`, `connector`, `document_library`,
-`function`, `image_generation` und `web_search` — kein Skill-Typ, und `CreateAgentRequest` hat kein
-entsprechendes Feld. Skills gelten für **Vibe Work, Vibe Code und Projekte**. Der Stil-Agent bekommt
-sein Stimmprofil deshalb weiterhin zur Laufzeit in den Prompt gerendert.
+### Was Skills und Prompts *nicht* können — gegen den ersten Eindruck
 
-Ebenso bei Prompts: Kein API-Aufruf kann einen gespeicherten Prompt per ID referenzieren. Sie sind
-eine Bibliothek für den Chat, kein Laufzeit-Mechanismus. Deshalb stehen Agent-Instruktionen nicht
-dort, sondern am Agent.
+Die Oberfläche legt beides nahe („Lehre Agenten wiederverwendbare Skills…", „…um Modellen aus Apps,
+Agenten oder API-Aufrufen zu geben"). Am 23.09.2026 gegen die laufende API geprüft, mit
+Kontrollversuch:
+
+| Endpunkt | Kontrolle (erfundenes Feld) | `prompt_id` / `prompt` / `prompts` | `skills` / `skill_ids` |
+|---|---|---|---|
+| `/v1/chat/completions` | 422 `extra_forbidden` | 422 `extra_forbidden` | — |
+| `/v1/conversations` (Basisaufruf: **200**) | 422 `extra_forbidden` | 422 `extra_forbidden` | — |
+| `/v1/agents` | 422 `extra_forbidden` | 422 `extra_forbidden` | 422 `extra_forbidden` |
+
+**Der Kontrollversuch ist der Kern des Tests:** Die API validiert serverseitig mit `extra="forbid"`
+und lehnt unbekannte Felder ab, statt sie zu ignorieren. Erst dadurch ist ein 422 auf ein
+Kandidatenfeld ein Beweis und keine Vermutung. Bei `/v1/conversations` wurde zusätzlich erst ein
+Basisaufruf abgesetzt, der tatsächlich 200 liefert — sonst wäre das anschließende 422 wertlos.
+
+Ergänzend: `beta.prompts` bietet ausschließlich `create`, `get`, `list`, `delete`, `create_version`,
+`get_version`, `list_versions`, `update_metadata` — reines CRUD samt Versionierung, kein `render`
+oder `apply`. Und die erlaubten Tool-Typen eines Agents sind `code_interpreter`, `connector`,
+`document_library`, `function`, `image_generation`, `web_search`.
+
+**Daraus folgt:**
+
+* **Skills** gelten für Vibe Work, Vibe Code und Projekte — nicht für Workflow-Agents. Der
+  Stil-Agent bekommt sein Stimmprofil deshalb zur Laufzeit in den Prompt gerendert.
+* **Prompts** sind eine versionierte Textbibliothek für den Chat, keine Laufzeit-Indirektion. Die
+  Aufzählung in der UI beschreibt, *wo du den Text verwendest*, nicht dass die API ihn auflöst.
+  Agent-Instruktionen gehören deshalb an den Agent.
+* Falls doch einmal ein Prompt programmatisch gebraucht wird: `get()` nimmt neben `prompt_id` auch
+  `alias` und `version`. Ein stabiler Alias plus Weiterentwicklung der Versionen wäre der saubere
+  Weg — der Text muss dann aber selbst in die Anfrage eingesetzt werden.
 
 ### Werkinhalt bleibt draußen
 

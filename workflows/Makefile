@@ -1,4 +1,4 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe buch-korrektorat buch-stil
 
 ## Install dependencies
 installdeps:
@@ -96,3 +96,13 @@ buch-stimmprofil:
 ## STIMMPROFIL (Probelauf) — nur 6 Abschnitte, schreibt nichts
 buch-stimmprofil-probe:
 	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --limit 6
+
+## KORREKTORAT — Ebene 1 an einem Abschnitt (Worker muss laufen)
+## Usage: make buch-korrektorat abschnitt="Einführung Strand"
+buch-korrektorat:
+	uv run python -m buchcli.lektorat --werk $(or $(werk),immer-wieder-ruegen) --ebene korrektorat $(if $(abschnitt),--abschnitt "$(abschnitt)",) $(if $(uuid),--uuid $(uuid),)
+
+## STIL — Ebene 2 an einem Abschnitt, gegen das Stimmprofil
+## Usage: make buch-stil abschnitt="Einführung Strand"
+buch-stil:
+	uv run python -m buchcli.lektorat --werk $(or $(werk),immer-wieder-ruegen) --ebene stil $(if $(abschnitt),--abschnitt "$(abschnitt)",) $(if $(uuid),--uuid $(uuid),)

@@ -141,12 +141,23 @@ REGELN:
 3. Typografie: deutsche Anführungszeichen „…", Gedankenstrich als Halbgeviertstrich mit Leerzeichen,
    Auslassungspunkte als ein Zeichen. Keine geraden Anführungszeichen.
 
-4. Direkte Rede und bewusste Umgangssprache sind KEINE Fehler. Figuren dürfen falsch sprechen.
+4. UMGANGSSPRACHE IST KEIN FEHLER — auch nicht im Erzähltext.
+   „runter", „rüber", „mal", „grad", „nix", „Ne" sind gewollt. Dieser Autor schreibt nah an der
+   gesprochenen Sprache; sie zu „standardsprachlich" zu korrigieren zerstört genau das, was den
+   Text ausmacht. Schlage NIE vor: runter→hinunter, rüber→herüber, Ne→Nein, kriegen→bekommen.
+   Dasselbe gilt erst recht in direkter Rede: Figuren dürfen sprechen, wie sie wollen.
 
-5. Bei Unsicherheit: konfidenz unter 0.8 setzen und in "warum" sagen, warum du zögerst. Lieber
+5. ÄNDERE NUR, WAS OBJEKTIV FALSCH IST. Frage dich bei jedem Befund: Wäre das in einem Diktat
+   ein Fehlerstrich? Wenn nein — und sei es noch so unschön — lass es stehen.
+
+6. MELDE NICHTS, WAS BEREITS RICHTIG IST. Wenn „search" und „replace" identisch wären, ist es
+   kein Befund. Das gilt besonders für Typografie: Sind die Anführungszeichen schon „…", dann
+   gibt es nichts zu korrigieren.
+
+7. Bei Unsicherheit: konfidenz unter 0.8 setzen und in "warum" sagen, warum du zögerst. Lieber
    ehrlich unsicher als falsch selbstbewusst.
 
-6. Finde nichts, was nicht da ist. Eine leere Liste ist ein gültiges Ergebnis.
+8. Finde nichts, was nicht da ist. Eine leere Liste ist ein gültiges Ergebnis.
 
 Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema."""
 

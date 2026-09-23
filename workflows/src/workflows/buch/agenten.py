@@ -20,7 +20,7 @@ from mistralai.workflows.plugins.mistralai.activities import mistralai_start_con
 from pydantic import BaseModel
 
 from . import config
-from .models import Korrekturen, StimmProbe, StimmProfilRoh, Stilvorschlaege
+from .models import JudgeUrteil, Korrekturen, StimmProbe, StimmProfilRoh, Stilvorschlaege
 
 
 def _extract_text(response: mistralai_models.ConversationResponse) -> str:
@@ -174,6 +174,38 @@ async def stil_pruefen(
     )
     ergebnis = await _trigger(config.AGENTS["stil"], payload, Stilvorschlaege)
     return ergebnis.model_dump(mode="json")
+
+
+@workflows.activity(
+    retry_policy_max_attempts=2,
+    retry_policy_backoff_coefficient=2.0,
+    start_to_close_timeout=timedelta(seconds=60),
+)
+async def bewerte(auftrag: dict) -> dict:
+    """Bewertet EINEN Vorschlag nach EINEM Kriterium.
+
+    Ein einzelnes ``dict`` als Argument, damit die Bewertungen über
+    ``execute_activities_in_parallel`` laufen können. Erwartete Schlüssel:
+    ``kriterium``, ``frage``, ``original``, ``vorschlag``, ``warum``,
+    optional ``kontext``.
+    """
+    teile = [
+        f"KRITERIUM: {auftrag['kriterium']}",
+        f"FRAGE: {auftrag['frage']}",
+        "",
+        f"ORIGINAL:   {auftrag['original']}",
+        f"VORSCHLAG:  {auftrag['vorschlag']}",
+        f"BEGRÜNDUNG DES LEKTORS: {auftrag.get('warum', '—')}",
+    ]
+    if auftrag.get("kontext"):
+        teile += ["", "=== KONTEXT ===", auftrag["kontext"]]
+
+    urteil = await _trigger(config.AGENTS["judge"], "\n".join(teile), JudgeUrteil)
+    return {
+        "kriterium": auftrag["kriterium"],
+        "index": auftrag.get("index"),
+        **urteil.model_dump(mode="json"),
+    }
 
 
 # ---------------------------------------------------------------------------

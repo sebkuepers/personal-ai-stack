@@ -44,6 +44,9 @@ SCHWEREGRADE: list[str] = _V["schweregrade"]
 ENTSCHEIDUNGEN: list[str] = _V["entscheidungen"]
 ABLEHNUNGSGRUENDE: list[str] = _V["ablehnungsgruende"]
 REGEL_STATUS: list[str] = _V["regel_status"]
+GEWOLLTE_UMGANGSSPRACHE: dict[str, str] = {
+    k: v for k, v in _V.get("gewollte_umgangssprache", {}).items() if not k.startswith("_")
+}
 
 # ---------------------------------------------------------------------------
 # Bewertung

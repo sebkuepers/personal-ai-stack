@@ -43,6 +43,24 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip().lower()
 
 
+def normalisiere_id(roh: str) -> str:
+    """Macht aus einer vom Modell vergebenen Regel-ID einen stabilen ASCII-Bezeichner.
+
+    Das Modell vergibt IDs frei und produziert dabei Umlaute (``R-bürosprache``)
+    und gelegentlich Tippfehler (``R-prospektsrache``). Der Stil-Agent muss diese
+    IDs später wörtlich zitieren und der Workflow sie vergleichen — beides wird
+    fehleranfällig, sobald Sonderzeichen im Spiel sind.
+    """
+    s = roh.strip().lower()
+    for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        s = s.replace(a, b)
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    s = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", s)).strip("-")
+    if not s.startswith("r-"):
+        s = f"r-{s}"
+    return "R-" + s[2:]
+
+
 def beleg_gefunden(beleg: str, korpus_norm: str, *, mindestlaenge: int = 20) -> bool:
     """Ob ein Beleg wörtlich im Manuskript steht.
 
@@ -95,7 +113,11 @@ def pruefe_regeln(
             )
             continue
 
-        angenommen.append(Stimmregel(**{**r.model_dump(), "beweis": echte_belege}))
+        angenommen.append(
+            Stimmregel(
+                **{**r.model_dump(), "id": normalisiere_id(r.id), "beweis": echte_belege}
+            )
+        )
 
     return angenommen, verworfen
 

@@ -245,6 +245,71 @@ class Stilvorschlaege(BaseModel):
     vorschlaege: list[Stilvorschlag]
 
 
+class LektoratInput(BaseModel):
+    """Eingabe der Lektorats-Workflows — ein Abschnitt, fertig gelesen.
+
+    Wie bei :class:`StimmprofilInput` kommt der Text herein, statt gelesen zu
+    werden: Workflows fassen kein Dateisystem an.
+    """
+
+    werk: str
+    abschnitt: AbschnittEingabe
+    absaetze: list[str] = Field(
+        default_factory=list,
+        description="Absätze einzeln — Befunde adressieren sie über absatz_index",
+    )
+    stimmprofil_text: str = Field(
+        default="", description="Gerendertes Stimmprofil; nur die Stilebene braucht es"
+    )
+    max_befunde: int = 12
+    mit_judge: bool = Field(
+        default=True, description="Treue-Prüfung vor der Anzeige (empfohlen)"
+    )
+
+
+class BefundMitUrteil(BaseModel):
+    """Ein Befund samt Bewertung — und der Entscheidung, ob er angezeigt wird."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ebene: Literal["korrektorat", "stil"]
+    absatz_index: int
+    search: str
+    replace: str
+    art: str = Field(description="Korrekturart bzw. Stilproblem")
+    schwere: str | None = None
+    warum: str = ""
+    regel_id: str | None = None
+    konfidenz: float | None = None
+    judge: dict[str, int] = Field(default_factory=dict)
+    gesperrt: bool = False
+    sperrgrund: str | None = None
+
+
+class LektoratErgebnis(BaseModel):
+    """Ausgabe eines Lektorats-Workflows."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    werk: str
+    abschnitt_uuid: str
+    abschnitt_titel: str
+    ebene: Literal["korrektorat", "stil"]
+    befunde: list[BefundMitUrteil] = Field(default_factory=list)
+    gesperrt: list[BefundMitUrteil] = Field(
+        default_factory=list, description="Vom Treue-Judge verworfen, vor der Anzeige"
+    )
+    hinweise: list[str] = Field(default_factory=list)
+
+    @property
+    def nach_art(self) -> dict[str, int]:
+        """Befunde gruppiert — die Grundlage für 'alle übernehmen' je Art."""
+        z: dict[str, int] = {}
+        for b in self.befunde:
+            z[b.art] = z.get(b.art, 0) + 1
+        return z
+
+
 class JudgeUrteil(BaseModel):
     """Ausgabe von ``buch-judge`` — ein Agent für alle Kriterien, Kriterium kommt als Eingabe."""
 

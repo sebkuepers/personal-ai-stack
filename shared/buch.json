@@ -64,7 +64,25 @@
       "aktiv",
       "beobachtung",
       "verworfen"
-    ]
+    ],
+    "gewollte_umgangssprache": {
+      "_comment": "Formen, die das Korrektorat NIE 'korrigieren' darf. Der Agent versteht die Regel, meldet den Befund aber trotzdem — sein Schema hat kein Feld für 'verworfen'. Deterministisch filtern ist zuverlässiger als darauf zu vertrauen, dass ein Modell etwas nicht meldet. Liste bei Bedarf erweitern.",
+      "runter": "hinunter",
+      "rüber": "herüber",
+      "rauf": "hinauf",
+      "rein": "hinein",
+      "raus": "hinaus",
+      "ne": "nein",
+      "nix": "nichts",
+      "grad": "gerade",
+      "mal": "einmal",
+      "kriegen": "bekommen",
+      "gucken": "schauen",
+      "dran": "daran",
+      "drauf": "darauf",
+      "drin": "darin",
+      "drüber": "darüber"
+    }
   },
   "judges": {
     "_comment": "Studio-Observability (client.beta.observability.judges) ist auf dem Pro-Plan nicht erreichbar — GET /v1/observability/judges antwortet mit HTTP 404. Deshalb 'agent': ein Judge-Agent mit striktem Schema, Kriterium kommt als Eingabe. Auf 'observability' umstellen, falls Mistral das freischaltet.",
