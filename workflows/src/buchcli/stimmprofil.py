@@ -150,10 +150,14 @@ def schreibe(profil: Stimmprofil, slug: str) -> list[Path]:
     )
     geschrieben.append(ziel)
 
-    skill = REPO / "skills" / "buch-stimme"
-    skill.mkdir(parents=True, exist_ok=True)
-    (skill / f"{slug}.md").write_text(render_markdown(profil), encoding="utf-8")
-    geschrieben.append(skill / f"{slug}.md")
+    # Lesbare Fassung ins Werk-Verzeichnis — dorthin, wo die übrigen Werk-Daten
+    # liegen. Bewusst kein Agent Skill: Der Stil-Agent bekommt das Profil zur
+    # Laufzeit in den Prompt gerendert (render_fuer_agent), und für Vibe Work
+    # müsste ein Skill ohnehin von Hand im UI angelegt werden.
+    export = c.lade_werk(slug)["pfade"]["export"]
+    export.mkdir(parents=True, exist_ok=True)
+    (export / "stimmprofil.md").write_text(render_markdown(profil), encoding="utf-8")
+    geschrieben.append(export / "stimmprofil.md")
 
     # Verweis in der Werk-Konfiguration aktualisieren.
     werkdatei = REPO / "shared" / "buch" / f"{slug}.json"

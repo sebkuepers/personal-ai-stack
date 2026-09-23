@@ -40,10 +40,11 @@ Scrivener-Datei, Werk-Konfiguration, Mistral Library, Arbeitsdaten.
 | `shared/buch/werk.example.json` | Anonymisierte Vorlage für eine Werk-Konfiguration. |
 | `shared/buch/<slug>-stimme.json` | Das destillierte **Stimmprofil**. *Gitignored.* |
 | `agents/buch-*.json` | Die Studio-Agents als Code. Erzeugt von `agents/build_buch_agents.py`, hochgespielt von `agents/sync.py`. |
+| `skills/buch-stimme/SKILL.md` | Der Skill für Vibe. Werkinhalt wird beim Sync eingebettet, siehe unten. |
+| `prompts/*.md` | Wiederkehrende Sparring-Fragen ans Buch, mit Variablen. |
 | `workflows/src/workflows/buch/` | Domänencode: Scrivener-Leser, Kennzahlen, Notizparser, Agent-Aktivitäten, Workflows. |
 | `workflows/src/buchcli/` | Lokale Kommandozeilen-Werkzeuge (alles, was Dateien anfasst). |
 | `workflows/data/` | Arbeitsdaten — **gitignored**, enthält unveröffentlichten Werktext. |
-| `skills/buch-stimme/` | Das Stimmprofil als Agent Skill für Vibe. |
 
 ### Auf der Platte (außerhalb des Repos)
 
@@ -163,8 +164,8 @@ Vier Mechanismen erzwingen Substanz:
 
 4. **Höchstens zwölf Regeln.** Ein Profil mit vierzig Regeln liest niemand und befolgt kein Agent.
 
-Das Ergebnis wird dreifach verwendet: als versionierte JSON (Quelle der Wahrheit), als Skill für
-Vibe, und zur **Aufrufzeit** als Kontextblock für den Stil-Agent — bewusst nicht in dessen
+Das Ergebnis wird zweifach verwendet: als versionierte JSON (Quelle der Wahrheit) und zur
+**Aufrufzeit** als Kontextblock für den Stil-Agent — bewusst nicht in dessen
 Instruktionen eingebacken, sonst müsste bei jeder Profiländerung der Agent neu synchronisiert
 werden und beide driften auseinander.
 
@@ -199,6 +200,42 @@ Danach die neuen IDs in `shared/buch.json` unter `agents` eintragen.
 **überschreiben** — das ist der Unterschied zwischen benutzen und kaputtmachen.
 
 ---
+
+## Skills und Prompts — für die Arbeit *mit* Mistral
+
+Drei Dinge lassen sich aus dem Repo nach Studio spielen, alle nach demselben Muster
+(`--dry-run` prüft, ohne Studio zu berühren):
+
+```bash
+uv run --project workflows python agents/sync.py     # Agents
+uv run --project workflows python skills/sync.py     # Skills
+uv run --project workflows python prompts/sync.py    # Prompts
+```
+
+Damit ist alles im Git versioniert **und** im Studio-UI sichtbar.
+
+**Wichtige Einschränkung, gegen die Erwartung:** Ein Studio-Agent in einem Workflow kann *keinen*
+Skill laden. Die erlaubten Tool-Typen sind `code_interpreter`, `connector`, `document_library`,
+`function`, `image_generation` und `web_search` — kein Skill-Typ, und `CreateAgentRequest` hat kein
+entsprechendes Feld. Skills gelten für **Vibe Work, Vibe Code und Projekte**. Der Stil-Agent bekommt
+sein Stimmprofil deshalb weiterhin zur Laufzeit in den Prompt gerendert.
+
+Ebenso bei Prompts: Kein API-Aufruf kann einen gespeicherten Prompt per ID referenzieren. Sie sind
+eine Bibliothek für den Chat, kein Laufzeit-Mechanismus. Deshalb stehen Agent-Instruktionen nicht
+dort, sondern am Agent.
+
+### Werkinhalt bleibt draußen
+
+Ein Skill in Studio muss selbsttragend sein — Vibe kommt nicht an lokale Dateien. Damit trotzdem
+kein Werkinhalt ins öffentliche Repo gerät, kennen beide Syncs einen Platzhalter:
+
+```markdown
+<!-- einbetten: shared/buch/immer-wieder-ruegen-stimme.md -->
+```
+
+Der Inhalt wird **beim Sync** eingesetzt. Im Repo steht nur das Gerüst, in Studio landet die
+vollständige Fassung. Die eingebetteten Dateien (`*-stimme.md`, `*-kontext.md`) erzeugt
+`make buch-sync` bzw. `make buch-stimmprofil` und sind gitignored.
 
 ## Ein neues Werk anlegen
 

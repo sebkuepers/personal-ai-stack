@@ -27,6 +27,8 @@ from pathlib import Path
 from workflows.buch import config as c
 from workflows.buch.scrivener import Manuskript, lies_binder
 
+REPO = Path(__file__).resolve().parents[3]
+
 
 def slugify(text: str) -> str:
     """Titel → Dateinamen-Slug nach der Konvention des Repos.
@@ -82,6 +84,40 @@ def kapitel_markdown(m: Manuskript, kapitel: str) -> str:
         if a.hat_text:
             zeilen += [f"## {a.titel}", "", a.text, ""]
     return "\n".join(zeilen)
+
+
+def kontext_markdown(werk: dict) -> str:
+    """Prüfsteine, Erzählregeln und Kapitelgerüst als Text.
+
+    Wird in Prompts und Skills eingebettet (siehe prompts/sync.py). Bewusst als
+    generierte Datei neben dem Stimmprofil: Sie enthält Werkstrategie und ist
+    deshalb gitignored, während der Prompt selbst im Repo bleiben kann.
+    """
+    z = [f"## Die Prüfsteine von „{werk['titel']}“", ""]
+    for schluessel, block in (werk.get("pruefsteine") or {}).items():
+        if schluessel.startswith("_") or not isinstance(block, dict):
+            continue
+        z.append(f"**{block.get('regel', schluessel)}**")
+        for feld in ("erlaeuterung", "messlatte", "belegfall"):
+            if block.get(feld):
+                z.append(f"- {block[feld]}")
+        z.append("")
+    if werk.get("erzaehlregeln"):
+        z += ["## Erzählregeln", ""]
+        z += [f"- **{k}:** {v}" for k, v in werk["erzaehlregeln"].items() if not k.startswith("_")]
+        z.append("")
+    kapitel = [k for k in werk.get("kapitel", []) if k.get("muss_tragen") or k.get("beweist")]
+    if kapitel:
+        z += ["## Was die Kapitel leisten müssen", ""]
+        for k in kapitel:
+            z.append(f"### {k['titel']}" + (f" — {k['untertitel']}" if k.get("untertitel") else ""))
+            for feld, titel in (("beweist", "Beweist"), ("muss_tragen", "Muss tragen"),
+                                ("muss_nicht_tragen", "Muss nicht tragen"),
+                                ("offene_arbeit", "Offene Arbeit")):
+                if k.get(feld):
+                    z.append(f"- *{titel}:* " + "; ".join(k[feld]))
+            z.append("")
+    return "\n".join(z).strip()
 
 
 def in_library(md: Path, werk: dict) -> str:
@@ -153,6 +189,11 @@ def main(argv: list[str] | None = None) -> int:
     md_pfad = export / "manuskript.md"
     md_pfad.write_text(als_markdown(m, werk), encoding="utf-8")
 
+    # Werkkontext für Prompts/Skills — liegt bei den übrigen shared-Dateien,
+    # ist aber gitignored (Werkstrategie gehört nicht ins öffentliche Repo).
+    kontext = REPO / "shared" / "buch" / f"{args.werk}-kontext.md"
+    kontext.write_text(kontext_markdown(werk), encoding="utf-8")
+
     print(f"{werk['titel']} — {paket.name}")
     for kapitel in m.kapitel:
         ab = [a for a in m.in_kapitel(kapitel) if a.hat_text]
@@ -163,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  {'GESAMT':22} {sum(1 for a in m.abschnitte if a.hat_text):3} Abschnitte  {m.woerter:6} Wörter")
     print(f"\n  → {ziel}")
     print(f"  → {md_pfad}")
+    print(f"  → {kontext.relative_to(REPO)}")
 
     if args.markdown:
         kap_dir = export / "kapitel"

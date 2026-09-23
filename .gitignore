@@ -31,9 +31,8 @@ workflows/data/
 # die DOMÄNE (Code, Agents, Doku) wird geteilt, das WERK bleibt lokal.
 # Als Vorlage dient shared/buch/*.example.json.
 shared/buch/*.json
+shared/buch/*.md
 !shared/buch/*.example.json
-skills/buch-stimme/*.md
-!skills/buch-stimme/SKILL.md
 
 # Tooling caches
 .mypy_cache/

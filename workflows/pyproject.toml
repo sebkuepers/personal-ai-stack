@@ -21,6 +21,28 @@ dev = [
 # (scaffold shipped `exclude-newer = "7 days"`, which uv rejects — it expects an
 # RFC3339 date. Dependencies are already pinned in uv.lock, so this is removed.)
 
+[tool.ruff.lint]
+# Explizite Regelauswahl statt ruff-Defaults: Ohne diesen Block ändert sich der
+# Prüfumfang bei jedem ruff-Update (das SDK-Upgrade brachte schlagartig 62 neue
+# Meldungen, 34 davon im unveränderten CRM-Code).
+#
+# Bewusst NICHT aktiviert:
+#   I   (Import-Sortierung) — die Reihenfolge rund um
+#       `with workflow.unsafe.imports_passed_through():` ist SEMANTISCH. Ein
+#       automatisch verschobener Import bricht den Worker in der Temporal-Sandbox.
+#       Genau dafür stehen die `# noqa: E402` in den Workflow-Modulen.
+#   RUF100 (unnötige noqa) — würde ebendiese Marker entfernen wollen.
+select = ["E", "F", "B", "UP"]
+# E501 (Zeilenlänge): Die Codebasis hatte nie eine 88-Zeichen-Disziplin — 87 von
+# 92 Meldungen waren das, quer durch alle Pillars. Nachträglich erzwingen hieße,
+# jede Datei umzuformatieren, ohne dass ein Fehler verschwindet.
+ignore = [
+  "E501",
+  # B008: `Depends()` im Argument-Default IST das vorgeschriebene
+  # Dependency-Injection-Muster des Mistral-SDK (wie bei FastAPI).
+  "B008",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

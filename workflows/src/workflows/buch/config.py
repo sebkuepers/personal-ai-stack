@@ -13,7 +13,7 @@ Workflow-Code normal importiert werden — es muss nicht durch die Sandbox-Grenz
 
 from __future__ import annotations
 
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +70,7 @@ SCRIVENER: dict[str, Any] = _CFG["scrivener"]
 SATZ: dict[str, Any] = _CFG["satz"]
 
 
-@lru_cache(maxsize=None)
+@cache
 def lade_werk(slug: str) -> dict[str, Any]:
     """Lädt die Werk-Konfiguration ``shared/buch/<slug>.json``.
 

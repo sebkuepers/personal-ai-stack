@@ -14,8 +14,6 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from typing import TypeVar
-
 import mistralai.workflows as workflows
 from mistralai.client import models as mistralai_models
 from mistralai.workflows.plugins.mistralai.activities import mistralai_start_conversation
@@ -23,8 +21,6 @@ from pydantic import BaseModel
 
 from . import config
 from .models import Korrekturen, StimmProbe, StimmProfilRoh, Stilvorschlaege
-
-T = TypeVar("T", bound=BaseModel)
 
 
 def _extract_text(response: mistralai_models.ConversationResponse) -> str:
@@ -48,7 +44,7 @@ def _extract_text(response: mistralai_models.ConversationResponse) -> str:
     return "\n".join(parts).strip()
 
 
-def _parse(model: type[T], text: str) -> T:
+def _parse[T: BaseModel](model: type[T], text: str) -> T:
     """Liest die Agent-Antwort in ihr Pydantic-Modell.
 
     Die Agents haben ein JSON-Schema als ``response_format``, der Text ist also
@@ -64,7 +60,7 @@ def _parse(model: type[T], text: str) -> T:
         raise
 
 
-async def _trigger(agent_id: str, payload: str, model: type[T]) -> T:
+async def _trigger[T: BaseModel](agent_id: str, payload: str, model: type[T]) -> T:
     antwort = await mistralai_start_conversation(
         mistralai_models.ConversationRequest(
             agent_id=agent_id,

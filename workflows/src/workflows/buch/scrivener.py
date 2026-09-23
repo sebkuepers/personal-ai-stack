@@ -273,7 +273,7 @@ def kodiere_rtf_text(text: str) -> str:
             out.append(ch)
         else:
             try:
-                out.append("\\'%02x" % ch.encode("cp1252")[0])
+                out.append(f"\\'{ch.encode('cp1252')[0]:02x}")
             except (UnicodeEncodeError, IndexError):
                 out.append(f"\\u{ord(ch)}?")
     return "".join(out)
