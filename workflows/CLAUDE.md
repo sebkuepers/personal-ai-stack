@@ -233,6 +233,29 @@ in the examples.
     happens at all — the Send button simply does nothing, with no error. The
     session is unrecoverable; start a new one. During a test run, stop editing.
 
+19. **A Studio schedule cannot run an `on_behalf_of` workflow either.** The SDK
+    refuses `schedules=[...]` together with `on_behalf_of=True` (gotcha 5), and
+    the obvious escape — create the schedule server-side via
+    `workflows.schedules.schedule_workflow(...)` — is *accepted* and then fails
+    at runtime: the execution carries no identity, and the first connector call
+    dies with `API error occurred: Status 400. Body: {"detail": "Execution is
+    missing user_id or organization_id"}`. Measured on 2026-09-24 against
+    `inbox-scan`.
+
+    What **does** work is the REST execute API with a user API key:
+    `POST /v1/workflows/{name}/execute` returns an execution whose `user_id` is
+    set, the OAuth credential resolves, and the run completes. So the takt for a
+    connector workflow has to come from outside and go through *that* endpoint —
+    not through a Studio schedule.
+
+    Two more things the same measurement turned up:
+    `GET /v1/workflows/runs?status=RUNNING&deployment_name=…` exists and answers
+    200, but its list is called **`executions`**, not `runs` — `worker-host`
+    reads `body.runs`, so its container-waker has always counted zero. And a
+    scheduled `inbox-scan` would produce nothing durable anyway: the dossier and
+    the labels live in `inbox-review`, the conversational workflow, which cannot
+    be scheduled at all.
+
 18. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
