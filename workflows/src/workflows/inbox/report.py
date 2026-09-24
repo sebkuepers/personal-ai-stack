@@ -9,6 +9,7 @@ no reminder.
 from __future__ import annotations
 
 from workflows.inbox.envelope import replied_recipients
+from workflows.inbox.escalation import matters_for_vibe
 from workflows.inbox.models import (
     FinanceItem,
     InboxEnvelope,
@@ -81,7 +82,7 @@ def build_report(
                     due_date=review.due_date,
                 )
             )
-        if review.context_for_vibe:
+        if review.context_for_vibe and matters_for_vibe(review):
             context.append(review.context_for_vibe)
         items.append(
             ReviewItem(

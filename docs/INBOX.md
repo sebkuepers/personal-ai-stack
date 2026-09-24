@@ -96,6 +96,15 @@ answer. So the link is pulled out of the HTML deterministically: the `<a>` ancho
 contains "unsubscribe", "abmelden", "abbestellen" or "opt-out". Measured: 6 of 8 promotional
 mails. The remaining two are reported by sender, for manual handling.
 
+**Non-ASCII characters do not survive the connector.** Every umlaut, every `ß`, every emoji comes
+back as one `U+FFFD` per byte — `Grüße` arrives as `Gr����e`, `können` as `k��nnen`. Measured on
+2026-09-24 in the *raw* tool answer, before any of this repo's code touches it: 37 of 50 snippets
+and 2 of 50 subjects damaged in a single `search_threads` page. It is not repairable downstream —
+`U+FFFD` carries no byte value, so the original letter is gone. The triage still works (German
+sentences stay readable around the holes), but the dossier and the report show it, and nothing in
+this repo can fix it. **This is a bug in Mistral's Gmail connector and belongs in a report to
+them.**
+
 **Four field names that are not what one would guess**, each one measured rather than assumed:
 
 * `resultCountEstimate` is useless — constant 201 on every non-final page. Paginate to the end of
@@ -107,6 +116,20 @@ mails. The remaining two are reported by sender, for manual handling.
 
 The last two cost a day: with the expected names the lookup never found an existing label and the
 creation failed schema validation — the entire cleanup step was dead, silently.
+
+**A label name can be rejected for its first word.** The label namespace was `inbox/` and Gmail
+answered every `create_label` with HTTP 400 `Invalid label name` — for `inbox/processed`, for
+`Inbox/processed` and for a plain `inbox`. Gmail reserves its system label names (`INBOX`, `SENT`,
+`DRAFT`, `SPAM`, `TRASH`, `STARRED`, `IMPORTANT`, `UNREAD`, `CHAT`, `CATEGORY_*`) and refuses a user
+label whose first path segment collides with one, whatever the case. `Triage/processed` was created
+on the first try; the namespace is now `Triage/`. `gmail.RESERVED_LABEL_SEGMENTS` rejects such a
+name before the call, and a test checks every entry of `shared/inbox.json` → `labels` against it.
+
+Worth noting *how* this hid: the error reached the screen as **"Activity task failed"**. Temporal
+carries the connector's own answer in `details`, not in the message, so the one line naming the
+actual cause was only in the event history. `review._root_reason` now unwraps the cause chain *and*
+its `details`. The screen used to print a guess instead ("the connector is missing the permission")
+— it was wrong twice in two days.
 
 **A stale grant looks exactly like a missing feature.** On the first real cleanup run every label
 tool failed — `create_label`, `label_thread`, `unlabel_thread` — for any input, including a plain
@@ -203,6 +226,15 @@ their urgency, deadlines and amounts, things promised or learned, and what he wr
 
 The noise statistic deliberately stays out of it. Vibe does not need to know how many newsletters
 arrived; it needs to know that an answer is owed to someone since Tuesday.
+
+**Non-empty was not a good enough filter.** The first real run (2026-09-24, 50 mails) put fourteen
+notes in the dossier and nine of them said, in so many words, that nothing had to happen: two
+GitHub PR summaries, an issue notification, a weekly business digest, a trade-fair ad, a bank
+inbox notice. The agent writes `context_for_vibe` for everything it reads, so the cut is made in
+Python — `escalation.matters_for_vibe`, on the same fields the escalation rule uses: an owed reply,
+money, a deadline today or this week, or one of the two delicate types. Replayed against that run's
+data it keeps five of fourteen, and the five are the two failed payments, the CI failure and the
+two dated offers.
 
 Earlier versions of the same day are replaced, so the library never holds two states — the same
 rule as `bookcli.sync`. The history is in the Studio executions.

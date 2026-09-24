@@ -14,7 +14,7 @@ import json
 
 import pytest
 
-from workflows.inbox import config
+from workflows.inbox import config, gmail
 from workflows.inbox.gmail import _tool_json
 
 
@@ -119,3 +119,25 @@ def test_configured_tool_names_are_the_live_ones():
     assert config.GMAIL_TOOLS["draft"] == "create_draft"
     assert config.GMAIL_TOOLS["list_labels"] == "list_labels"
     assert config.GMAIL_TOOLS["create_label"] == "create_label"
+
+
+class TestLabelNames:
+    """Gmail rejects a label whose first segment is a system label.
+
+    This is the guard for the class, not for the one case: the namespace was
+    ``inbox/`` and EVERY ``create_label`` answered HTTP 400 "Invalid label
+    name" — an error that names no field and therefore read like a broken
+    connector. Verified live on 2026-09-24 for ``inbox``, ``inbox/processed``
+    and ``Inbox/processed``; ``Triage/processed`` was created on the first try.
+    """
+
+    def test_no_configured_label_uses_a_reserved_segment(self) -> None:
+        for key, name in config.LABELS.items():
+            first = name.split("/", 1)[0].strip().lower()
+            assert first not in gmail.RESERVED_LABEL_SEGMENTS, (
+                f"shared/inbox.json labels.{key} = {name!r} — Gmail refuses {first!r}"
+            )
+
+    def test_labels_carry_no_comment_keys(self) -> None:
+        # A "_comment" in LABELS would be applied to a thread as a label.
+        assert not [k for k in config.LABELS if k.startswith("_")]

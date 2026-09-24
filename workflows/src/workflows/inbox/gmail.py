@@ -14,6 +14,9 @@ Verified live (2026-09-23, measured against the account):
   ``get_thread`` takes ``threadId`` and ``messageFormat``.
 - ``list_labels`` returns ``labelId``, not ``id``, and ``create_label``
   requires ``displayName``, not ``name``. Both cost a day.
+- A label name may not START with one of Gmail's system labels: ``inbox`` and
+  ``inbox/processed`` are both rejected with HTTP 400 "Invalid label name"
+  (2026-09-24). See ``RESERVED_LABEL_SEGMENTS``.
 
 Messages that reach the author stay German.
 """
@@ -34,13 +37,35 @@ from workflows.crm.connectors import gmail_connector
 from . import config
 
 class GmailToolError(RuntimeError):
-    """The connector refused a tool call.
+    """The connector refused a tool call — it answers as plain text, not as an error field.
 
-    Measured on 2026-09-24: reading works, ``create_draft`` works, but every
-    label tool (``create_label``, ``label_thread``, ``unlabel_thread``) fails
-    for any input. The credential reports ``status: valid``, so this is not an
-    expired token — Mistral's Gmail connector does not hold the label scope.
+    Two different causes have worn this mask, and neither was the code:
+    a stale OAuth grant (every write tool refused; re-authorising fixed it),
+    and a label name Gmail reserves (see ``RESERVED_LABEL_SEGMENTS``).
     """
+
+
+# Gmail refuses a user label whose first path segment is one of its system
+# labels — ``inbox/processed`` fails with HTTP 400 "Invalid label name", and so
+# do ``inbox`` and ``Inbox/processed``. Verified live on 2026-09-24; the error
+# names no field, which is why it reads like a broken connector.
+RESERVED_LABEL_SEGMENTS = frozenset(
+    {
+        "inbox",
+        "sent",
+        "draft",
+        "drafts",
+        "spam",
+        "trash",
+        "starred",
+        "important",
+        "unread",
+        "read",
+        "chat",
+        "chats",
+        "category",
+    }
+)
 
 
 _PAUSE_SECONDS = 1.2  # without it: empty pages (rate limit) — verified live
@@ -156,6 +181,12 @@ async def gmail_ensure_label(
     free source. ``list_labels`` returns user labels only; system labels
     (UNREAD, INBOX, SPAM …) need no IDs.
     """
+    first = name.split("/", 1)[0].strip().lower()
+    if first in RESERVED_LABEL_SEGMENTS:
+        raise GmailToolError(
+            f"Gmail reserviert den Namen {first!r} — das Label {name!r} lässt sich nicht "
+            "anlegen. Erste Ebene in shared/inbox.json umbenennen."
+        )
     # Both field names are verified live and NOT what one would expect:
     # list_labels returns "labelId" (not "id"), and create_label requires
     # "displayName" (not "name"). With the expected names the lookup never

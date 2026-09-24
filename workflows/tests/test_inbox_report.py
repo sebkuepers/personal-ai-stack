@@ -1,4 +1,4 @@
-"""Die Verdichtung eines Sichtungs-Laufs ist deterministisch — hier ist ihr Vertrag.
+"""Condensing a triage run is deterministic — this is its contract.
 
 ``report.build_report`` counts and sorts; no model, no I/O. The numbers land
 in the daily report, and a mistake here distorts every decision based on it.
@@ -22,19 +22,19 @@ from workflows.inbox.models import (
 from workflows.inbox.report import build_report
 
 
-def umschlag(subject: str = "Betreff", sender: str = "a@example.com") -> InboxEnvelope:
+def envelope(subject: str = "Betreff", sender: str = "a@example.com") -> InboxEnvelope:
     return InboxEnvelope(thread_id="t1", sender=sender, subject=subject, unread=True)
 
 
-def gesendet(to: list[str], subject: str = "Re: Betreff") -> SentEnvelope:
+def sent_mail(to: list[str], subject: str = "Re: Betreff") -> SentEnvelope:
     return SentEnvelope(
         thread_id="t9", sender="seb@example.com", to=to, subject=subject,
         received_on=date(2026, 9, 23),
     )
 
 
-def sicht(**kwargs: object) -> InboxReview:
-    """Eine gültige Sichtung mit übersteuerbaren Feldern."""
+def review(**kwargs: object) -> InboxReview:
+    """A valid review with overridable fields."""
     base = {
         "type": "newsletter",
         "needs_reply": False,
@@ -51,7 +51,7 @@ def sicht(**kwargs: object) -> InboxReview:
 
 
 # ---------------------------------------------------------------------------
-# Der Langweilfall zuerst: nichts gefunden, nichts zu melden
+# The boring case first: nothing found, nothing to report
 # ---------------------------------------------------------------------------
 
 
@@ -72,7 +72,7 @@ def test_an_empty_run_yields_an_empty_report() -> None:
 def test_envelopes_and_reviews_have_to_be_pairwise() -> None:
     with pytest.raises(ValueError, match="pairwise"):
         build_report(
-            window_days=1, envelopes=[umschlag()], reviews=[], sent=[],
+            window_days=1, envelopes=[envelope()], reviews=[], sent=[],
             unsub_links=[], pages=1, skipped_no_messages=0, own_replies=0,
         )
 
@@ -86,14 +86,14 @@ def test_answered_go_last_open_go_first() -> None:
     report = build_report(
         window_days=1,
         envelopes=[
-            umschlag("Offen heute", "a@example.com"),
-            umschlag("Schon beantwortet", "b@example.com"),
+            envelope("Offen heute", "a@example.com"),
+            envelope("Schon beantwortet", "b@example.com"),
         ],
         reviews=[
-            sicht(type="correspondence", needs_reply=True, urgency="today"),
-            sicht(type="correspondence", needs_reply=True, urgency="today"),
+            review(type="correspondence", needs_reply=True, urgency="today"),
+            review(type="correspondence", needs_reply=True, urgency="today"),
         ],
-        sent=[gesendet(to=["b@example.com"])],
+        sent=[sent_mail(to=["b@example.com"])],
         unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
@@ -107,16 +107,16 @@ def test_replies_only_on_the_flag_sorted_by_urgency() -> None:
     report = build_report(
         window_days=1,
         envelopes=[
-            umschlag("Später", "z@example.com"),
-            umschlag("Heute!", "a@example.com"),
-            umschlag("Ohne Antwortbedarf", "b@example.com"),
-            umschlag("Diese Woche", "y@example.com"),
+            envelope("Später", "z@example.com"),
+            envelope("Heute!", "a@example.com"),
+            envelope("Ohne Antwortbedarf", "b@example.com"),
+            envelope("Diese Woche", "y@example.com"),
         ],
         reviews=[
-            sicht(type="correspondence", needs_reply=True, urgency="whenever"),
-            sicht(type="correspondence", needs_reply=True, urgency="today"),
-            sicht(type="notification", needs_reply=False),
-            sicht(type="correspondence", needs_reply=True, urgency="this_week"),
+            review(type="correspondence", needs_reply=True, urgency="whenever"),
+            review(type="correspondence", needs_reply=True, urgency="today"),
+            review(type="notification", needs_reply=False),
+            review(type="correspondence", needs_reply=True, urgency="this_week"),
         ],
         sent=[],
         unsub_links=[],
@@ -133,10 +133,10 @@ def test_replies_only_on_the_flag_sorted_by_urgency() -> None:
 def test_equal_urgency_sorts_by_sender() -> None:
     report = build_report(
         window_days=1,
-        envelopes=[umschlag("A", "z@example.com"), umschlag("B", "a@example.com")],
+        envelopes=[envelope("A", "z@example.com"), envelope("B", "a@example.com")],
         reviews=[
-            sicht(type="correspondence", needs_reply=True, urgency="today"),
-            sicht(type="correspondence", needs_reply=True, urgency="today"),
+            review(type="correspondence", needs_reply=True, urgency="today"),
+            review(type="correspondence", needs_reply=True, urgency="today"),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -152,11 +152,11 @@ def test_equal_urgency_sorts_by_sender() -> None:
 def test_type_counts_and_an_empty_group_does_not_count() -> None:
     report = build_report(
         window_days=1,
-        envelopes=[umschlag(), umschlag("Re: Termin", "mensch@example.com"), umschlag()],
+        envelopes=[envelope(), envelope("Re: Termin", "mensch@example.com"), envelope()],
         reviews=[
-            sicht(type="newsletter", subscription_group="LinkedIn"),
-            sicht(type="correspondence"),
-            sicht(type="notification", subscription_group=""),
+            review(type="newsletter", subscription_group="LinkedIn"),
+            review(type="correspondence"),
+            review(type="notification", subscription_group=""),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -168,12 +168,12 @@ def test_type_counts_and_an_empty_group_does_not_count() -> None:
 def test_groups_sorted_by_noise_then_alphabetically() -> None:
     report = build_report(
         window_days=1,
-        envelopes=[umschlag()] * 4,
+        envelopes=[envelope()] * 4,
         reviews=[
-            sicht(subscription_group="Zeit"),
-            sicht(subscription_group="LinkedIn"),
-            sicht(subscription_group="LinkedIn"),
-            sicht(subscription_group="Amazon"),
+            review(subscription_group="Zeit"),
+            review(subscription_group="LinkedIn"),
+            review(subscription_group="LinkedIn"),
+            review(subscription_group="Amazon"),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -184,15 +184,15 @@ def test_groups_sorted_by_noise_then_alphabetically() -> None:
 def test_finance_only_with_a_kind_and_with_every_field() -> None:
     report = build_report(
         window_days=1,
-        envelopes=[umschlag("Mahnung"), umschlag("Newsletter")],
+        envelopes=[envelope("Mahnung"), envelope("Newsletter")],
         reviews=[
-            sicht(
+            review(
                 type="invoice_payment",
                 finance_type="reminder",
                 amount="89,00 EUR",
                 due_date="2026-09-25",
             ),
-            sicht(type="newsletter", finance_type="none"),
+            review(type="newsletter", finance_type="none"),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -202,14 +202,22 @@ def test_finance_only_with_a_kind_and_with_every_field() -> None:
     assert (f.kind, f.amount, f.due_date) == ("reminder", "89,00 EUR", "2026-09-25")
 
 
-def test_context_collects_only_non_empty_entries() -> None:
+def test_context_takes_only_notes_that_change_something() -> None:
+    """Non-empty is not enough — see escalation.matters_for_vibe.
+
+    The first real run put fourteen notes in the dossier, nine of which said
+    that nothing had to happen. A note now needs an owed reply, money, a
+    deadline or a delicate type; a newsletter's observation stays out.
+    """
     report = build_report(
         window_days=1,
-        envelopes=[umschlag(), umschlag(), umschlag("Re: Termin")],
+        envelopes=[envelope(), envelope(), envelope("Re: Termin"), envelope("Rundbrief")],
         reviews=[
-            sicht(context_for_vibe="Zusage für Freitag, 10 Uhr."),
-            sicht(context_for_vibe=""),
-            sicht(type="notification", context_for_vibe="Zahnarzttermin morgen 9 Uhr."),
+            review(type="correspondence", context_for_vibe="Zusage für Freitag, 10 Uhr."),
+            review(type="correspondence", context_for_vibe=""),
+            review(type="notification", urgency="today",
+                   context_for_vibe="Zahnarzttermin morgen 9 Uhr."),
+            review(type="notification", context_for_vibe="PR #1810, keine Handlung nötig."),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -225,10 +233,10 @@ def test_context_collects_only_non_empty_entries() -> None:
 def test_second_review_flag_and_count() -> None:
     report = build_report(
         window_days=1,
-        envelopes=[umschlag("Re: Termin", "mensch@example.com"), umschlag("Rundbrief")],
+        envelopes=[envelope("Re: Termin", "mensch@example.com"), envelope("Rundbrief")],
         reviews=[
-            sicht(type="correspondence"),
-            sicht(type="newsletter"),
+            review(type="correspondence"),
+            review(type="newsletter"),
         ],
         sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
@@ -240,15 +248,15 @@ def test_second_review_flag_and_count() -> None:
 
 
 def test_sent_and_unsub_links_are_passed_through() -> None:
-    s = gesendet(to=["marie@example.com"])
+    s = sent_mail(to=["marie@example.com"])
     kandidat = UnsubCandidate(
         sender="news@example.com", subject="Rundbrief", thread_id="t1",
         url="https://news.example.com/out",
     )
     report = build_report(
         window_days=1,
-        envelopes=[umschlag("Rundbrief", "news@example.com")],
-        reviews=[sicht(reasoning="Massenversand mit Abbestell-Link.")],
+        envelopes=[envelope("Rundbrief", "news@example.com")],
+        reviews=[review(reasoning="Massenversand mit Abbestell-Link.")],
         sent=[s],
         unsub_links=[kandidat],
         pages=7, skipped_no_messages=26, own_replies=2,

@@ -101,7 +101,16 @@ def _root_reason(exc: BaseException) -> str:
     while current.__cause__ is not None:
         current = current.__cause__
     text = str(current).strip() or type(current).__name__
-    return text[:200]
+    # Temporal carries the connector's own answer in ``details``, not in the
+    # message: the label failure said "connector tool call failed" while the
+    # details held Gmail's 400 "Invalid label name". Without this the screen
+    # names a wrapper and the actual reason is only in the event history.
+    for detail in getattr(current, "details", None) or ():
+        extra = str(detail).strip()
+        if extra and extra not in text:
+            text = f"{text} — {extra}"
+            break
+    return " ".join(text.split())[:300]
 
 
 def _days(choice: str) -> int:

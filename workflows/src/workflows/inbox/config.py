@@ -33,13 +33,23 @@ SECOND_REVIEW_MODEL: str = _CFG["models"]["second_review"]  # second stage (medi
 # --------------------------------------------------------------------------- #
 # Connector (lowercase slug, not the Studio display name)
 # --------------------------------------------------------------------------- #
+def _entries(section: dict) -> dict[str, str]:
+    """A config section without its ``_comment`` keys.
+
+    The JSON carries its reasoning next to the setting it justifies (repo rule
+    6), and those keys must never reach a caller that iterates the map — a
+    ``_comment`` in LABELS would otherwise be applied to a thread as a label.
+    """
+    return {k: v for k, v in section.items() if not k.startswith("_")}
+
+
 CONNECTOR_GMAIL: str = _CFG["connectors"]["gmail"]["name"]
-GMAIL_TOOLS: dict[str, str] = dict(_CFG["connector_tools"]["gmail"])
+GMAIL_TOOLS: dict[str, str] = _entries(_CFG["connector_tools"]["gmail"])
 
 # --------------------------------------------------------------------------- #
 # Label vocabulary — the cleanup step applies exactly these labels, no others.
 # --------------------------------------------------------------------------- #
-LABELS: dict[str, str] = dict(_CFG["labels"])
+LABELS: dict[str, str] = _entries(_CFG["labels"])
 
 # --------------------------------------------------------------------------- #
 # Controlled vocabularies — mirror the enums in the agent schema.

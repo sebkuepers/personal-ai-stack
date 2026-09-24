@@ -30,3 +30,24 @@ def needs_second_review(review: InboxReview) -> bool:
         or review.urgency == "today"
         or review.type in ALWAYS_ESCALATE
     )
+
+
+# Urgencies that make a note worth carrying into a working session.
+RELEVANT_URGENCIES = {"today", "this_week"}
+
+
+def matters_for_vibe(review: InboxReview) -> bool:
+    """True when this mail's note belongs in the dossier.
+
+    The dossier is not a digest: it holds what changes what he does next. The
+    first real run put fourteen notes in it, ten of which ended in "keine
+    direkte Handlung erforderlich" — a GitHub PR summary, a weekly digest, a
+    discount code. The agent writes ``context_for_vibe`` for everything, so the
+    cut is made here, on the same fields the escalation rule uses.
+    """
+    return (
+        review.needs_reply
+        or review.finance_type != "none"
+        or review.urgency in RELEVANT_URGENCIES
+        or review.type in ALWAYS_ESCALATE
+    )

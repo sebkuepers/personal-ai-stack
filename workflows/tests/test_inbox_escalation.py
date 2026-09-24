@@ -1,19 +1,19 @@
 """The escalation rule decides about money and replies — this is its contract.
 
 Its failure directions are asymmetric, hence the boundaries:
-- Small meldet zu viel → Zweitblick korrigiert (billig, gewollt).
-- Small verpasst etwas Kritisches → muss trotzdem eskalieren. Deshalb
+- Small reports too much → the second stage corrects it (cheap, wanted).
+- Small misses something critical → it has to escalate anyway. So
   the rule escalates at type level for correspondence/other, even when small
   says "no reply needed" — that is precisely the dangerous gap.
 """
 
 from __future__ import annotations
 
-from workflows.inbox.escalation import needs_second_review
+from workflows.inbox.escalation import matters_for_vibe, needs_second_review
 from workflows.inbox.models import InboxReview
 
 
-def sicht(**kwargs: object) -> InboxReview:
+def review(**kwargs: object) -> InboxReview:
     base = {
         "type": "newsletter",
         "needs_reply": False,
@@ -31,39 +31,39 @@ def sicht(**kwargs: object) -> InboxReview:
 
 def test_routine_does_not_reach_the_second_stage() -> None:
     # The bulk: newsletters and notifications with no reply needed — small suffices.
-    assert needs_second_review(sicht(type="newsletter")) is False
-    assert needs_second_review(sicht(type="notification")) is False
-    assert needs_second_review(sicht(type="transaction")) is False
+    assert needs_second_review(review(type="newsletter")) is False
+    assert needs_second_review(review(type="notification")) is False
+    assert needs_second_review(review(type="transaction")) is False
 
 
 def test_a_needed_reply_escalates() -> None:
-    assert needs_second_review(sicht(type="notification", needs_reply=True)) is True
+    assert needs_second_review(review(type="notification", needs_reply=True)) is True
 
 
 def test_money_escalates() -> None:
-    assert needs_second_review(sicht(type="invoice_payment", finance_type="invoice")) is True
-    assert needs_second_review(sicht(finance_type="direct_debit")) is True
+    assert needs_second_review(review(type="invoice_payment", finance_type="invoice")) is True
+    assert needs_second_review(review(finance_type="direct_debit")) is True
 
 
 def test_urgency_today_escalates() -> None:
-    assert needs_second_review(sicht(urgency="today")) is True
+    assert needs_second_review(review(urgency="today")) is True
 
 
 def test_correspondence_escalates_even_without_flags() -> None:
     # Die entscheidende Lücke: Small sagt „keine Antwort nötig" zu einer Mail
     # of a real human — the rule must not trust that and escalates at type
     # level. PERSONAL is rare, so the insurance is cheap.
-    assert needs_second_review(sicht(type="correspondence")) is True
+    assert needs_second_review(review(type="correspondence")) is True
 
 
 def test_other_escalates() -> None:
     # "Other" is the uncertainty bucket — look again.
-    assert needs_second_review(sicht(type="other")) is True
+    assert needs_second_review(review(type="other")) is True
 
 
 def test_this_week_alone_does_not_escalate() -> None:
     # this_week allein (ohne Antwortbedarf/Finanzen) ist keine Kritikalität.
-    assert needs_second_review(sicht(type="notification", urgency="this_week")) is False
+    assert needs_second_review(review(type="notification", urgency="this_week")) is False
 
 
 # ---------------------------------------------------------------------------
@@ -131,3 +131,35 @@ def test_the_parsers_match_the_options():
 
     assert [_days(v) for v, _ in WINDOWS] == [1, 3, 7]
     assert [_count(v) for v, _ in LIMITS] == [25, 50, 100]
+
+
+class TestMattersForVibe:
+    """The dossier holds what changes what he does next — not a digest.
+
+    Measured on the first real run (2026-09-24, 50 mails): the dossier carried
+    fourteen notes, nine of which said in so many words that nothing had to
+    happen — GitHub PR summaries, a weekly digest, a bank inbox notice. The cut
+    below leaves the five that name a deadline, money or an owed reply.
+    """
+
+    def test_a_notification_without_urgency_stays_out(self) -> None:
+        assert not matters_for_vibe(
+            review(type="notification", context_for_vibe="PR #1810, keine Handlung nötig")
+        )
+
+    def test_a_newsletter_stays_out(self) -> None:
+        assert not matters_for_vibe(review(type="newsletter"))
+
+    def test_money_gets_in(self) -> None:
+        assert matters_for_vibe(review(type="notification", finance_type="reminder"))
+
+    def test_a_deadline_this_week_gets_in(self) -> None:
+        assert matters_for_vibe(review(type="newsletter", urgency="this_week"))
+
+    def test_an_owed_reply_gets_in(self) -> None:
+        assert matters_for_vibe(review(type="notification", needs_reply=True))
+
+    def test_correspondence_always_gets_in(self) -> None:
+        # Same asymmetry as the escalation rule: a missed conversation is the
+        # expensive direction, a superfluous line in the dossier is not.
+        assert matters_for_vibe(review(type="correspondence"))
