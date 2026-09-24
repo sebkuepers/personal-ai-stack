@@ -237,28 +237,42 @@ in the examples.
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
 
-19. **A Studio schedule cannot run an `on_behalf_of` workflow either.** The SDK
-    refuses `schedules=[...]` together with `on_behalf_of=True` (gotcha 5), and
-    the obvious escape — create the schedule server-side via
-    `workflows.schedules.schedule_workflow(...)` — is *accepted* and then fails
-    at runtime: the execution carries no identity, and the first connector call
-    dies with `API error occurred: Status 400. Body: {"detail": "Execution is
-    missing user_id or organization_id"}`. Measured on 2026-09-24 against
-    `inbox-scan`.
+19. **A scheduled connector workflow works — but not `on_behalf_of`.** Two
+    identities exist, and the whole question is which one a run carries.
 
-    What **does** work is the REST execute API with a user API key:
-    `POST /v1/workflows/{name}/execute` returns an execution whose `user_id` is
-    set, the OAuth credential resolves, and the run completes. So the takt for a
-    connector workflow has to come from outside and go through *that* endpoint —
-    not through a Studio schedule.
+    - `on_behalf_of=True` means *your* OAuth session. The SDK refuses to combine
+      it with `schedules=[...]`, and the server-side escape
+      (`workflows.schedules.schedule_workflow(...)`) is *accepted* and then fails
+      at runtime: `400 {"detail": "Execution is missing user_id or
+      organization_id"}`. The SDK says why in as many words —
+      `core/workflow.py:229`: *"scheduled workflows lack user identity"*.
+    - `on_behalf_of=False` plus `connector("gmail", run_as="deployment")` uses
+      the **deployment's** identity — the worker's API key. That combination
+      *may* carry `schedules=[...]`, and the worker registers the schedule by
+      itself at startup.
 
-    Two more things the same measurement turned up:
-    `GET /v1/workflows/runs?status=RUNNING&deployment_name=…` exists and answers
-    200, but its list is called **`executions`**, not `runs` — `worker-host`
-    reads `body.runs`, so its container-waker has always counted zero. And a
-    scheduled `inbox-scan` would produce nothing durable anyway: the dossier and
-    the labels live in `inbox-review`, the conversational workflow, which cannot
-    be scheduled at all.
+    Measured end to end on 2026-09-24 against `probe-deployment`: schedule
+    registered automatically, triggered, **COMPLETED with `user_id = None`**,
+    and `list_labels` returned the real mailbox. So a daily Gmail job needs no
+    external takt, no Cloudflare cron, no user session — only the worker's key.
+
+    `ConnectorRunAs` (`core/auth/run_as.py`) has exactly these two values,
+    `AUTO` (follow `on_behalf_of`) and `DEPLOYMENT`. Note that `run_as` on the
+    `connector()` slot and on a `ToolCallClient` must agree, or the call is
+    refused at runtime.
+
+    One thing that does *not* work on this account: a Gmail credential at
+    workspace or organisation scope. `create_credentials(consumer_scope=
+    "workspace")` answers *"Cannot create empty credentials"* (it wants a bearer
+    token or OAuth client credentials, which Gmail does not give out), and
+    `GET /connectors/gmail/auth_url?consumer_scope=workspace` accepts the
+    parameter and quietly files the result under `user` anyway. It is not
+    needed: the deployment resolves the worker key's own user credential.
+
+    Side finding from the same measurement:
+    `GET /v1/workflows/runs?status=RUNNING&deployment_name=…` answers 200, but
+    its list is called **`executions`**, not `runs` — `worker-host` read
+    `body.runs`, counted zero on every tick and never woke the container.
 
 ---
 
