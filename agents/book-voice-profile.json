@@ -1,0 +1,150 @@
+{
+  "id": "ag_01a0cd6a54a97001875a8592a1ec319f",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.3,
+    "top_p": 1.0,
+    "max_tokens": 8192,
+    "random_seed": 4711,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stimmprofil",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+          "properties": {
+            "narrative_stance": {
+              "title": "Narrative Stance",
+              "type": "string"
+            },
+            "tense": {
+              "title": "Tense",
+              "type": "string"
+            },
+            "person": {
+              "title": "Person",
+              "type": "string"
+            },
+            "rules": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A rule as the reduce agent proposes it (not yet checked).",
+                "properties": {
+                  "id": {
+                    "description": "Short identifier, e.g. R-behauptung-statt-bild",
+                    "title": "Id",
+                    "type": "string"
+                  },
+                  "title": {
+                    "title": "Title",
+                    "type": "string"
+                  },
+                  "rule": {
+                    "description": "What the author DOES, as a checkable statement — never a prohibition. No prohibition can be evidenced from his finished text, because it contains no violations.",
+                    "title": "Rule",
+                    "type": "string"
+                  },
+                  "why": {
+                    "title": "Why",
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "description": "At least two entries from the SENTENCE CATALOGUE — either the number in square brackets or the sentence verbatim. Python resolves both against the catalogue; anything not in it is discarded.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Evidence",
+                    "type": "array"
+                  },
+                  "violation_example": {
+                    "description": "The first piece of evidence, rewritten so that it NO LONGER follows the rule",
+                    "title": "Violation Example",
+                    "type": "string"
+                  },
+                  "testable_as": {
+                    "description": "How an editor or agent recognises the violation",
+                    "title": "Testable As",
+                    "type": "string"
+                  },
+                  "source": {
+                    "enum": [
+                      "manuskript",
+                      "notizen"
+                    ],
+                    "title": "Source",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "rule",
+                  "why",
+                  "evidence",
+                  "violation_example",
+                  "testable_as",
+                  "source"
+                ],
+                "title": "RawVoiceRule",
+                "type": "object"
+              },
+              "title": "Rules",
+              "type": "array"
+            },
+            "recurring_motifs": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Recurring Motifs",
+              "type": "array"
+            },
+            "avoidances": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Avoidances",
+              "type": "array"
+            },
+            "open_questions": {
+              "description": "Where the evidence was contradictory or the data too thin",
+              "items": {
+                "type": "string"
+              },
+              "title": "Open Questions",
+              "type": "array"
+            }
+          },
+          "required": [
+            "narrative_stance",
+            "tense",
+            "person",
+            "rules",
+            "recurring_motifs",
+            "avoidances",
+            "open_questions"
+          ],
+          "title": "Book · Voice profile",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+        "strict": true
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Book · Voice profile",
+  "instructions": "Du verdichtest viele Einzelbeobachtungen zur Erzählstimme eines deutschsprachigen Autors zu einem\nkompakten, PRÜFBAREN Profil.\n\nDu bekommst:\n1. Beobachtungen zu allen Abschnitten des Manuskripts, jeweils mit wörtlichen Belegen.\n2. Gemessene Kennzahlen (Satzlängen, Dialoganteil, Passivquote und anderes) — die sind FAKTEN und\n   dürfen nicht umgedeutet werden.\n3. Regeln, die der Autor in seinen eigenen Lektoratsnotizen bereits selbst formuliert hat.\n\nDIE ENTSCHEIDENDE ANFORDERUNG: Jede Regel muss VERLETZBAR sein.\nEine Regel, gegen die man nicht verstoßen kann, kann keinen Verstoß erkennen und ist wertlos.\nPrüfe bei jeder Regel: Könnte ich einen Satz schreiben, der eindeutig dagegen verstößt? Wenn nein,\nformuliere sie schärfer oder lass sie weg.\n\n  UNBRAUCHBAR: \"Der Autor schreibt lebendig und konkret.\"\n  BRAUCHBAR:   \"Kündigt nie an, was das folgende Bild ohnehin zeigt. Erst das Bild, keine\n                Einordnung davor, keine Bewertung danach.\"\n\nWEITERE REGELN:\n\n1. HÖCHSTENS 12 REGELN. Ein Profil, das niemand liest, wirkt nicht. Nimm die tragenden, nicht alle.\n\n2. \"fundstellen\": MINDESTENS ZWEI NUMMERN aus dem SATZKATALOG. Du tippst kein Zitat ab — du\n   zeigst auf Sätze. Schreibe die Zahl in den eckigen Klammern, sonst nichts. Eine Nummer, die\n   es im Katalog nicht gibt, wird verworfen.\n   Wähle Sätze, an denen man die Regel tatsächlich SIEHT. Das dürfen Verstöße sein: Der Katalog\n   enthält den Text, wie er dasteht, nicht wie er sein sollte.\n\n3. Das Profil wird AUSSCHLIESSLICH aus dem Manuskript abgeleitet. Setze quelle = \"manuskript\".\n   Lektoratsnotizen fließen bewusst nicht ein: Sie sagen, was der Autor an einzelnen Stellen\n   korrigiert hat, nicht, wie er schreibt.\n\n4. \"so_geht_es\": die erste Fundstelle, von dir so umgeschrieben, dass sie der Regel NICHT mehr\n   folgt — also wie es klänge, wenn jemand anderes dieselbe Stelle geschrieben hätte. Zusammen\n   mit der Fundstelle ergibt das ein Paar, an dem man die Regel sehen kann: so macht er es, so\n   macht man es sonst.\n\n4a. JEDE REGEL BESCHREIBT, WAS DER AUTOR TUT — NIEMALS, WAS ER VERMEIDEN SOLL.\n\n   Formuliere sie als Aussage über seine Schreibweise: „Stellt Handlungen direkt dar\", „Lässt\n   direkte Rede ohne einleitendes Verb stehen\", „Setzt Fachbegriffe unübersetzt ein\". NICHT\n   „Vermeide X\", „Keine Y\".\n\n   Der Grund ist zwingend: Du bekommst ausschließlich seinen fertigen Text. Darin gibt es keine\n   Verstöße gegen ein Verbot — also kannst du ein Verbot nicht belegen. Ein Verbot mit einer\n   Fundstelle, die es einhält, beweist nichts. Gemessen: In einem Lauf waren 8 von 12 Regeln\n   Verbote, und JEDE Fundstelle zeigte einen Satz ohne den verbotenen Befund. Eine dieser Regeln\n   („Vermeidet elliptische Sätze\") stand sogar im direkten Widerspruch zum Text — „Kein Wind.\n   Keine Welle.\" ist die Handschrift dieses Autors.\n\n   Eine beschreibende Regel ist dagegen belegbar: Die Fundstelle ZEIGT, wie er es macht.\n\n   Was er NICHT tut, gehört in \"vermeidungen\" — dort wird kein Beleg verlangt, weil es keinen\n   geben kann.\n\n4b. Prüfe jede Regel gegen ihre eigene Fundstelle: Sieht man das, was die Regel behauptet, in\n   diesem Satz tatsächlich? Wenn nein, ist es die falsche Fundstelle oder die falsche Regel —\n   beides ein Grund, sie wegzulassen.\n\n5. \"pruefbar_als\" beschreibt, woran man den Verstoß im Text erkennt — möglichst mechanisch.\n\n6. VERMEIDUNGEN: Was tut dieser Autor nie? Sammle das getrennt von den Regeln.\n\n7. OFFENE FRAGEN: Wo die Beobachtungen einander widersprachen oder die Belege zu dünn waren, sag es.\n   Eine ehrliche offene Frage ist mehr wert als eine erfundene Regel.\n\n8. Die IDs folgen dem Muster R-<kurz-und-sprechend>, z. B. R-kein-etikett-vor-dem-bild.\n\nAntworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",
+  "tools": [],
+  "metadata": {
+    "domain": "book"
+  }
+}

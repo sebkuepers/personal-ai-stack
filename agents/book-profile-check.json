@@ -1,0 +1,78 @@
+{
+  "id": "ag_01a0cfb97d457402bff48f357146922a",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "random_seed": 4711,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "profil_pruefung",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Hält jede Stimmprofil-Regel gegen ihre eigene Fundstelle: Zeigt der Satz das, was die Regel behauptet? Die Belegprüfung in Python kann nur prüfen, ob er existiert.",
+          "properties": {
+            "checks": {
+              "items": {
+                "additionalProperties": false,
+                "description": "Whether a piece of evidence actually demonstrates the rule it stands for.",
+                "properties": {
+                  "rule_id": {
+                    "title": "Rule Id",
+                    "type": "string"
+                  },
+                  "shows_the_rule": {
+                    "title": "Shows The Rule",
+                    "type": "boolean"
+                  },
+                  "why": {
+                    "title": "Why",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "rule_id",
+                  "shows_the_rule",
+                  "why"
+                ],
+                "title": "RuleCheck",
+                "type": "object"
+              },
+              "title": "Checks",
+              "type": "array"
+            },
+            "verdict": {
+              "title": "Verdict",
+              "type": "string"
+            }
+          },
+          "required": [
+            "checks",
+            "verdict"
+          ],
+          "title": "Book · Profile check",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Hält jede Stimmprofil-Regel gegen ihre eigene Fundstelle: Zeigt der Satz das, was die Regel behauptet? Die Belegprüfung in Python kann nur prüfen, ob er existiert.",
+        "strict": true
+      }
+    }
+  },
+  "model": "mistral-large-latest",
+  "name": "Book · Profile check",
+  "instructions": "Du pruefst ein Stimmprofil gegen seine eigenen Belege.\n\nDu bekommst eine Liste von Regeln. Jede beschreibt, wie ein Autor schreibt, und bringt Saetze aus\nseinem Manuskript mit, an denen man das sehen soll.\n\nDEINE EINZIGE FRAGE JE REGEL:\nZeigt die erste Fundstelle das, was die Regel behauptet?\n\nNicht: Ist die Regel richtig. Nicht: Ist der Satz gut. Nur: Sieht man in DIESEM Satz DAS, was die\nRegel beschreibt?\n\nBEISPIELE FUER \"false\":\n- Regel \"Verwendet umgangssprachliche Ausdruecke\", Fundstelle enthaelt keine Umgangssprache.\n- Regel \"Kurze Saetze (<=5 Woerter)\", Fundstelle ist ein Satz mit achtzehn Woertern.\n- Regel \"Laesst direkte Rede ohne Begleitsatz stehen\", Fundstelle hat einen Begleitsatz.\n\nBEISPIEL FUER \"true\":\n- Regel \"Nutzt elliptische Saetze ohne Verb\", Fundstelle: \"Kein Wind. Keine Welle.\"\n\nREGELN:\n\n1. Zu JEDER vorgelegten Regel genau ein Urteil. \"rule_id\" ist die mitgelieferte Kennung.\n\n2. Sei streng, aber nicht spitzfindig. Eine Fundstelle muss die Regel zeigen, nicht beweisen.\n   Zeigt sie sie teilweise oder nur in einem Nebensatz, ist das ein true.\n\n3. \"why\" in einem halben Satz: Was man im Satz sieht — oder was fehlt.\n\n4. Dass mehrere Regeln durchfallen, ist ein moegliches Ergebnis. Eine Regel mit schiefem Beleg ist\n   schlimmer als eine Regel weniger: Der Stillektor lernt aus dem Beleg, wie die Regel aussieht.\n\nAntworte ausschliesslich mit gueltigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Hält jede Stimmprofil-Regel gegen ihre eigene Fundstelle: Zeigt der Satz das, was die Regel behauptet? Die Belegprüfung in Python kann nur prüfen, ob er existiert.",
+  "tools": [],
+  "metadata": {
+    "domain": "book"
+  }
+}

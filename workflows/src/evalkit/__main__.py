@@ -1,17 +1,17 @@
 """Generisches Eval-CLI für jeden Agent im Repo.
 
-    python -m evalkit --agent buch-korrektorat --faelle shared/buch/eval-immer-wieder-ruegen.json
+    python -m evalkit --agent book-copyedit --faelle shared/book/eval-immer-wieder-ruegen.json
     python -m evalkit --agent crm-classification --faelle shared/crm/eval-faelle.json --zaehlpfad ""
 
 Die Fall-Datei ist eine JSON-Liste:
 
     [{"id": "…",
       "eingabe": "der Text, der an den Agent geht",
-      "erwartet": [{"pfad": "korrekturen[].search", "wert": "…"}],
-      "verboten": [{"pfad": "korrekturen[].search", "operator": "paar",
-                    "paar_pfad": "korrekturen[].replace", "wert": ["runter", "hinunter"]}]}]
+      "erwartet": [{"pfad": "corrections[].search", "wert": "…"}],
+      "verboten": [{"pfad": "corrections[].search", "operator": "paar",
+                    "paar_pfad": "corrections[].replace", "wert": ["runter", "hinunter"]}]}]
 
-Domänen bringen eigene Generatoren mit (z. B. ``buchcli.eval --erzeuge``); das
+Domänen bringen eigene Generatoren mit (z. B. ``bookcli.eval --generate``); das
 Messen selbst ist hier für alle gleich.
 """
 
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--zaehlpfad",
-        default="korrekturen[]",
+        default="corrections[]",
         help="was als ein Befund zählt (leer lassen für Klassifikations-Agents)",
     )
     p.add_argument("--still", action="store_true", help="keine Fortschrittsanzeige")

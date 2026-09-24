@@ -43,7 +43,7 @@ src/
 │   └── start.py            #   triggers an execution        (make execute ...)
 ├── workflows/              # YOUR workflows — auto-discovered, recursively
 │   ├── crm/                #   domain package: shared code AND workflows
-│   ├── buch/               #   domain package (agents, models, scrivener, satz/)
+│   ├── book/               #   domain package (agents, models, scrivener, typeset/)
 │   ├── crm_*.py            #   top-level workflows
 │   └── lektorat.py …       #   top-level workflows of the book domain
 └── examples/               # cookbooks (opt-in: make start-examples)
@@ -54,7 +54,7 @@ package for any class carrying `__workflows_workflow_def` (set by
 `@workflows.workflow.define`). Consequences:
 
 - ✅ **Subpackages ARE scanned.** `discover_workflows()` uses `pkgutil.walk_packages`,
-  so a workflow class in `workflows/buch/korrektorat.py` is found. (An earlier
+  so a workflow class in `workflows/book/copyedit.py` is found. (An earlier
   version of this file said the opposite — it was written before discovery became
   recursive. Results are de-duplicated by identity, so a class imported into
   another module is counted once.)
@@ -173,57 +173,55 @@ in the examples.
 6. **Connector workflows need `on_behalf_of=True` + `@uses_connectors(...)`** and
    pause on first run for OAuth (auth URL appears in the UI/logs, ~10-min window).
 
-7. **Gmail connector can only DRAFT, not send** (`draft_gmail_email`). Good for
+7. **Gmail connector can only DRAFT, not send** (`create_draft`). Good for
    safety; don't write a "send email" step expecting it to exist.
 
 8. **`store=False`** on `ConversationRequest` avoids persisting throwaway
    classification conversations in Studio.
 
-9. **`Path(__file__).resolve()` sprengt die Sandbox.** Temporal verbietet
-   `pathlib.Path.resolve` in Workflow-Code. Ein `config.py`, das beim Import eine
-   Datei sucht, reißt damit **jedes** Modul mit, das es direkt oder transitiv
-   importiert (auch über `connectors.py`) — der Worker startet dann gar nicht.
-   `__file__` ist beim Import ohnehin absolut, also einfach `Path(__file__)`
-   ohne `.resolve()` benutzen. Wichtig: Die Offline-Discovery-Prüfung findet das
-   **nicht**, weil sie nur importiert und nicht validiert. Nur ein echter
-   Worker-Start zeigt es.
+9. **`Path(__file__).resolve()` blows up the sandbox.** Temporal forbids
+   `pathlib.Path.resolve` in workflow code. A `config.py` that looks for a file
+   at import time therefore drags down **every** module that imports it
+   directly or transitively (including via `connectors.py`) — the worker then
+   does not start at all. `__file__` is absolute at import anyway, so just use
+   `Path(__file__)` without `.resolve()`. Important: the offline discovery check
+   does **not** catch this, because it only imports and does not validate. Only
+   a real worker start shows it.
 
-10. **Passthrough gilt für Modul*namen*, nicht für Paket-Attribute.** Innerhalb
-    von `imports_passed_through()` wirkt `from paket.modul import X` und
-    `import paket.modul as m`, aber `from paket import modul` nicht — Python löst
-    das als Attributzugriff auf und die Sandbox greift trotzdem.
+10. **Passthrough applies to module *names*, not to package attributes.** Inside
+    `imports_passed_through()`, `from package.module import X` and
+    `import package.module as m` work, but `from package import module` does not
+    — Python resolves that as an attribute access and the sandbox still bites.
 
-11. **Conversational workflows: Das Eingabeschema entscheidet über den Start.**
-    Ein `@le_chat_input`-Modell verträgt **kein** Extrafeld und **kein** `message`
-    mit Standardwert — beides lässt Vibe auf einen rohen JSON-Editor zurückfallen.
-    Mit `message` als Pflichtfeld fragt Le Chat die getippte Nachricht ein zweites
-    Mal ab. Wer sie nicht braucht, definiert **gar kein** Eingabeschema; dann läuft
-    der Workflow sofort los. Gemessen am lebenden Objekt, in dieser Reihenfolge.
+11. **Conversational workflows: the input schema decides how it starts.** A
+    `@le_chat_input` model tolerates **no** extra field and **no** `message` with
+    a default — either makes Vibe fall back to a raw JSON editor. With `message`
+    as a required field Le Chat asks for the typed message a second time. If you
+    do not need it, define **no** input schema at all; then the workflow starts
+    immediately. Measured against the live object, in that order.
 
-12. **Die `TodoList` rendert Vibe nicht im Verlauf,** sondern als festes Feld über
-    dem Eingabefeld — und nur, solange der Kontextmanager offen ist. Umschließt sie
-    nur einen kurzen Schritt, ist sie weg, bevor jemand hinsieht. Sie gehört um die
-    ganze Sitzung, inklusive der Wartezeiten auf Eingaben.
+12. **Vibe does not render the `TodoList` in the transcript** but as a fixed
+    field above the input box — and only while the context manager is open. Wrap
+    it around a short step only and it is gone before anyone looks. It belongs
+    around the whole session, waiting times for input included.
 
-13. **Es gibt keine Tabellen-Komponente und keine wählbare Tabellenzeile.**
-    Laut Doku: `SingleChoice` = Dropdown, `ConfirmationInput` = Knöpfe, sonst
-    nichts. Eine Tabelle zum Scannen plus **ein** Formular zum Wählen ist die
-    einzige brauchbare Form; eine Knopfreihe, die jede Tabellenzeile wiederholt,
-    ist dieselbe Liste zweimal.
+13. **There is no table component and no selectable table row.** Per the docs:
+    `SingleChoice` is a dropdown, `ConfirmationInput` are buttons, and that is
+    all. A table to scan plus **one** form to choose from is the only usable
+    shape; a row of buttons repeating every table row is the same list twice.
 
-14. **`strict: true` erzwingt Enums, aber keine Zahlentypen.** Ein `list[int]` im
-    Schema hindert das Modell nicht daran, Strings zu liefern. Und ein Feld mit
-    `default_factory` steht nicht unter `required` — dann lässt das Modell es weg,
-    auch wenn der Prompt es ausdrücklich verlangt. **Was Pflicht ist, gehört ins
-    Schema, nicht in die Prosa.**
+14. **`strict: true` enforces enums, but not numeric types.** A `list[int]` in
+    the schema does not stop the model from delivering strings. And a field with
+16. **A rename leaves its predecessor registered.** Studio keeps a workflow
+    registration until someone removes it, so after renaming `buch-korrektorat`
+    to `book-copyedit` both sit in the list and the old one is indistinguishable
+    from a live one. There is **no delete** — only `archive_workflow` /
+    `bulk_archive_workflows` (reversible via `unarchive_workflow`).
+    `make archive-stale` compares the registrations against
+    `discover_workflows()` and archives whatever the repo no longer defines;
+    preview is the default.
 
-15. **Auto-angelegte Deployments sind nicht „hardened".** Ein Worker mit einem
-    `DEPLOYMENT_NAME`, den Mistral selbst angelegt hat, bekommt beim Registrieren
-    **HTTP 403 / `WF_1104`**. Die Freigabe erfolgt einmalig im Admin-Panel
-    (der Fehler liefert den Link mit). Das ist serverseitig neu — ein Worker, der
-    früher lief, kann daran ohne Codeänderung scheitern.
-
-16. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
+17. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
 
@@ -265,7 +263,7 @@ uv run ruff check src/workflows
 
 # 2. Offline discovery — catches import/syntax/annotation errors WITHOUT the cloud
 uv run python -c "from entrypoints.worker import discover_workflows as d; \
-print('discovered', len(d()))"        # 12 as of 2026-09-23
+print('discovered', len(d()))"        # 15 as of 2026-09-24
 
 # 3. (optional) Live smoke test of the agent path — triggers the real agent,
 #    no worker/Temporal needed. See the pattern used during the initial build:

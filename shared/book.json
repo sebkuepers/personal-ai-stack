@@ -1,0 +1,175 @@
+{
+  "_comment": "Domain configuration for the writing/editing system. Applies to ALL books — agents, models, vocabularies, review criteria and the typesetting spec. The individual work lives in shared/book/<slug>.json. Read by workflows/src/workflows/book/config.py and by the MCP server. Convention: the domain is the capability, the work is the subject — agents and workflows never carry a work's name. German values below are subject matter (categories of German copy-editing, colloquialisms, strings the author reads), not identifiers.",
+  "agents": {
+    "_comment": "Created by agents/sync.py; record the IDs here afterwards.",
+    "copyedit": "ag_01a0cd6a526c75748b8431e31c00923e",
+    "style": "ag_01a0cd6a532073cc82376c3f36dab377",
+    "voice_sample": "ag_01a0cd6a53de713c80ccec2865d75766",
+    "voice_profile": "ag_01a0cd6a54a97001875a8592a1ec319f",
+    "content": "ag_01a0cf306fe27574b53b6903264c39f6",
+    "second_read": "ag_01a0ce2ce85572b4aa977b15118d55d9",
+    "style_second_read": "ag_01a0cf67b51d725ba2587628768a8a05",
+    "profile_check": "ag_01a0cfb97d457402bff48f357146922a"
+  },
+  "models": {
+    "copyedit": "mistral-medium-latest",
+    "style": "mistral-medium-latest",
+    "content": "mistral-medium-latest",
+    "voice": "mistral-medium-latest",
+    "_comment": "Measured with evalkit on 2026-09-23. COPYEDIT against eval-copyedit.json (8 cases, 7 expectations, 21 traps, 3 runs): medium/none 21/21 hits, 6/63 traps, 1.0s, 2,420T · small/none 17/21, 0/63 · small/high 19/21, 3/63 · medium/high 19/21, 0/63, 4.6s, 14,078T. Reasoning does not help. An earlier measurement without annotated expectations had recommended small — it could only count traps and therefore never penalised misses. SECOND READ against eval-second-read.json (6 cases, 2 runs): large/none 12/12, 0 traps, 3.7s, 1,462T · zai-glm-5 11/12, 2 traps, 7,161T · medium/none 10/12, 0 traps · magistral-medium 10/12 (practically identical to medium — Magistral now sits inside medium/small as reasoning_effort). DELIBERATELY A DIFFERENT MODEL THAN STAGE 1: self-preference bias — a judge from the same family as the generator rates its output systematically too well and shares its blind spots. Large wins here even without that argument. Before changing this: make book-eval.",
+    "second_read": "mistral-large-latest",
+    "_foreign_models": "GLM 5.3 (zai-glm-5-3) measured on 2026-09-23 against both evals, 3 runs per effort level. RESULT: wins in no discipline. Copyedit: medium/none 18/21 hits, 2/63 traps, 1.0s, 2,083T (+0.83) against glm/max 17/21, 0/63, 6.4s, 17,515T (+0.81). Second read: large/none 30/30, 1/51, 2.4s, 3,847T (+0.98) against glm/max 29/30, 3/51, 8.0s, 37,471T (+0.91). The DISQUALIFIER is not quality but reliability: GLM returns invalid JSON (truncated or empty) in roughly one call in 30, even with a 12,000-token budget. In a chain that means a failed workflow. One point in its favour remains: zero traps at low and max in the copyedit task — it is more cautious. RE-MEASURE if the eval passages grow substantially or Z.ai improves JSON fidelity. The published GLM benchmarks (Terminal Bench, SWE, Toolathlon) measure agentic tool use and say nothing about structured output over German prose.",
+    "_reasoning_levels": "Model-dependent: Mistral knows none|high (anything else is HTTP 400), GLM 5.3 low|high|max. Selectable in evalkit via 'model:level', e.g. --modelle zai-glm-5-3:max."
+  },
+  "vocabulary": {
+    "_comment": "The values are German on purpose: they are the vocabulary of German copy-editing and the wording the author sees. Only the keys are identifiers.",
+    "levels": [
+      "copyedit",
+      "style",
+      "content"
+    ],
+    "correction_kinds": [
+      "rechtschreibung",
+      "komma",
+      "grammatik",
+      "tempus",
+      "typografie",
+      "formatierung"
+    ],
+    "style_problems": [
+      "wiederholung",
+      "satzlaenge",
+      "rhythmus",
+      "fuellwort",
+      "klischee",
+      "passiv",
+      "nominalstil",
+      "erklaert_statt_gezeigt",
+      "perspektivbruch",
+      "stimmbruch"
+    ],
+    "severities": [
+      "hoch",
+      "mittel",
+      "niedrig"
+    ],
+    "decisions": [
+      "angenommen",
+      "abgelehnt",
+      "geaendert",
+      "zurueckgestellt"
+    ],
+    "rejection_reasons": [
+      "klingt nicht nach mir",
+      "Bedeutung verändert",
+      "zu glatt",
+      "ich mag die Wiederholung",
+      "passt nicht in den Kontext"
+    ],
+    "rule_status": [
+      "aktiv",
+      "beobachtung",
+      "verworfen"
+    ],
+    "intentional_colloquialisms": {
+      "_comment": "Forms the copyedit stage must NEVER 'correct'. The agent understands the rule but reports the finding anyway — its schema has no field for 'discarded'. Filtering deterministically is more reliable than trusting a model not to report something. Extend the list as needed.",
+      "runter": "hinunter",
+      "rüber": "herüber",
+      "rauf": "hinauf",
+      "rein": "hinein",
+      "raus": "hinaus",
+      "ne": "nein",
+      "nix": "nichts",
+      "grad": "gerade",
+      "mal": "einmal",
+      "kriegen": "bekommen",
+      "gucken": "schauen",
+      "dran": "daran",
+      "drauf": "darauf",
+      "drin": "darin",
+      "drüber": "darüber"
+    }
+  },
+  "limits": {
+    "_comment": "Deliberate ceilings. Nobody reads a profile with 40 rules, and 50 style findings per section are not an edit but noise.",
+    "max_style_findings_per_section": 12,
+    "max_voice_rules": 12,
+    "min_evidence_per_voice_rule": 2,
+    "rejection_rate_for_observation": 0.6
+  },
+  "scrivener": {
+    "_comment": "Structural constants of the Scrivener format. The export walks the binder downwards from the DraftFolder — NOT Files/Data, which also holds research and the trash.",
+    "binder_extension": ".scrivx",
+    "draft_type": "DraftFolder",
+    "text_type": "Text",
+    "text_file": "content.rtf",
+    "synopsis_file": "synopsis.txt",
+    "notes_file": "notes.rtf",
+    "only_include_in_compile": true,
+    "rtf_codepage": "cp1252"
+  },
+  "typeset": {
+    "_comment": "ONE target format: the book setting. Read off the typeset reference PDFs in pdf/. Careful — the PDFs in pdf/archiv/ with a sans-serif face, paragraph spacing and ❖ as the separator are direct Scrivener exports and explicitly NOT the reference; that typographic quality is precisely why this workflow exists. The values below are the starting point for calibration against the reference.",
+    "engine": "typst",
+    "reference_pdf": "pdf/Immer Wieder Rügen - Manuskript Kapitel 1-3.pdf",
+    "format": {
+      "page_size": "170x245mm",
+      "font": "Palatino",
+      "font_candidates": [
+        "Palatino",
+        "Palatino Linotype",
+        "TeX Gyre Pagella"
+      ],
+      "alignment": "justified",
+      "hyphenation": "de",
+      "paragraph": "first_line_indent",
+      "no_indent_after": [
+        "heading",
+        "section_break"
+      ],
+      "section_break": "∗  ∗  ∗",
+      "running_head": {
+        "verso": "book_title",
+        "recto": "chapter_title",
+        "italic": true,
+        "on_chapter_opening": false
+      },
+      "page_number": {
+        "position": "bottom-center",
+        "figures": "oldstyle"
+      },
+      "front_matter": [
+        "title_page",
+        "blank",
+        "contents",
+        "blank"
+      ],
+      "chapter_starts": "recto",
+      "_page_size_measured": "From the reference PDF: 481.89 × 694.49 pt = 170 × 245 mm. Not A5 (148 × 210) — the figure in the first draft was a guess.",
+      "text_block": {
+        "_comment": "Measured on pages 8 and 9 of the reference PDF (verso/recto).",
+        "width_mm": 126.8,
+        "inner_mm": 23.6,
+        "outer_mm": 19.5,
+        "top_mm": 20.0,
+        "bottom_mm": 20.0
+      },
+      "_section_break_character": "U+2217 ASTERISK OPERATOR, not U+002A. That is what the reference PDF uses.",
+      "break_between": "groups",
+      "_break_between": "OPEN — not derivable from the reference. The PDF has 15 separators across 37 possible section transitions in chapters 1-3; section titles are not typeset, so the boundaries are invisible. There is no discernible rule. Choose from: 'all' (between every section), 'groups' (only at sub-group boundaries), 'none'. Default 'groups' because it comes closest to the printed image — the author decides.",
+      "_font": "The reference uses TeX Gyre Pagella (XeTeX). macOS ships Palatino, metrically compatible with the same design.",
+      "font_size_pt": 10.9,
+      "leading_em": 0.74,
+      "_calibration": "Calibrated on 2026-09-23 against 'Immer Wieder Rügen - Manuskript Kapitel 1-3.pdf' (XeTeX/TeX Gyre Pagella, 70 pages). Achieved: 71 pages, 33 lines/page against 34, 70 characters/line against 71 — under 3 percent on all three measures. The big error was NOT the text block: without parbreak() between paragraphs Typst merged everything into ONE block — 56 pages at an identical word count, 25 percent too dense, with no first-line indent. Before any further adjustment: check whether the paragraphs are separated at all."
+    },
+    "variants": {
+      "_comment": "Not separate formats, only scope options on the same setting.",
+      "chapter_range": "all | 1-3 | 4",
+      "as_of_date": "shown on the title page"
+    }
+  },
+  "second_read": {
+    "_comment": "The second pair of eyes (book-second-read) sees the same section as the first stage and answers two questions: is an error missing? Is one of the reported findings not an error? Its criteria live in its instructions (agents/build_book_agents.py), not here — unlike its predecessor, which received a single criterion per finding as input. The work context (intentional colloquialisms, character speech) is supplied at runtime from vocabulary.intentional_colloquialisms via checks.work_context().",
+    "always_runs": true
+  }
+}

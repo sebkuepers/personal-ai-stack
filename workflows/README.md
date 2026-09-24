@@ -49,7 +49,7 @@ Create a `.env` (already present locally, git-ignored) with:
 ```
 MISTRAL_API_KEY=...        # from console.mistral.ai/api-keys
 SERVER_URL=https://api.mistral.ai
-DEPLOYMENT_NAME=<your-hostname>
+DEPLOYMENT_NAME=macbook-pro   # name it after the machine it runs on — self-explanatory beats creative
 ```
 
 ---
@@ -88,18 +88,18 @@ You can also trigger any workflow from the Studio Console (**Workflows** tab).
 ## Book domain
 
 ```bash
-make buch-sync werk=immer-wieder-ruegen           # Scrivener → export/ (+ --library)
-make buch-stimmprofil werk=immer-wieder-ruegen    # voice profile, map/reduce
-make buch-uebersicht                              # structure, density, status
-make buch-lektorat abschnitt="…"                  # level 1, headless
-make buch-inhalt kapitel="…"                      # level 3, a whole chapter
-make buch-pdf kapitel=1-3 vergleich=1             # typeset, compare to the reference
-make eval agent=buch-korrektorat faelle=shared/buch/eval-korrektorat.json
+make book-sync work=immer-wieder-ruegen           # Scrivener → export/ (+ --library)
+make book-voiceprofile work=immer-wieder-ruegen    # voice profile, map/reduce
+make book-overview                              # structure, density, status
+make book-copyedit section="…"                  # level 1, headless
+make book-content chapter="…"                      # level 3, a whole chapter
+make book-pdf chapters=1-3 compare=1             # typeset, compare to the reference
+make eval agent=book-copyedit faelle=shared/book/eval-copyedit.json
 ```
 
 The conversational workflow (*Buch · Lektorat (im Gespräch)*) is started from Vibe Work, not
 from the CLI — it needs no input and reads Scrivener live. All book workflows require a **local**
-worker, because they read `~/Werk/…`. See [`../docs/BUCH.md`](../docs/BUCH.md).
+worker, because they read `~/Werk/…`. See [`../docs/BOOK.md`](../docs/BOOK.md).
 
 ## Project layout
 
@@ -109,17 +109,21 @@ src/
 │   ├── worker.py           #   discover + run workflows
 │   ├── start.py            #   trigger a workflow execution
 │   └── dev.py              #   worker with file-watch reload  (make start-worker)
-├── workflows/              # the personal-CRM workflows (auto-discovered)
-│   ├── crm/                #   shared package — config, models, classify, tools, notion
-│   ├── crm_interaction_classifier.py
-│   ├── crm_notion_sync.py
-│   ├── crm_email_triage.py
-│   └── crm_followup_digest.py
+├── workflows/              # all workflows — discovered recursively
+│   ├── crm/                #   domain package: config, models, classify, notion + workflows
+│   ├── book/               #   domain package: config, models, scrivener, checks, typeset/
+│   ├── inbox/              #   domain package
+│   ├── editing.py          #   book: the conversational editing session
+│   ├── overview.py         #   book: structure, density, state
+│   └── content.py          #   book: level 3, a whole chapter
+├── bookcli/                # local CLI — the only code that touches the .scriv
 └── examples/               # SDK cookbooks (opt-in: make start-examples)
 ```
 
-All IDs, connector slugs, model names, and vocabularies live in one file:
-[`src/workflows/crm/config.py`](src/workflows/crm/config.py).
+All IDs, connector slugs, model names, and vocabularies live in one file per
+domain: [`src/workflows/crm/config.py`](src/workflows/crm/config.py),
+[`src/workflows/book/config.py`](src/workflows/book/config.py) — each loading
+its `shared/<domain>.json`.
 
 ---
 

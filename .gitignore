@@ -26,17 +26,17 @@ worker-configuration.d.ts
 # Enthält unveröffentlichten Werktext — gehört nicht ins Repo.
 workflows/data/
 
-# Werk-Konfigurationen und Stimmprofile: Kapitelpläne, Prüfsteine, Verlagsstrategie
-# und Belegzitate aus unveröffentlichten Manuskripten. Dieses Repo ist öffentlich —
-# die DOMÄNE (Code, Agents, Doku) wird geteilt, das WERK bleibt lokal.
-# Als Vorlage dient shared/buch/*.example.json.
-shared/buch/*.json
-shared/buch/*.md
-!shared/buch/*.example.json
-# Judge-Testfälle sind konstruiert und enthalten keinen Werktext.
-!shared/buch/eval-gegenlesen.json
-!shared/buch/eval-korrektorat.json
-!shared/buch/eval-stil.json
+# Work configurations and voice profiles: chapter plans, touchstones, publishing
+# strategy and evidence quotes from unpublished manuscripts. This repo is public —
+# the DOMAIN (code, agents, docs) is shared, the WORK stays local.
+# shared/book/*.example.json serves as the template.
+shared/book/*.json
+shared/book/*.md
+!shared/book/*.example.json
+# These eval cases are constructed and contain no manuscript text.
+!shared/book/eval-second-read.json
+!shared/book/eval-copyedit.json
+!shared/book/eval-style.json
 
 # Tooling caches
 .mypy_cache/

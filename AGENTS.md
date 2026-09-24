@@ -9,7 +9,7 @@ for the part you're changing:
 | `workflows/` (any workflow code) | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) — verified SDK conventions + 16 gotchas |
 | `mcp-server/` | [`mcp-server/README.md`](mcp-server/README.md) |
 | the CRM domain | [`docs/CRM.md`](docs/CRM.md) + `agents/README.md` |
-| the book domain | [`docs/BUCH.md`](docs/BUCH.md) |
+| the book domain | [`docs/BOOK.md`](docs/BOOK.md) |
 
 ## Golden rules (short form — details and rationale in CLAUDE.md)
 
@@ -38,13 +38,21 @@ for the part you're changing:
    `evalkit` runs, with the numbers recorded next to the setting they justify.
 8. **I/O lives in activities, never in the workflow body.** The body is
    replayed; an activity reads once and its result is in the event history.
+9. **The repo language is English.** We *converse* in German, but everything
+   the repo owns — identifiers, module and workflow names, agent names, schema
+   fields, config keys, Gmail/Mistral labels, docs and commit messages — is
+   English (like `crm`, like `inbox`). German stays where the *subject matter*
+   is German: agent instructions that classify German emails or edit German
+   manuscripts, the controlled vocabularies they use, the eval cases, and
+   everything Sebastian reads (digests, CLI output, Studio display names).
+   Full rule and rationale: [`CLAUDE.md`](CLAUDE.md).
 
 ## Verify before you call it done
 
 From `workflows/` (Python side):
 
 ```bash
-uv run ruff check src/workflows src/buchcli src/evalkit ../agents tests/
+uv run ruff check src/workflows src/bookcli src/evalkit ../agents tests/
 uv run pytest tests/ -q
 uv run python -c "from entrypoints.worker import discover_workflows as d; print(len(d()))"
 ```

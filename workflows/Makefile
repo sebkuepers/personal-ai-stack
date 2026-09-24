@@ -1,4 +1,4 @@
-.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest sync-agents sync-agents-dry buch-sync buch-export buch-test buch-stimmprofil buch-stimmprofil-probe buch-korrektorat buch-stil buch-eval buch-eval-faelle eval
+.PHONY: start-worker execute installdeps start-examples execute-insurance-claims execute-cargo-release execute-code-modernization crm-classify crm-sync crm-triage-inbox crm-digest crm-ingest inbox-scan inbox-senders sync-agents sync-agents-dry eval
 
 ## Install dependencies
 installdeps:
@@ -71,85 +71,123 @@ crm-ingest:
 	uv run python -m entrypoints.start --workflow crm-ingest-recent $(if $(input),--input '$(input)',--input '{"window_hours":13,"max_emails":50,"dry_run":true}')
 
 # ===========================================================================
-# Buch / Lektorat  (Domäne "buch" — das Werk kommt als werk=<slug> herein)
+# Inbox / Sichtung  (Domäne "inbox" — täglicher Rundgang über den Posteingang)
 # ===========================================================================
 
-## EXPORT — Scrivener lesen und den kanonischen Export neu bauen
-## Der Export wird IMMER neu erzeugt, nie von Hand gepflegt.
-## Usage: make buch-sync werk=immer-wieder-ruegen
-buch-sync:
-	uv run python -m buchcli.sync --werk $(or $(werk),immer-wieder-ruegen) --markdown
+## SCAN — Posteingang + Postausgang sichten: Newsletter, Finanzen, Antwortbedarf (dry run, Gmail; OAuth)
+## Phase 1: verändert nichts — kein Label, kein Draft. Der Report erscheint in der Studio-Timeline.
+## Usage: make inbox-scan input='{"window_days":1,"max_threads":50}'
+inbox-scan:
+	uv run python -m entrypoints.start --workflow inbox-scan $(if $(input),--input '$(input)',--input '{"window_days":1,"max_threads":50}')
 
-## EXPORT + Library — zusätzlich in die Mistral Library laden
-buch-export:
-	uv run python -m buchcli.sync --werk $(or $(werk),immer-wieder-ruegen) --markdown --library
+## ABSENDER — Mails und ungelesene pro Absender im Fenster zählen (reine Arithmetik, kein Modell)
+## Default-Scope: alles Empfangene, das dich erreicht (Spam/Trash ausgeschlossen, wie die Gmail-Suche es hält).
+## Usage: make inbox-senders fenster=90
+.PHONY: inbox-senders
+inbox-senders:  ## Absender-Statistik über das Fenster (fenster=90, query= überschreibt den Scope)
+	uv run python -m entrypoints.start --workflow inbox-senders $(if $(input),--input '$(input)',--input '{"window_days":$(or $(fenster),90)}')
 
-## TESTS — Scrivener-Roundtrip gegen das echte Projekt und gegen textutil
-buch-test:
+## SPRECHSTUNDE — der Sichtungs-Lauf als Gespräch (Konfig im Chat, Canvas, Library-Dossier)
+.PHONY: inbox-review
+inbox-review:  ## Konversationeller Lauf wie in Le Chat, nur im Terminal
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli inbox-review \
+		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
+
+## EVAL — den Sichtungs-Agenten messen (echte Instruktionen aus ../agents/inbox-review.json)
+.PHONY: inbox-eval
+inbox-eval:  ## Sichtungs-Agent gegen die konstruierten Fälle fahren (laeufe=2, nur=<konfig> wie üblich)
+	uv run python -m evalkit --agent inbox-review --faelle shared/inbox/eval-review.json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
+
+## EVAL-KASKADE — die Kette Erstblick→Eskalation→Zweitblick Ende-zu-Ende messen
+.PHONY: inbox-eval-cascade
+inbox-eval-cascade:  ## Kaskade gegen dieselben Fälle; Vergleich gegen small-allein und medium-allein
+	uv run python -m workflows.inbox.kaskade_eval --faelle shared/inbox/eval-review.json $(if $(laeufe),--laeufe $(laeufe),)
+
+# ===========================================================================
+# Book / editing  (domain "book" — the work comes in as work=<slug>)
+# ===========================================================================
+
+.PHONY: book-sync book-export book-test book-pdf book-instructions book-apply \
+        book-decisions book-content book-overview book-editing-chat \
+        book-voiceprofile book-voiceprofile-trial book-copyedit book-style \
+        book-eval book-eval-cases
+
+## EXPORT — read Scrivener and rebuild the canonical export
+## The export is ALWAYS regenerated, never maintained by hand.
+## Usage: make book-sync work=immer-wieder-ruegen
+book-sync:
+	uv run python -m bookcli.sync --work $(or $(work),immer-wieder-ruegen) --markdown
+
+## EXPORT + library — additionally upload into the Mistral Library
+book-export:
+	uv run python -m bookcli.sync --work $(or $(work),immer-wieder-ruegen) --markdown --library
+
+## TESTS — Scrivener roundtrip against the real project and against textutil
+book-test:
 	uv run pytest tests/ -q
 
-## STIMMPROFIL — die Erzählstimme eines Werks destillieren (Worker muss laufen)
-## Usage: make buch-stimmprofil werk=immer-wieder-ruegen
-.PHONY: buch-pdf
-buch-pdf:  ## Manuskript setzen (kapitel=1-3, trenner=alle|gruppen|keine, vergleich=1)
-	uv run python -m buchcli.pdf --werk $${werk:-immer-wieder-ruegen} \
-		$(if $(kapitel),--kapitel $(kapitel)) $(if $(trenner),--trenner $(trenner)) \
-		$(if $(vergleich),--vergleich)
+book-pdf:  ## Typeset the manuscript (chapters=1-3, breaks=all|groups|none, compare=1)
+	uv run python -m bookcli.pdf --work $${work:-immer-wieder-ruegen} \
+		$(if $(chapters),--chapters $(chapters)) $(if $(breaks),--breaks $(breaks)) \
+		$(if $(compare),--compare)
 
-.PHONY: buch-anweisungen
-buch-anweisungen:  ## Anweisungen fürs Vibe-Projekt erzeugen und in die Zwischenablage legen
-	uv run python -m buchcli.anweisungen --werk $${werk:-immer-wieder-ruegen} --kopieren
+book-instructions:  ## Generate the Vibe project instructions and copy them to the clipboard
+	uv run python -m bookcli.instructions --work $${work:-immer-wieder-ruegen} --copy
 
-.PHONY: buch-anwenden
-buch-anwenden:  ## Entscheidungen ins Manuskript schreiben — Vorschau; mit apply=1 wirklich  (test=1 für die Testkopie)
-	uv run python -m buchcli.anwenden --werk $${werk:-immer-wieder-ruegen} \
+book-apply:  ## Write decisions into the manuscript — preview; apply=1 for real  (test=1 uses the test copy)
+	uv run python -m bookcli.apply --work $${work:-immer-wieder-ruegen} \
 		$(if $(uuid),--uuid $(uuid)) $(if $(test),--test) $(if $(apply),--apply)
 
-.PHONY: buch-entscheidungen
-buch-entscheidungen:  ## Entscheidungslog auszählen  (ebene=stil|korrektorat, eval=<datei> erzeugt Testfälle)
-	uv run python -m buchcli.entscheidungen --werk $${werk:-immer-wieder-ruegen} \
-		--ebene $${ebene:-stil} $(if $(eval),--eval $(eval)) --letzte 15
+book-decisions:  ## Count the decision log  (level=style|copyedit, eval=<file> generates test cases)
+	uv run python -m bookcli.decisions --work $${work:-immer-wieder-ruegen} \
+		--level $${level:-style} $(if $(eval),--eval $(eval)) --last 15
 
-.PHONY: buch-inhalt
-buch-inhalt:  ## Ebene 3 — ein Kapitel gegen seine Rubrik  (kapitel="Voll zur Oma")
-	uv run python -m buchcli.inhalt --werk $${werk:-immer-wieder-ruegen} --kapitel "$(kapitel)"
+book-content:  ## Level 3 — one chapter against its rubric  (chapter="Voll zur Oma")
+	uv run python -m bookcli.content --work $${work:-immer-wieder-ruegen} --chapter "$(chapter)"
 
-.PHONY: buch-uebersicht buch-lektorat-chat
-buch-uebersicht:  ## Struktur, Dichte und Stand eines Buchs (Canvas + Diagramme)
-	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli buch-uebersicht \
+book-overview:  ## Structure, density and state of a book (canvas + charts)
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli book-overview \
 		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
 
-buch-lektorat-chat:  ## Lektorat im Gespräch — dieselbe Oberfläche wie in Le Chat, nur im Terminal
-	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli buch-lektorat \
+book-editing-chat:  ## Editing as a conversation — the same surface as Le Chat, in the terminal
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli book-editing \
 		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
 
-buch-stimmprofil:
-	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --schreiben
+## VOICE PROFILE — distil a work's narrative voice (the worker has to run)
+## Usage: make book-voiceprofile work=immer-wieder-ruegen
+book-voiceprofile:
+	uv run python -m bookcli.voiceprofile --work $(or $(work),immer-wieder-ruegen) --write
 
-## STIMMPROFIL (Probelauf) — nur 6 Abschnitte, schreibt nichts
-buch-stimmprofil-probe:
-	uv run python -m buchcli.stimmprofil --werk $(or $(werk),immer-wieder-ruegen) --limit 6
+## VOICE PROFILE (trial run) — only 6 sections, writes nothing
+book-voiceprofile-trial:
+	uv run python -m bookcli.voiceprofile --work $(or $(work),immer-wieder-ruegen) --limit 6
 
-## KORREKTORAT — Ebene 1 an einem Abschnitt (Worker muss laufen)
-## Usage: make buch-korrektorat abschnitt="Einführung Strand"
-buch-korrektorat:
-	uv run python -m buchcli.lektorat --werk $(or $(werk),immer-wieder-ruegen) --ebene korrektorat $(if $(abschnitt),--abschnitt "$(abschnitt)",) $(if $(uuid),--uuid $(uuid),)
+## COPYEDIT — level 1 on one section (the worker has to run)
+## Usage: make book-copyedit section="Einführung Strand"
+book-copyedit:
+	uv run python -m bookcli.editing --work $(or $(work),immer-wieder-ruegen) --level copyedit $(if $(section),--section "$(section)",) $(if $(uuid),--uuid $(uuid),)
 
-## STIL — Ebene 2 an einem Abschnitt, gegen das Stimmprofil
-## Usage: make buch-stil abschnitt="Einführung Strand"
-buch-stil:
-	uv run python -m buchcli.lektorat --werk $(or $(werk),immer-wieder-ruegen) --ebene stil $(if $(abschnitt),--abschnitt "$(abschnitt)",) $(if $(uuid),--uuid $(uuid),)
+## STYLE — level 2 on one section, against the voice profile
+## Usage: make book-style section="Einführung Strand"
+book-style:
+	uv run python -m bookcli.editing --work $(or $(work),immer-wieder-ruegen) --level style $(if $(section),--section "$(section)",) $(if $(uuid),--uuid $(uuid),)
 
-## EVAL — Testfälle aus dem Manuskript erzeugen (Annotationen dann von Hand)
-buch-eval-faelle:
-	uv run python -m buchcli.eval --werk $(or $(werk),immer-wieder-ruegen) --erzeuge
+## EVAL — generate test cases from the manuscript (annotate them by hand afterwards)
+book-eval-cases:
+	uv run python -m bookcli.eval --work $(or $(work),immer-wieder-ruegen) --generate
 
-## EVAL — Modellkonfigurationen gegen die Testfälle messen (nutzt evalkit)
-## Usage: make buch-eval laeufe=3 nur=small/high
-buch-eval:
-	uv run python -m evalkit --agent buch-korrektorat --faelle shared/buch/eval-$(or $(werk),immer-wieder-ruegen).json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
+## EVAL — measure model configurations against the test cases (uses evalkit)
+## evalkit still takes German flags; it is renamed in its own pass.
+## Usage: make book-eval laeufe=3 nur=small/high
+book-eval:
+	uv run python -m evalkit --agent book-copyedit --faelle shared/book/eval-$(or $(work),immer-wieder-ruegen).json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
 
 ## EVAL — beliebigen Agent messen (domänenunabhängig)
 ## Usage: make eval agent=crm-classification faelle=shared/crm/eval-faelle.json
 eval:
 	uv run python -m evalkit --agent $(agent) --faelle $(faelle) $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),) $(if $(zaehlpfad),--zaehlpfad "$(zaehlpfad)",)
+
+## STUDIO — archive registrations the repo no longer defines (preview; apply=1 for real)
+.PHONY: archive-stale
+archive-stale:
+	uv run python -m entrypoints.archive $(if $(apply),--apply)

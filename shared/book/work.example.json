@@ -1,0 +1,61 @@
+{
+  "_comment": "VORLAGE für eine Werk-Konfiguration. Kopieren nach shared/book/<slug>.json und ausfüllen — die echten Dateien sind gitignored, weil sie Kapitelpläne und unveröffentlichte Werkplanung enthalten. Aufbau und Feldnamen siehe docs/BOOK.md.",
+  "slug": "mein-buch",
+  "title": "Mein Buch",
+  "subtitle": "Ein Untertitel",
+  "author": "Vorname Nachname",
+  "genre": "Roman",
+  "language": "de",
+  "paths": {
+    "_comment": "~ wird beim Laden expandiert. Bewusst außerhalb jedes Sync-Dienstes — siehe docs/BOOK.md.",
+    "work": "~/Werk/buch/mein-buch",
+    "scrivener": "~/Werk/buch/mein-buch/mein-buch.scriv",
+    "scrivener_test": "~/Werk/buch/mein-buch/test/mein-buch-test.scriv",
+    "export": "~/Werk/buch/mein-buch/export",
+    "pdf": "~/Werk/buch/mein-buch/pdf",
+    "context": "~/Werk/buch/mein-buch/kontext",
+    "backup": "~/Werk/buch/mein-buch/backup"
+  },
+  "mistral": {
+    "library_name": "buch/mein-buch",
+    "library_id": null,
+    "vibe_project": "Buch · Mein Buch"
+  },
+  "voice_profile": "shared/book/mein-buch-voice.json",
+  "structure": {
+    "_comment": "Nur nötig, wenn im Entwurf neben dem Manuskript auch Recherche liegt oder die Kapitel nicht direkt unter dem Entwurf hängen. Weglassen = ganzer Entwurf, Kapitel auf Ebene 0.",
+    "root": null,
+    "chapter_level": 0
+  },
+  "touchstones": {
+    "_comment": "Die Fragen, gegen die die Inhaltsebene jedes Kapitel prüft — in eigenen Worten.",
+    "first_question": {
+      "rule": "…",
+      "explanation": "…"
+    }
+  },
+  "narrative_rules": {
+    "perspective": "…",
+    "principle": "…"
+  },
+  "chapters": [
+    {
+      "title": "Kapitel wie im Scrivener-Binder",
+      "subtitle": "Steht NICHT im Binder und muss deshalb hier leben",
+      "position": 1,
+      "status": "rohfassung",
+      "proves": [
+        "…"
+      ],
+      "must_carry": [
+        "…"
+      ],
+      "need_not_carry": [
+        "…"
+      ],
+      "open_work": [
+        "…"
+      ]
+    }
+  ]
+}

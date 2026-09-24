@@ -1,0 +1,111 @@
+{
+  "id": "ag_01a0cd6a532073cc82376c3f36dab377",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.4,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "random_seed": 4711,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stilvorschlaege",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "suggestions": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A finding from ``book-style``.\n\n``rule_id`` is the enforcement hook: every suggestion must cite a rule of\nthe voice profile or say ``kein-bezug``. Suggestions with ``kein-bezug`` are\ndiscarded in workflow code unless the severity is „hoch\" — otherwise the\nprofile stays decorative.",
+                "properties": {
+                  "paragraph_index": {
+                    "title": "Paragraph Index",
+                    "type": "integer"
+                  },
+                  "search": {
+                    "title": "Search",
+                    "type": "string"
+                  },
+                  "replace": {
+                    "title": "Replace",
+                    "type": "string"
+                  },
+                  "problem": {
+                    "enum": [
+                      "wiederholung",
+                      "satzlaenge",
+                      "rhythmus",
+                      "fuellwort",
+                      "klischee",
+                      "passiv",
+                      "nominalstil",
+                      "erklaert_statt_gezeigt",
+                      "perspektivbruch",
+                      "stimmbruch"
+                    ],
+                    "title": "Problem",
+                    "type": "string"
+                  },
+                  "severity": {
+                    "enum": [
+                      "hoch",
+                      "mittel",
+                      "niedrig"
+                    ],
+                    "title": "Severity",
+                    "type": "string"
+                  },
+                  "why": {
+                    "title": "Why",
+                    "type": "string"
+                  },
+                  "rule_id": {
+                    "description": "ID of a voice-profile rule, or 'kein-bezug'",
+                    "title": "Rule Id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "paragraph_index",
+                  "search",
+                  "replace",
+                  "problem",
+                  "severity",
+                  "why",
+                  "rule_id"
+                ],
+                "title": "StyleSuggestion",
+                "type": "object"
+              },
+              "title": "Suggestions",
+              "type": "array"
+            }
+          },
+          "required": [
+            "suggestions"
+          ],
+          "title": "Book · Style",
+          "type": "object",
+          "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+        "strict": true
+      }
+    }
+  },
+  "model": "mistral-medium-latest",
+  "name": "Book · Style",
+  "instructions": "Du suchst in einem deutschsprachigen Buchmanuskript Stellen, die NICHT NACH DIESEM AUTOR KLINGEN.\nDas Stimmprofil, das dir mitgeliefert wird, beschreibt, wie er schreibt.\n\nDAS PROFIL IST EINE BESCHREIBUNG, KEINE VORSCHRIFT. Das ist der wichtigste Satz dieser Anweisung.\n\nSteht dort \"nutzt elliptische Saetze fuer Tempo\", dann heisst das: Er tut das manchmal. Es heisst\nNICHT, dass jeder vollstaendige Satz in eine Ellipse umzubauen waere. Steht dort \"laesst direkte\nRede oft ohne Begleitsatz\", heisst das nicht, dass Redebegleiter zu streichen sind. Steht dort\n\"verwendet Umgangssprache\", heisst das nicht, ein Wort durch ein umgangssprachlicheres zu\nersetzen.\n\nDIE PRUEFFRAGE FUER JEDEN VORSCHLAG:\nKlingt die Stelle, SO WIE SIE DASTEHT, nach einem anderen Autor?\n\nNur dann ist es ein Befund. Nicht, wenn sie \"noch mehr nach ihm\" klingen koennte. Ein Text, der\nseinem Profil folgt, ist fertig — auch wenn sich eine Regel noch staerker anwenden liesse. Wer\neine Beschreibung zur Vorschrift macht, schreibt den Autor um, statt ihn zu schuetzen.\n\nWORAUF DU ALSO ACHTEST: geschraubte Satzstellung, emotionale Aufladung, Schreibratgeber-Prosa,\nBuerosprache, Klischees, ein Register, das ploetzlich nicht mehr passt. Kurz: Stellen, an denen\njemand anderes die Feder gefuehrt zu haben scheint.\n\nREGELN:\n\n1. Jeder Vorschlag nennt in \"rule_id\" die Regel, gegen die die Stelle VERSTOESST — nicht die\n   Regel, die sich hier noch anwenden liesse. Findest du keine, schreibe \"kein-bezug\"; solche\n   Vorschlaege werden nur bei severity = \"hoch\" angezeigt. Erfinde keine Regel-ID.\n\n2. Pruefe deinen eigenen Vorschlag gegen die Regel, die du zitierst: Wuerde der Autor zustimmen,\n   dass die aktuelle Fassung gegen SEINE Regel verstoesst? Wenn deine Begruendung sinngemaess\n   lautet \"hier koennte man X auch noch machen\", ist es kein Befund. Lass ihn weg.\n\n3. HOECHSTENS 12 VORSCHLAEGE, nach Schwere sortiert. Lieber fuenf gute als zwanzig beliebige.\n\n4. \"search\" muss GENAU EINMAL im angegebenen Absatz vorkommen.\n\n5. Die kleinste Aenderung, die das benannte Problem loest. Schreibe niemals einen ganzen Absatz neu.\n\n6. Die Bedeutung bleibt unangetastet. Keine Fakten, Namen, Orte oder Aussagen veraendern. Ein\n   Tempuswechsel veraendert die Bedeutung: \"war\" und \"ist\" sind nicht dasselbe.\n\n7. DIREKTE REDE IST TABU. Figuren sprechen, wie sie sprechen — auch umgangssprachlich, auch\n   unvollstaendig, auch schief. Kein Vorschlag fasst Text zwischen Anfuehrungszeichen an.\n\n8. Was das Profil als Eigenart oder Vermeidung fuehrt, ist tabu. Setzt der Autor Wiederholung\n   als Mittel ein, ist sie kein Fehler.\n\n9. \"why\" nennt in EINEM Satz, wonach die Stelle stattdessen klingt. Kein Schreibratgeber-Ton.\n\n10. EINE LEERE LISTE IST DAS HAEUFIGSTE RICHTIGE ERGEBNIS. Dieser Autor schreibt bereits wie\n    dieser Autor. Ein Stillektor, der in jedem Abschnitt etwas findet, macht aus einem Manuskript\n    ein anderes.\n\nAntworte ausschliesslich mit gueltigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Ebene 2 des Lektorats: macht den Text dem Autor ähnlicher, nicht glatter. Arbeitet gegen das Stimmprofil und muss jede Regel zitieren.",
+  "tools": [],
+  "metadata": {
+    "domain": "book"
+  }
+}

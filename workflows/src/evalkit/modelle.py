@@ -53,7 +53,7 @@ _SEGMENT = re.compile(r"([^.\[\]]+)(\[\])?")
 def hole(daten: Any, pfad: str) -> list[Any]:
     """Löst einen Pfad in der Agent-Antwort auf und gibt alle Treffer zurück.
 
-    ``"kategorie"`` → der Wert. ``"korrekturen[].search"`` → alle search-Werte
+    ``"kategorie"`` → der Wert. ``"corrections[].search"`` → alle search-Werte
     der Liste. Fehlende Zwischenstufen ergeben eine leere Liste statt eines
     Fehlers — eine nicht vorhandene Stelle ist ein gültiges Messergebnis.
     """
@@ -214,7 +214,7 @@ class Ergebnis:
 def pruefe(fall: Fall, antwort: Any, *, zaehlpfad: str | None = None) -> Ergebnis:
     """Wertet eine Agent-Antwort gegen einen Fall aus.
 
-    ``zaehlpfad`` sagt, was als „ein Befund“ zählt (z. B. ``"korrekturen[]"``) —
+    ``zaehlpfad`` sagt, was als „ein Befund“ zählt (z. B. ``"corrections[]"``) —
     nur für die Güte-Kennzahl. Fehlt er, wird die Antwort als ein Element gezählt.
     """
     e = Ergebnis(fall_id=fall.id)

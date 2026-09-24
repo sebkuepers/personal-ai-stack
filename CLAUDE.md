@@ -9,7 +9,7 @@ A personal AI system with three composable pillars on Mistral + Cloudflare:
 
 | Pillar | Stack | Deep doc |
 |---|---|---|
-| `workflows/` — durable Mistral Workflows (domains: `crm/`, `buch/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
+| `workflows/` — durable Mistral Workflows (domains: `crm/`, `book/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
 | `mcp-server/` — personal MCP server (a Mistral custom connector) | TypeScript · Cloudflare Worker | `mcp-server/README.md` |
 | `skills/` — Agent Skills for Vibe Work | Markdown (`SKILL.md`) | `skills/README.md` |
 
@@ -29,8 +29,8 @@ for the infra rationale.
 
    **Domain vs. work.** A domain is a *capability*, so its agents, workflows and skills are named
    `<domain>-*` and never carry the name of a concrete subject. What they operate on comes in as a
-   parameter — e.g. `make buch-sync werk=immer-wieder-ruegen`. Per-subject config lives in
-   `shared/<domain>/<slug>.json`. See [`docs/BUCH.md`](docs/BUCH.md).
+   parameter — e.g. `make book-sync work=immer-wieder-ruegen`. Per-subject config lives in
+   `shared/<domain>/<slug>.json`. See [`docs/BOOK.md`](docs/BOOK.md).
 3. **This is a Mistral *Pro* account.** Judges, Datasets and Traces (`/v1/observability/*`) answer
    with HTTP 404 — they are Enterprise-only. Don't build against them; the repo has its own
    substitutes (`evalkit/` for measurement, judge *agents* for scoring). Skills and Prompts *are*
@@ -46,8 +46,10 @@ for the infra rationale.
    repo only when they are constructed — no manuscript text, no real names.
 6. **Measure before you tune.** Every agent's model and setting is decided by `evalkit`, and the
    numbers plus the reasoning sit in `shared/<domain>.json` next to the setting they justify.
-   Two results worth knowing before repeating the work: reasoning effort helped **no** agent here,
-   and a model with strong public benchmarks (GLM 5.3) lost on both editing tasks.
+   Two results worth knowing before repeating the work: reasoning effort never won on
+   price-performance (it helped no editing agent at all, and for the inbox review it raised
+   quality but at 5–7× tokens — measure it, then decide), and a model with strong public
+   benchmarks (GLM 5.3) lost on both editing tasks.
 
    Three failure modes cost hours on 2026-09-23, all of them mine, all of them worth checking
    **before** touching a prompt:
@@ -59,6 +61,26 @@ for the infra rationale.
      that lower-cases will report every capitalisation fix as "unchanged".
    - **Constructed cases only.** They prove what you already thought of. Run on real data first —
      especially the boring case where the right answer is an empty list.
+
+7. **The repo language is English; the conversation is German.** Everything the repo *owns* is
+   English: identifiers, module and workflow names, agent names, schema fields, config keys,
+   Gmail/Mistral labels, docs, commit messages. We chat in German, and that is fine — but code
+   written "on the side" in German (the first `inbox` draft had `sprechstunde`, `zweitblick`,
+   `umschlag`, German schema fields) had to be renamed before it was correct, because the public
+   face of the repo and every future reader are English.
+
+   **German stays where the subject matter is German:**
+   - Agent *instructions* that classify German emails (precision lives in the language of the
+     material).
+   - The `book` domain's *material*: agent instructions about German orthography and style,
+     the controlled vocabularies in `shared/book.json` (correction kinds, severities,
+     decisions, intentional colloquialisms), the eval cases, and the German text the author
+     reads — CLI output, Studio display names, the strings in the conversational workflow.
+     Its identifiers were renamed to English on 2026-09-24; only these four categories stayed.
+   - User-facing *content* (digest text, dossier prose) — that is for Sebastian, not for the repo.
+
+   The practical test: **if it names something, it's English; if it says something, it's German
+   where German is the material.**
 
 ## Working in each pillar
 

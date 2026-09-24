@@ -17,7 +17,7 @@ is built to grow into a general personal automation system.
 
 The workflows pillar currently hosts **two domains**: the personal CRM and a **book-editing**
 domain that supports writing manuscripts in Scrivener — export, a distilled *voice profile*,
-three layers of editing, and typesetting. See [`docs/BUCH.md`](docs/BUCH.md).
+three layers of editing, and typesetting. See [`docs/BOOK.md`](docs/BOOK.md).
 
 A fourth folder, [`worker-host/`](worker-host/), is the Cloudflare Worker that hosts the workflows
 worker in a scale-to-zero container **and** triggers the scheduled batch runs (cron).
@@ -66,7 +66,7 @@ re-checked when Mistral changes something.
 | **Traces / Explorer** | ✗ Enterprise only | Studio's execution timeline still shows every workflow run, retry and failure — that part is not gated. |
 | **Prompts** (`/v2/prompts`) | ✓ available | `prompts/` + `prompts/sync.py` |
 | **Skills** (`/v2/skills`) | ✓ available | `skills/` + `skills/sync.py` |
-| **Libraries** (`/v1/libraries`) | ✓ available | `buchcli.sync --library` — uploads the manuscript **plus prepared companion documents** (figures, rubric, voice profile, exposé). Deliberately in place of book tools on the MCP server: seven of the eight tools that server would offer are answered just as well by a well-made document, the eighth is what a library is for — and a document needs no KV store, no deployment and no second staleness track. For the *live* state there is a workflow, because its worker runs where the file is. |
+| **Libraries** (`/v1/libraries`) | ✓ available | `bookcli.sync --library` — uploads the manuscript **plus prepared companion documents** (figures, rubric, voice profile, exposé). Deliberately in place of book tools on the MCP server: seven of the eight tools that server would offer are answered just as well by a well-made document, the eighth is what a library is for — and a document needs no KV store, no deployment and no second staleness track. For the *live* state there is a workflow, because its worker runs where the file is. |
 
 **Two 404s that mean different things.** `{"detail":"Not Found"}` comes from the application — the
 route exists, the account may not use it. `{"message":"no Route matched with those values"}` comes
@@ -85,7 +85,7 @@ with `extra_forbidden`:
 - **No API call can reference a stored Prompt by id.** Prompts are a versioned text library; you
   fetch the text and send it yourself.
 
-Details and the exact test method: [`docs/BUCH.md`](docs/BUCH.md).
+Details and the exact test method: [`docs/BOOK.md`](docs/BOOK.md).
 
 ## Repository layout
 
@@ -98,7 +98,7 @@ personal-ai-stack/
 ├── Dockerfile     # the workflows worker image (built by worker-host)
 ├── skills/        # Agent Skills (SKILL.md) for Vibe Work
 ├── shared/        # one <domain>.json per domain — single source of truth (IDs, schema, vocab)
-├── docs/          # CRM.md, BUCH.md (workflow maps), architecture.md (infra rationale)
+├── docs/          # CRM.md, BOOK.md (workflow maps), architecture.md (infra rationale)
 ├── README.md      # this file
 └── CLAUDE.md      # engineering conventions across the monorepo
 ```
@@ -125,7 +125,7 @@ READMEs as they come online.
   agents, a voice profile distilled from the manuscript, **three editing layers** (copy-editing,
   style, chapter-level content), a **conversational workflow** for Vibe Work, an **overview**
   workflow, and **PDF typesetting** calibrated against the author's reference PDF.
-  See [`docs/BUCH.md`](docs/BUCH.md).
+  See [`docs/BOOK.md`](docs/BOOK.md).
 - ✅ MCP server, container hosting, cron trigger, and skills: built (Phases 1–5).
 - 🚧 Book domain: **write-back to Scrivener** is the one piece deliberately left for last —
   everything else reads.

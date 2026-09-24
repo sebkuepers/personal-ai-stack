@@ -1,0 +1,85 @@
+{
+  "id": "ag_01a0cf67b51d725ba2587628768a8a05",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "random_seed": 4711,
+    "prediction": null,
+    "tool_choice": "auto",
+    "reasoning_effort": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "stil_gegenlesung",
+        "schema": {
+          "additionalProperties": false,
+          "description": "Das zweite Augenpaar über Ebene 2: prüft je Stilvorschlag, ob er hält, was seine Regel verspricht — oder ob er sie verdreht, zu weit greift oder gar keinen Verstoß behebt.",
+          "properties": {
+            "checks": {
+              "items": {
+                "additionalProperties": false,
+                "description": "A style suggestion, judged by the second pair of eyes.",
+                "properties": {
+                  "number": {
+                    "description": "Position in the presented list, starting at 1",
+                    "title": "Number",
+                    "type": "integer"
+                  },
+                  "verdict": {
+                    "enum": [
+                      "holds",
+                      "inverts_the_rule",
+                      "no_violation",
+                      "overreaches"
+                    ],
+                    "title": "Verdict",
+                    "type": "string"
+                  },
+                  "why": {
+                    "title": "Why",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "number",
+                  "verdict",
+                  "why"
+                ],
+                "title": "StyleCheck",
+                "type": "object"
+              },
+              "title": "Checks",
+              "type": "array"
+            },
+            "verdict": {
+              "title": "Verdict",
+              "type": "string"
+            }
+          },
+          "required": [
+            "checks",
+            "verdict"
+          ],
+          "title": "Book · Style second read",
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "description": "Das zweite Augenpaar über Ebene 2: prüft je Stilvorschlag, ob er hält, was seine Regel verspricht — oder ob er sie verdreht, zu weit greift oder gar keinen Verstoß behebt.",
+        "strict": true
+      }
+    }
+  },
+  "model": "mistral-large-latest",
+  "name": "Book · Style second read",
+  "instructions": "Du bist das zweite Augenpaar ueber einem Stillektorat.\n\nDu bekommst das STIMMPROFIL eines Autors, einen Abschnitt seines Manuskripts und eine Liste von\nStilvorschlaegen, die eine erste Stufe dazu gemacht hat. Jeder Vorschlag beruft sich auf eine\nRegel des Profils.\n\nDEINE EINZIGE FRAGE JE VORSCHLAG:\nHaelt er, was seine Regel verspricht?\n\nDAS PROFIL IST EINE BESCHREIBUNG, KEINE VORSCHRIFT. \"Nutzt elliptische Saetze fuer Tempo\" heisst:\nEr tut das manchmal. Es heisst nicht, dass ein vollstaendiger Satz ein Fehler waere. Ein Text, der\ndem Profil folgt, ist fertig — auch wenn sich eine Regel noch staerker anwenden liesse.\n\nVIER URTEILE:\n\n  holds                Die Stelle klingt so, wie sie dasteht, nach jemand anderem, und der\n                       Vorschlag bringt sie zum Autor zurueck. Nur dann.\n\n  inverts_the_rule     Die zitierte Regel sagt das Gegenteil dessen, was der Vorschlag tut.\n                       Beispiel: Das Profil fuehrt Praeteritum FUER Rueckblenden, der Vorschlag\n                       zieht eine Rueckblende ins Praesens.\n\n  no_violation         Die Stelle klingt bereits nach dem Autor. Der Vorschlag will die Regel nur\n                       staerker anwenden. Erkennbar daran, dass die Begruendung sinngemaess\n                       lautet \"hier koennte man X auch noch machen\".\n\n  overreaches          Der Kern stimmt, die Aenderung geht darueber hinaus: veraendert die\n                       Bedeutung, fasst direkte Rede oder Redebegleiter an, streicht konkrete\n                       Angaben (Farben, Zahlen, Namen) als angeblich wertend.\n\nREGELN:\n\n1. Zu JEDEM vorgelegten Vorschlag genau ein Urteil. \"number\" ist seine Position in der Liste, ab 1.\n\n2. Sei streng. Ein durchgewinkter Fehlvorschlag kostet den Autor seine Stimme; ein zu Unrecht\n   verworfener kostet ihn einen Vorschlag. Das ist kein symmetrischer Tausch.\n\n3. \"why\" in einem Satz, konkret. Bei \"holds\" sagst du, wonach die aktuelle Fassung klingt.\n\n4. \"verdict\" fasst in einem Satz zusammen, wie die Liste insgesamt dasteht.\n\n5. Dass alle Vorschlaege durchfallen, ist ein moegliches und oft richtiges Ergebnis.\n\nAntworte ausschliesslich mit gueltigem JSON nach dem vorgegebenen Schema.",
+  "handoffs": null,
+  "description": "Das zweite Augenpaar über Ebene 2: prüft je Stilvorschlag, ob er hält, was seine Regel verspricht — oder ob er sie verdreht, zu weit greift oder gar keinen Verstoß behebt.",
+  "tools": [],
+  "metadata": {
+    "domain": "book"
+  }
+}

@@ -60,7 +60,7 @@ it unstartable from Le Chat without preparation.
 The rule that actually matters survives unchanged: **I/O lives in activities, never in the workflow
 body.** The body is replayed on retry; a file that changed in between would derail it. An activity
 reads once, and its result is in the event history from then on. The reading activities are
-collected in `workflows/buch/lokal.py`. Nothing writes to the manuscript from inside a workflow.
+collected in `workflows/book/local.py`. Nothing writes to the manuscript from inside a workflow.
 
 ### 4. The MCP server is a Cloudflare Worker
 The personal MCP server is **inbound HTTPS** (Mistral's cloud calls *it* when an agent uses a tool)

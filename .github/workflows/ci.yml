@@ -29,7 +29,7 @@ jobs:
       # ../agents and tests/ run with it too; files outside workflows/ (agents/)
       # fall back to ruff's defaults because the config lives in workflows/.
       - name: ruff
-        run: uv run ruff check src/workflows src/buchcli src/evalkit ../agents tests/
+        run: uv run ruff check src/workflows src/bookcli src/evalkit ../agents tests/
 
       # The Scrivener roundtrip tests skip themselves when no werk config or
       # live project exists (both are gitignored) — so a CI runner stays green.
@@ -42,8 +42,7 @@ jobs:
       # import errors and syntax/annotation breakage without the cloud. It
       # does NOT validate: only a real worker start does.
       - name: workflow discovery
-        run: uv run python -c "from entrypoints.worker import discover_workflows as d; \
-          print('discovered', len(d()), 'workflows')"
+        run: uv run python -c "from entrypoints.worker import discover_workflows as d; print('discovered', len(d()), 'workflows')"
 
   typecheck:
     name: ${{ matrix.dir }} (tsc --noEmit)
