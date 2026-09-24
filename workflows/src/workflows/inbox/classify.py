@@ -1,25 +1,25 @@
-"""Sichtungs-Aktivitäten — triggern die Studio-Agents der inbox-Kaskade.
+"""Triage activities — trigger the Studio agents of the inbox cascade.
 
-Wie bei der CRM-Klassifizierung wird der Agent hier NICHT neu implementiert:
-Instruktionen, Modell und Antwortschema gehören den Studio-Agents (IDs in
-``config``), die Aktivitäten triggern sie nur über die Conversations API und
-parsen das strukturierte Ergebnis. Zwei Stufen, identischer Umschlag:
+As with the CRM classification, the agent is NOT reimplemented here:
+instructions, model and answer schema belong to the Studio agents (IDs in
+``config``); the activities only trigger them through the conversations API and
+parse the structured result. Two stages, identical envelope:
 
-* ``review_email``     — Erstblick (small): sichtet ALLE Umschläge.
-* ``second_review_email`` — Zweitblick (medium): prüft nur nach, wo die
-  Eskalationsregel es verlangt (``escalation.needs_second_review``); sein
-  Ergebnis gewinnt.
+* ``review_email``        — first stage (small): triages EVERY envelope.
+* ``second_review_email`` — second stage (medium): re-checks only where the
+  escalation rule demands it (``escalation.needs_second_review``); its result
+  wins.
 
-Warum die Conversations API und nicht ``Agent(id=...)`` + ``Runner``?
-  Der durable-agent ``Agent(id=...)``-Weg ist dokumentiert als *update* —
-  er überschreibt den remote Agent mit den (oft lückenhaften) Feldern, die
-  man übergibt. ``mistralai_start_conversation`` triggert den Agent exakt
-  wie konfiguriert und ändert nichts (Workflows-CLAUDE.md, Gotcha 4).
+Why the conversations API and not ``Agent(id=...)`` + ``Runner``?
+  The durable-agent ``Agent(id=...)`` route is documented as an *update* — it
+  overwrites the remote agent with the (often sparse) fields one passes.
+  ``mistralai_start_conversation`` triggers the agent exactly as configured and
+  changes nothing (workflows/CLAUDE.md, gotcha 4).
 
-Der Agent sieht den UMSCHLAG (Absender, Betreff, Snippet, Gmail-Kategorie,
-ungelesen, Empfangs- und heutiges Datum) — nie den Body: ``search_threads``
-liefert Bodies immer null, und Bodies sind teuer (eine Promo-Mail:
-132.689 Zeichen HTML).
+The agent sees the ENVELOPE (sender, subject, snippet, Gmail category, unread,
+received date and today's date) — never the body: ``search_threads`` always
+returns bodies as null, and bodies are expensive (one promotional mail: 132,689
+characters of HTML).
 """
 
 from __future__ import annotations
@@ -36,10 +36,10 @@ from .models import InboxReview
 
 
 def _extract_text(response: mistralai_models.ConversationResponse) -> str:
-    """Extrahiert den Assistenten-Text aus einer ConversationResponse.
+    """Extract the assistant text from a ConversationResponse.
 
-    Spiegel von ``workflows.crm.classify._extract_text``: ``content`` ist
-    entweder ein String oder eine Liste von Chunks mit ``.text``.
+    Mirror of ``workflows.crm.classify._extract_text``: ``content`` is either a
+    string or a list of chunks with ``.text``.
     """
     parts: list[str] = []
     for output in response.outputs:
@@ -57,7 +57,7 @@ def _extract_text(response: mistralai_models.ConversationResponse) -> str:
 
 
 def _parse_review(text: str) -> InboxReview:
-    """Parst das Agent-JSON in eine InboxReview — defensiv bei Prosa drumherum."""
+    """Parse the agent JSON into an InboxReview — defensive about prose around it."""
     try:
         return InboxReview.model_validate_json(text)
     except Exception:
@@ -76,7 +76,7 @@ def _envelope_payload(
     received_on: str | None,
     today: str,
 ) -> str:
-    """Der Envelope as agent input — identisch für Erst- und Zweitblick."""
+    """The envelope as agent input — identical for both stages."""
     return (
         f"From: {sender}\n"
         f"Subject: {subject}\n"
@@ -89,12 +89,12 @@ def _envelope_payload(
     )
 
 
-async def _sichten(agent_id: str, payload: str) -> dict:
-    """Triggert einen der beiden Sichtungs-Agents und parst die Antwort."""
+async def _triage(agent_id: str, payload: str) -> dict:
+    """Trigger one of the two triage agents and parse the answer."""
     request = mistralai_models.ConversationRequest(
         agent_id=agent_id,
         inputs=payload,
-        store=False,  # Sichtungsgespräche nicht in Studio persistieren
+        store=False,  # triage conversations need not persist in Studio
     )
     response = await mistralai_start_conversation(request)
     review = _parse_review(_extract_text(response))
@@ -115,16 +115,15 @@ async def review_email(
     received_on: str | None,
     today: str,
 ) -> dict:
-    """Erstblick (small): sichtet einen Umschlag; liefert eine InboxReview als dict.
+    """First stage (small): triages one envelope; returns an InboxReview as a dict.
 
-    ``today`` und ``received_on`` gehören in den Umschlag: Ohne sie kann der
-    Agent „Frist heute/morgen" nicht von „irgendwann" unterscheiden — eine
-    Dringlichkeit, die er nicht berechnen kann, rät er. Ein dict (JSON mode),
-    damit der Temporal-Konverter das Ergebnis sauber über die Sandbox-Grenze
-    bringt.
+    ``today`` and ``received_on`` belong in the envelope: without them the agent
+    cannot tell "due today/tomorrow" from "whenever" — an urgency it cannot
+    compute, it guesses. A dict (JSON mode) so that Temporal's converter carries
+    the result cleanly across the sandbox boundary.
     """
     payload = _envelope_payload(sender, subject, snippet, category, unread, received_on, today)
-    return await _sichten(config.INBOX_REVIEW_AGENT_ID, payload)
+    return await _triage(config.INBOX_REVIEW_AGENT_ID, payload)
 
 
 @workflows.activity(
@@ -141,6 +140,6 @@ async def second_review_email(
     received_on: str | None,
     today: str,
 ) -> dict:
-    """Zweitblick (medium): prüft einen kritischen Umschlag nach; gewinnt."""
+    """Second stage (medium): re-checks one critical envelope; it wins."""
     payload = _envelope_payload(sender, subject, snippet, category, unread, received_on, today)
-    return await _sichten(config.INBOX_SECOND_REVIEW_AGENT_ID, payload)
+    return await _triage(config.INBOX_SECOND_REVIEW_AGENT_ID, payload)

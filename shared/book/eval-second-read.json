@@ -1,214 +1,214 @@
 [
   {
     "id": "A-sauber-leer",
-    "quelle": "konstruiert",
-    "notiz": "Sauberer Text, leere Befundliste. Der Normalfall — und der einzige Fall, den der alte Judge nie gesehen hat, weil er je Befund lief.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Meine Füße verschwinden im Sand. Kein Wind, keine Welle.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Sauberer Text, leere Befundliste. Der Normalfall — und der einzige Fall, den der alte Judge nie gesehen hat, weil er je Befund lief.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Meine Füße verschwinden im Sand. Kein Wind, keine Welle.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       },
       {
-        "pfad": "unfounded[].number",
-        "operator": "existiert"
+        "path": "unfounded[].number",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "B-fehler-gefunden",
-    "quelle": "konstruiert",
-    "notiz": "Der Fehler ist behoben, der Befund beschreibt ihn korrekt. Nichts zu tun. (Der Satz steht hier bereits korrigiert — so sähe der Text nach dem Befund aus.)",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser, weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Wasser weil“ → „Wasser, weil“ (komma) — Komma vor Nebensatz\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Der Fehler ist behoben, der Befund beschreibt ihn korrekt. Nichts zu tun. (Der Satz steht hier bereits korrigiert — so sähe der Text nach dem Befund aus.)",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser, weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Wasser weil“ → „Wasser, weil“ (komma) — Komma vor Nebensatz\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       },
       {
-        "pfad": "unfounded[].number",
-        "operator": "existiert"
+        "path": "unfounded[].number",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "C-fehler-uebersehen",
-    "quelle": "konstruiert",
-    "notiz": "Der Kernfall: ein echter Fehler, den die erste Stufe nicht gemeldet hat. Ohne zweites Augenpaar bleibt er unsichtbar.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Der Kernfall: ein echter Fehler, den die erste Stufe nicht gemeldet hat. Ohne zweites Augenpaar bleibt er unsichtbar.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "missed[].search",
-        "wert": "weil"
+        "path": "missed[].search",
+        "value": "weil"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "existiert"
+        "path": "unfounded[].number",
+        "operator": "exists"
       },
       {
-        "pfad": "missed[].search",
-        "operator": "nicht_im_text"
+        "path": "missed[].search",
+        "operator": "not_in_input"
       },
       {
-        "pfad": "missed[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "missed[].replace"
+        "path": "missed[].search",
+        "operator": "unchanged",
+        "pair_path": "missed[].replace"
       }
     ]
   },
   {
     "id": "D-befund-erfunden",
-    "quelle": "konstruiert",
-    "notiz": "Unvollständige Sätze sind laut Kontext gewollt. Der Befund ist keiner — und der Werkkontext ist das Einzige, woran man das erkennen kann.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Kein Wind. Keine Welle. Nur mein Puls.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Kein Wind“ → „Es war kein Wind“ (grammatik) — unvollständiger Satz\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Unvollständige Sätze sind laut Kontext gewollt. Der Befund ist keiner — und der Werkkontext ist das Einzige, woran man das erkennen kann.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Kein Wind. Keine Welle. Nur mein Puls.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Kein Wind“ → „Es war kein Wind“ (grammatik) — unvollständiger Satz\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "gleich",
-        "wert": 1
+        "path": "unfounded[].number",
+        "operator": "equals",
+        "value": 1
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "E-umgangssprache-erfunden",
-    "quelle": "konstruiert",
-    "notiz": "Standardsprachlich richtig, für dieses Werk falsch. Prüft, ob der Kontext bindend genommen wird.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Die Taschen ziehen mich runter. Ich muss mal gucken.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „runter“ → „hinunter“ (stil) — umgangssprachlich\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Standardsprachlich richtig, für dieses Werk falsch. Prüft, ob der Kontext bindend genommen wird.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Die Taschen ziehen mich runter. Ich muss mal gucken.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „runter“ → „hinunter“ (stil) — umgangssprachlich\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "gleich",
-        "wert": 1
+        "path": "unfounded[].number",
+        "operator": "equals",
+        "value": 1
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "F-beides",
-    "quelle": "konstruiert",
-    "notiz": "Ein unberechtigter Befund UND zwei übersehene Fehler im selben Text. Beide Fragen müssen unabhängig voneinander beantwortet werden.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Das einzige was stört, ist mein Puls. Beim schwimmen vergesse ich das.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Puls“ → „Herzschlag“ (wortwahl) — treffenderes Wort\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Ein unberechtigter Befund UND zwei übersehene Fehler im selben Text. Beide Fragen müssen unabhängig voneinander beantwortet werden.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Das einzige was stört, ist mein Puls. Beim schwimmen vergesse ich das.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Puls“ → „Herzschlag“ (wortwahl) — treffenderes Wort\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "gleich",
-        "wert": 1
+        "path": "unfounded[].number",
+        "operator": "equals",
+        "value": 1
       },
       {
-        "pfad": "missed[].search",
-        "wert": "einzige"
+        "path": "missed[].search",
+        "value": "einzige"
       },
       {
-        "pfad": "missed[].search",
-        "wert": "schwimmen"
+        "path": "missed[].search",
+        "value": "schwimmen"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "nicht_im_text"
+        "path": "missed[].search",
+        "operator": "not_in_input"
       },
       {
-        "pfad": "missed[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "missed[].replace"
+        "path": "missed[].search",
+        "operator": "unchanged",
+        "pair_path": "missed[].replace"
       }
     ]
   },
   {
     "id": "G-verankerung",
-    "quelle": "konstruiert",
-    "notiz": "Der Fehler steht noch im Text, aber die erste Stufe hat zwei Befunde geliefert, die ihn NICHT beheben — sie setzen einen Punkt und machen daraus ein Komma an der falschen Stelle. Beobachtet: Das zweite Augenpaar hält die Stelle dann für erledigt und meldet den echten Fehler nicht mehr. Verankerung durch die Liste des Ersten ist die eigentliche Schwäche des Vier-Augen-Prinzips.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „weil es heiß ist“ → „weil es heiß ist.“ (typografie) — Satzzeichen ergänzt\n2. Absatz 0: „weil es heiß ist.“ → „weil es heiß ist,“ (komma) — Komma statt Punkt\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Der Fehler steht noch im Text, aber die erste Stufe hat zwei Befunde geliefert, die ihn NICHT beheben — sie setzen einen Punkt und machen daraus ein Komma an der falschen Stelle. Beobachtet: Das zweite Augenpaar hält die Stelle dann für erledigt und meldet den echten Fehler nicht mehr. Verankerung durch die Liste des Ersten ist die eigentliche Schwäche des Vier-Augen-Prinzips.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „weil es heiß ist“ → „weil es heiß ist.“ (typografie) — Satzzeichen ergänzt\n2. Absatz 0: „weil es heiß ist.“ → „weil es heiß ist,“ (komma) — Komma statt Punkt\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "missed[].search",
-        "wert": "weil"
+        "path": "missed[].search",
+        "value": "weil"
       },
       {
-        "pfad": "unfounded[].number",
-        "operator": "existiert"
+        "path": "unfounded[].number",
+        "operator": "exists"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "nicht_im_text"
+        "path": "missed[].search",
+        "operator": "not_in_input"
       },
       {
-        "pfad": "missed[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "missed[].replace"
+        "path": "missed[].search",
+        "operator": "unchanged",
+        "pair_path": "missed[].replace"
       }
     ]
   },
   {
     "id": "H-komma-entfernt",
-    "quelle": "echter Lauf",
-    "notiz": "Aus einem echten Lauf: Die erste Stufe wollte ein KORREKTES Komma vor einem Relativsatz entfernen. Der gefährlichste Befundtyp — sieht aus wie Zeichensetzung, macht den Text kaputt. Das Gegenlesen hat ihn durchgewunken.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „auskramen, die“ → „auskramen die“ (komma) — Kein Komma vor Relativsatz mit „die“ (direkter Anschluss ohne Einschub).\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "echter Lauf",
+    "note": "Aus einem echten Lauf: Die erste Stufe wollte ein KORREKTES Komma vor einem Relativsatz entfernen. Der gefährlichste Befundtyp — sieht aus wie Zeichensetzung, macht den Text kaputt. Das Gegenlesen hat ihn durchgewunken.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „auskramen, die“ → „auskramen die“ (komma) — Kein Komma vor Relativsatz mit „die“ (direkter Anschluss ohne Einschub).\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "gleich",
-        "wert": 1
+        "path": "unfounded[].number",
+        "operator": "equals",
+        "value": 1
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "I-begruendung-passt-nicht",
-    "quelle": "echter Lauf",
-    "notiz": "Aus einem echten Lauf: „Die sind voll“ ist korrektes Deutsch, und die Begründung („muss großgeschrieben werden“) beschreibt nicht einmal die vorgeschlagene Änderung. Ein Befund, dessen Begründung nicht zur Änderung passt, ist keiner.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Die sind voll mit Handtüchern“ → „Sie sind voll mit Handtüchern“ (grammatik) — „Die“ bezieht sich auf „Strandtaschen“ (Plural), daher muss das Pronomen großgeschrieben werden.\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [
+    "source": "echter Lauf",
+    "note": "Aus einem echten Lauf: „Die sind voll“ ist korrektes Deutsch, und die Begründung („muss großgeschrieben werden“) beschreibt nicht einmal die vorgeschlagene Änderung. Ein Befund, dessen Begründung nicht zur Änderung passt, ist keiner.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n1. Absatz 0: „Die sind voll mit Handtüchern“ → „Sie sind voll mit Handtüchern“ (grammatik) — „Die“ bezieht sich auf „Strandtaschen“ (Plural), daher muss das Pronomen großgeschrieben werden.\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [
       {
-        "pfad": "unfounded[].number",
-        "operator": "gleich",
-        "wert": 1
+        "path": "unfounded[].number",
+        "operator": "equals",
+        "value": 1
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       }
     ]
   },
   {
     "id": "J-sauberer-echttext",
-    "quelle": "echter Lauf",
-    "notiz": "Ein mehrteiliger, bereits überarbeiteter Text ohne Fehler und mit leerer Liste. Der häufigste Fall in der echten Arbeit — und der, den ich am spätesten getestet habe.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n[1] „Ne, da war der Strand aber deutlich schöner“, sagt der Junge und dreht sich weg.\n\n[2] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n[3] Dann ziehe ich das Board runter und gehe ins Wasser.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
-    "erwartet": [],
-    "verboten": [
+    "source": "echter Lauf",
+    "note": "Ein mehrteiliger, bereits überarbeiteter Text ohne Fehler und mit leerer Liste. Der häufigste Fall in der echten Arbeit — und der, den ich am spätesten getestet habe.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Neben mir stehen zwei Strandtaschen. Die sind voll mit Handtüchern.\n\n[1] „Ne, da war der Strand aber deutlich schöner“, sagt der Junge und dreht sich weg.\n\n[2] Ich muss erst die Taschen auskramen, die seit gestern im Kofferraum liegen.\n\n[3] Dann ziehe ich das Board runter und gehe ins Wasser.\n\n--- BEFUNDE DER ERSTEN STUFE ---\n(keine)\n\n=== KONTEXT ===\nGEWOLLTE EIGENHEITEN DIESES WERKS - ihre Korrektur ist KEIN berechtigter Befund:\n- Umgangssprachliche Formen im Erzaehltext: runter, gucken, kriegen, nix, ne\n- Umgangssprache in direkter Rede: Figuren sprechen, wie sie sprechen.\n- Kurze, unvollstaendige Saetze als Stilmittel.\n- Wiederholung, wenn sie erkennbar Absicht ist.\nBerechtigt sind nur Verstoesse gegen Rechtschreibung, Zeichensetzung oder Grammatik, die auch in einem Diktat angestrichen wuerden.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "missed[].search",
-        "operator": "existiert"
+        "path": "missed[].search",
+        "operator": "exists"
       },
       {
-        "pfad": "unfounded[].number",
-        "operator": "existiert"
+        "path": "unfounded[].number",
+        "operator": "exists"
       }
     ]
   }

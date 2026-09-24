@@ -71,37 +71,35 @@ crm-ingest:
 	uv run python -m entrypoints.start --workflow crm-ingest-recent $(if $(input),--input '$(input)',--input '{"window_hours":13,"max_emails":50,"dry_run":true}')
 
 # ===========================================================================
-# Inbox / Sichtung  (Domäne "inbox" — täglicher Rundgang über den Posteingang)
+# Inbox / triage  (domain "inbox" — the daily round over the mailbox)
 # ===========================================================================
 
-## SCAN — Posteingang + Postausgang sichten: Newsletter, Finanzen, Antwortbedarf (dry run, Gmail; OAuth)
-## Phase 1: verändert nichts — kein Label, kein Draft. Der Report erscheint in der Studio-Timeline.
+.PHONY: inbox-scan inbox-senders inbox-review inbox-eval inbox-eval-cascade
+
+## SCAN — triage inbox + sent: newsletters, finance, replies owed (dry run, Gmail; OAuth)
+## Phase 1: changes nothing — no label, no draft. The report appears in the Studio timeline.
 ## Usage: make inbox-scan input='{"window_days":1,"max_threads":50}'
 inbox-scan:
 	uv run python -m entrypoints.start --workflow inbox-scan $(if $(input),--input '$(input)',--input '{"window_days":1,"max_threads":50}')
 
-## ABSENDER — Mails und ungelesene pro Absender im Fenster zählen (reine Arithmetik, kein Modell)
-## Default-Scope: alles Empfangene, das dich erreicht (Spam/Trash ausgeschlossen, wie die Gmail-Suche es hält).
-## Usage: make inbox-senders fenster=90
-.PHONY: inbox-senders
-inbox-senders:  ## Absender-Statistik über das Fenster (fenster=90, query= überschreibt den Scope)
-	uv run python -m entrypoints.start --workflow inbox-senders $(if $(input),--input '$(input)',--input '{"window_days":$(or $(fenster),90)}')
+## SENDERS — count mails and unread per sender in the window (pure arithmetic, no model)
+## Default scope: everything received that reaches you (spam/trash excluded, as Gmail search keeps it).
+## Usage: make inbox-senders window=90
+inbox-senders:  ## Sender statistic over the window (window=90, query= overrides the scope)
+	uv run python -m entrypoints.start --workflow inbox-senders $(if $(input),--input '$(input)',--input '{"window_days":$(or $(window),90)}')
 
-## SPRECHSTUNDE — der Sichtungs-Lauf als Gespräch (Konfig im Chat, Canvas, Library-Dossier)
-.PHONY: inbox-review
-inbox-review:  ## Konversationeller Lauf wie in Le Chat, nur im Terminal
+## CONSULTATION — the triage run as a conversation (config in the chat, canvas, library dossier)
+inbox-review:  ## Conversational run as in Le Chat, but in the terminal
 	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli inbox-review \
 		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'
 
-## EVAL — den Sichtungs-Agenten messen (echte Instruktionen aus ../agents/inbox-review.json)
-.PHONY: inbox-eval
-inbox-eval:  ## Sichtungs-Agent gegen die konstruierten Fälle fahren (laeufe=2, nur=<konfig> wie üblich)
-	uv run python -m evalkit --agent inbox-review --faelle shared/inbox/eval-review.json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
+## EVAL — measure the triage agent (real instructions from ../agents/inbox-review.json)
+inbox-eval:  ## Triage agent against the constructed cases (runs=2, only=<config> as usual)
+	uv run python -m evalkit --agent inbox-review --cases shared/inbox/eval-review.json $(if $(runs),--runs $(runs),) $(if $(only),--only $(only),)
 
-## EVAL-KASKADE — die Kette Erstblick→Eskalation→Zweitblick Ende-zu-Ende messen
-.PHONY: inbox-eval-cascade
-inbox-eval-cascade:  ## Kaskade gegen dieselben Fälle; Vergleich gegen small-allein und medium-allein
-	uv run python -m workflows.inbox.kaskade_eval --faelle shared/inbox/eval-review.json $(if $(laeufe),--laeufe $(laeufe),)
+## EVAL CASCADE — measure first stage → escalation → second stage end to end
+inbox-eval-cascade:  ## The cascade against the same cases; compared to small-alone and medium-alone
+	uv run python -m workflows.inbox.cascade_eval --cases shared/inbox/eval-review.json $(if $(runs),--runs $(runs),)
 
 # ===========================================================================
 # Book / editing  (domain "book" — the work comes in as work=<slug>)
@@ -177,15 +175,14 @@ book-eval-cases:
 	uv run python -m bookcli.eval --work $(or $(work),immer-wieder-ruegen) --generate
 
 ## EVAL — measure model configurations against the test cases (uses evalkit)
-## evalkit still takes German flags; it is renamed in its own pass.
-## Usage: make book-eval laeufe=3 nur=small/high
+## Usage: make book-eval runs=3 only=small/high
 book-eval:
-	uv run python -m evalkit --agent book-copyedit --faelle shared/book/eval-$(or $(work),immer-wieder-ruegen).json $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),)
+	uv run python -m evalkit --agent book-copyedit --cases shared/book/eval-$(or $(work),immer-wieder-ruegen).json $(if $(runs),--runs $(runs),) $(if $(only),--only $(only),)
 
 ## EVAL — beliebigen Agent messen (domänenunabhängig)
-## Usage: make eval agent=crm-classification faelle=shared/crm/eval-faelle.json
+## Usage: make eval agent=crm-classification cases=shared/crm/eval-cases.json
 eval:
-	uv run python -m evalkit --agent $(agent) --faelle $(faelle) $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),) $(if $(zaehlpfad),--zaehlpfad "$(zaehlpfad)",)
+	uv run python -m evalkit --agent $(agent) --cases $(cases) $(if $(runs),--runs $(runs),) $(if $(only),--only $(only),) $(if $(count_path),--count-path "$(count_path)",)
 
 ## STUDIO — clean up what the repo no longer defines (preview; apply=1 for real)
 ## Archives orphaned workflows, deletes orphaned agents. keep="<name>" spares one.

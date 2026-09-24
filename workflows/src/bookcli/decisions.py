@@ -13,8 +13,6 @@ The file does NOT land in the repo — it contains manuscript text.
 ``shared/book/*.json`` is gitignored anyway; only the explicitly released eval
 files are excluded from that, and this one is not among them.
 
-The emitted case keys (``pfad``, ``operator``, ``wert`` …) are evalkit's schema
-and stay as they are until evalkit itself is renamed.
 """
 
 from __future__ import annotations
@@ -79,17 +77,17 @@ def as_eval_cases(lines: list[dict], *, level: str, work: str) -> list[dict]:
         entries = [e for e in entries if any(e["search"] in p for p in s.paragraphs)]
         forbidden = [
             {
-                "pfad": "vorschlaege[].search",
-                "operator": "paar",
-                "paar_pfad": "vorschlaege[].replace",
-                "wert": [e["search"], e["replace"]],
-                "hinweis": e.get("reason") or "abgelehnt",
+                "path": "suggestions[].search",
+                "operator": "pair",
+                "pair_path": "suggestions[].replace",
+                "value": [e["search"], e["replace"]],
+                "note": e.get("reason") or "abgelehnt",
             }
             for e in entries
             if e["decision"] == "abgelehnt"
         ]
         expected = [
-            {"pfad": "vorschlaege[].search", "wert": e["search"]}
+            {"path": "suggestions[].search", "value": e["search"]}
             for e in entries
             if e["decision"] == "angenommen"
         ]
@@ -98,15 +96,15 @@ def as_eval_cases(lines: list[dict], *, level: str, work: str) -> list[dict]:
         cases.append(
             {
                 "id": f"{entries[0]['section']}-{session[:8]}",
-                "quelle": "entscheidungslog",
-                "notiz": (
+                "source": "entscheidungslog",
+                "note": (
                     f"{len(expected)} angenommen, {len(forbidden)} abgelehnt — "
                     f"Sitzung {session[:8]}, {entries[0]['ts'][:10]}"
                 ),
-                "abschnitt_uuid": uuid,
-                "eingabe": input_for(s),
-                "erwartet": expected,
-                "verboten": forbidden,
+                "section_uuid": uuid,
+                "input": input_for(s),
+                "expected": expected,
+                "forbidden": forbidden,
             }
         )
     return cases

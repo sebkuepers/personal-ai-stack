@@ -147,7 +147,7 @@ whether the rules get concrete or writing-guide prose comes out.
 ### 3. Edit
 
 The **conversational workflow** is the actual workplace: in Vibe Work via `+` → Workflows →
-*Buch · Lektorat (im Gespräch)*. It needs no input and reads Scrivener **live** — a `book-sync`
+*Book · Editing (conversational)*. It needs no input and reads Scrivener **live** — a `book-sync`
 beforehand is not necessary. Scrivener only has to have saved; it writes `content.rtf` after a
 typing pause.
 
@@ -344,18 +344,14 @@ notice a regression?
 ```bash
 make book-eval-cases           # build test cases from the manuscript
 make book-eval                 # compare all configurations
-make book-eval nur=small/none  # a single one
-make eval agent=<name> faelle=<path>   # any agent, any cases
+make book-eval only=small/none  # a single one
+make eval agent=<name> cases=<path>    # any agent, any cases
 ```
-
-> evalkit still takes German flags (`--faelle`, `--laeufe`, `--nur`, `--zaehlpfad`) and German case
-> keys (`pfad`, `operator`, `wert`, `hinweis`). It is shared with the `inbox` domain and is renamed
-> in its own pass, so the two do not collide.
 
 A case has two lists, and the second is the more valuable one:
 
-* **erwartet** — must be found. Yields the *hit rate*.
-* **verboten** — must not be reported. Yields the *trap rate*.
+* **expected** — must be found. Yields the *hit rate*.
+* **forbidden** — must not be reported. Yields the *trap rate*.
 
 An agent that reports everything has a perfect hit rate and is worthless; one that reports nothing
 falls into no trap and is equally worthless. Only both numbers together say something.
@@ -408,7 +404,7 @@ question per suggestion) instead of from the four-eyes principle. Mistral's buil
 way, gets it right: it rates an answer **in the context of its request**, so it sees the full trace.
 
 ```bash
-make eval agent=book-second-read faelle=shared/book/eval-second-read.json zaehlpfad="missed[]"
+make eval agent=book-second-read cases=shared/book/eval-second-read.json count_path="missed[]"
 ```
 
 The seven cases are constructed and therefore live in the repo. They cover the four operating modes
@@ -581,7 +577,7 @@ tokens, GLM answers broke off mid-JSON and counted as model failures. That looke
 problem and was a budget problem. **Whoever compares models has to give them the same room.**
 
 The reasoning levels are model-dependent: Mistral knows `none|high` (anything else HTTP 400), GLM
-5.3 `low|high|max`. Selectable in `evalkit` via `--modelle model:level`.
+5.3 `low|high|max`. Selectable in `evalkit` via `--models model:level`.
 
 ## Setting up a new work
 
@@ -665,8 +661,6 @@ Apple's `textutil`, and encode→decode has to yield the identity for every para
   proper nouns) and needs no model.
 - **Derive the section separator from the reference.** Currently a setting, because the typeset PDF
   shows no discernible rule. A page-by-page comparison with the binder might find it.
-- **Rename `evalkit`.** Its flags and case keys are still German. It is shared with the `inbox`
-  domain, so it needs a coordinated pass.
 
 **Deliberately not built**
 
@@ -687,4 +681,5 @@ unfalsifiable.
 - [`../workflows/CLAUDE.md`](../workflows/CLAUDE.md) — SDK conventions and the gotchas that cost
   real time (sandbox imports, `Path.resolve`, hardened deployments, stale registrations)
 - [`CRM.md`](CRM.md) — the first domain, following the same pattern
+- [`INBOX.md`](INBOX.md) — the third domain: daily Gmail triage
 - [`architecture.md`](architecture.md) — why the system is cut the way it is

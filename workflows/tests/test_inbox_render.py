@@ -1,8 +1,8 @@
 """Das Rendern des Reports ist reines Markdown — dieselbe Instanz geht an
-Canvas, Chat und Library. Ein Renderfehler hier verfälscht alle drei.
+canvas, chat and library. A rendering mistake here distorts all three.
 
 Der Langweilfall ist dabei: Ein leerer Report darf keine leeren
-Markdown-Kapitel mit krachenden Tabellen erzeugen — „_(nichts)_" ist die
+Markdown sections with broken tables — "_(nichts)_" is the
 ehrliche Form.
 """
 
@@ -32,16 +32,16 @@ def _report() -> InboxScanReport:
         needs_reply=[
             ReplyItem(
                 sender="a@example.com", subject="Zahlung fehlgeschlagen",
-                urgency="today", reasoning="", beantwortet=False,
+                urgency="today", reasoning="", answered=False,
             )
         ],
-        finanzen=[
+        finance=[
             FinanceItem(
                 sender="a@example.com", subject="Zahlung fehlgeschlagen",
-                art="reminder", betrag="89,00 EUR", due_date="2026-09-26",
+                kind="reminder", amount="89,00 EUR", due_date="2026-09-26",
             )
         ],
-        kontext=["Zusage für Freitag, 10 Uhr."],
+        context=["Zusage für Freitag, 10 Uhr."],
         unsub_links=[
             UnsubCandidate(
                 sender="news@example.com", subject="Rundbrief",
@@ -64,14 +64,14 @@ def _leerer_report() -> InboxScanReport:
 # ---------------------------------------------------------------------------
 
 
-def test_headline_nennen_die_essenzen() -> None:
+def test_headline_names_the_essentials() -> None:
     text = headline(_report())
     assert "2 Mails" in text
     assert "1× Zweitblick (1 geändert)" in text
     assert "1 Antwort(en) erwartet" in text
 
 
-def test_headline_leerer_lauf() -> None:
+def test_headline_of_an_empty_run() -> None:
     text = headline(_leerer_report())
     assert "0 Mails" in text
     assert "Antwort" not in text
@@ -82,7 +82,7 @@ def test_headline_leerer_lauf() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_report_markdown_traegt_alle_abschnitte() -> None:
+def test_report_markdown_carries_every_section() -> None:
     md = report_as_markdown(_report())
     assert "## Dringend — Antwort erwartet" in md
     assert "## Finanzen" in md
@@ -95,18 +95,18 @@ def test_report_markdown_traegt_alle_abschnitte() -> None:
     assert "2026-09-26" in md
 
 
-def test_report_markdown_leerer_lauf_ohne_krachende_tabellen() -> None:
+def test_report_markdown_of_an_empty_run_has_no_broken_tables() -> None:
     md = report_as_markdown(_leerer_report())
     assert "_(nichts)_" in md
     assert "GitHub" not in md
 
 
 # ---------------------------------------------------------------------------
-# Das Dossier für die Library
+# The dossier for the library
 # ---------------------------------------------------------------------------
 
 
-def test_dossier_ist_auf_vibe_zugeschnitten() -> None:
+def test_dossier_is_cut_for_vibe() -> None:
     d = dossier(_report(), "2026-09-24")
     assert "# Inbox · Kontext — Stand 2026-09-24" in d
     assert "Antworten, die du schuldest" in d
@@ -115,18 +115,18 @@ def test_dossier_ist_auf_vibe_zugeschnitten() -> None:
     assert "Zusage für Freitag, 10 Uhr." in d
     assert "Was du geschrieben hast" in d
     assert "x@example.com" in d
-    # Die Lärm-Statistik gehört in den Canvas, nicht ins Dossier.
+    # The noise statistic belongs in the canvas, not in the dossier.
     assert "Lärm" not in d
 
 
-def test_dossier_leerer_lauf() -> None:
+def test_dossier_of_an_empty_run() -> None:
     d = dossier(_leerer_report(), "2026-09-24")
     assert "_(keine offenen Antworten)_" in d
     assert "_(nichts gesendet)_" in d
 
 
-def test_dossier_nennt_beantwortete_nicht_unter_offen() -> None:
+def test_dossier_does_not_list_answered_ones_as_open() -> None:
     r = _report()
-    r.needs_reply[0].beantwortet = True
+    r.needs_reply[0].answered = True
     d = dossier(r, "2026-09-24")
     assert "_(keine offenen Antworten)_" in d

@@ -1,15 +1,14 @@
-"""Das Mapping classification → triage ist die Stelle, die in Notion schreibt.
+"""The classification → triage mapping is the place that writes into Notion.
 
-``classification_to_triage`` übersetzt die Agent-Antwort in die „intended
-writes" — ein Fehler hier landet zweimal täglich unbemerkt in der echten
-Datenbank. Die drei dokumentierten Mapping-Entscheidungen (unknown → leeres
-Select, Priority auf den Contact, action_items in die AI Analysis) haben hier
-ihren Vertrag; getestet wird gegen die **echte** Konfiguration aus
-``shared/crm.json``, nicht gegen kopierte Konstanten — dieselbe Regel wie beim
-Scrivener-Test: Ein Instrument, das dieselben Annahmen enthält wie der Code,
-misst nichts.
+``classification_to_triage`` translates the agent's answer into the "intended
+writes" — a mistake here lands in the real database twice a day, unnoticed. The
+three documented mapping decisions (unknown → empty select, priority on the
+contact, action_items folded into the AI analysis) have their contract here;
+and it is tested against the **real** configuration from ``shared/crm.json``,
+not against copied constants — the same rule as in the Scrivener test: an
+instrument that carries the same assumptions as the code measures nothing.
 
-Alle Funktionen sind rein — jedes Datum kommt als Argument, kein Clock-Read.
+Every function is pure — each date arrives as an argument, no clock read.
 """
 
 from __future__ import annotations
@@ -61,7 +60,7 @@ def eingabe(**extra: object) -> InteractionInput:
 # ---------------------------------------------------------------------------
 
 
-def test_unknown_category_laesst_notion_select_leer() -> None:
+def test_unknown_category_leaves_the_notion_select_empty() -> None:
     triage = classification_to_triage(
         klasse(category="unknown", sub_category="unknown"), eingabe(), TODAY
     )
@@ -70,9 +69,9 @@ def test_unknown_category_laesst_notion_select_leer() -> None:
     assert "unknown" in triage.notes[0]
 
 
-def test_kein_selbstkontakt_in_eigener_crm() -> None:
-    # Ein Alias aus der echten Config, in Original­schreibung — gefiltert wird
-    # case-insensitiv, und „Seb" als Anrede darf keinen Halbkontakt erzeugen.
+def test_no_self_contact_in_ones_own_crm() -> None:
+    # An alias from the real config, in its original spelling — filtering is
+    # case-insensitive, and "Seb" as a salutation must not create a half-contact.
     alias = next(iter(USER_ALIASES))
     triage = classification_to_triage(
         klasse(people=[alias.upper(), "Anna Meier"]), eingabe(), TODAY
@@ -82,16 +81,16 @@ def test_kein_selbstkontakt_in_eigener_crm() -> None:
     assert any("filtered self" in n for n in triage.notes)
 
 
-def test_priority_liegt_auf_contact_nicht_auf_interaction() -> None:
+def test_priority_sits_on_the_contact_not_the_interaction() -> None:
     triage = classification_to_triage(
         klasse(priority="High", people=["Anna Meier"]), eingabe(), TODAY
     )
     assert triage.contacts[0].priority == "High"
-    # Das Interactions-Modell hat das Feld bewusst gar nicht.
+    # The interactions model deliberately has no such field at all.
     assert "priority" not in type(triage.interaction).model_fields
 
 
-def test_action_items_werden_in_die_ai_analysis_gefaltet() -> None:
+def test_action_items_are_folded_into_the_ai_analysis() -> None:
     triage = classification_to_triage(
         klasse(
             analysis="Erstanalyse.",
@@ -109,12 +108,12 @@ def test_action_items_werden_in_die_ai_analysis_gefaltet() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Priorität und Follow-up — deterministische Regeln
+# Priority and follow-up — deterministic rules
 # ---------------------------------------------------------------------------
 
 
-def test_leere_prioritaet_faellt_auf_die_regel_zurueck() -> None:
-    # Der Agent muss priority liefern; leer fällt es auf die Regel zurück.
+def test_an_empty_priority_falls_back_to_the_rule() -> None:
+    # The agent has to deliver a priority; empty falls back to the rule.
     triage = classification_to_triage(
         klasse(priority="", category="sales", sentiment="Positive", people=["Anna Meier"]),
         eingabe(),
@@ -123,14 +122,14 @@ def test_leere_prioritaet_faellt_auf_die_regel_zurueck() -> None:
     assert triage.contacts[0].priority == "Medium"
 
 
-def test_suggest_priority_regeln() -> None:
+def test_suggest_priority_rules() -> None:
     assert suggest_priority("networking", "Urgent") == "High"
     assert suggest_priority("job_application", "Positive") == "High"
     assert suggest_priority("follow_up", "Positive") == "Medium"
     assert suggest_priority("personal", "Positive") == "Low"
 
 
-def test_geschaetztes_follow_up_datum_gewinnt() -> None:
+def test_a_suggested_follow_up_date_wins() -> None:
     triage = classification_to_triage(
         klasse(
             category="job_application",  # Regel würde base+3 vorschlagen
@@ -143,7 +142,7 @@ def test_geschaetztes_follow_up_datum_gewinnt() -> None:
     assert triage.interaction.follow_up_needed is True
 
 
-def test_follow_up_rechnet_ab_dem_ereignis_nicht_ab_heute() -> None:
+def test_follow_up_counts_from_the_event_not_from_today() -> None:
     triage = classification_to_triage(
         klasse(category="follow_up"),  # Regel: base+5
         eingabe(occurred_on=date(2026, 1, 1)),
@@ -153,14 +152,14 @@ def test_follow_up_rechnet_ab_dem_ereignis_nicht_ab_heute() -> None:
     assert triage.interaction.occurred_on == date(2026, 1, 1)
 
 
-def test_ohne_ereignisdatum_gilt_heute() -> None:
+def test_without_an_event_date_today_applies() -> None:
     triage = classification_to_triage(
         klasse(category="networking"), eingabe(occurred_on=None), TODAY
     )
     assert triage.interaction.occurred_on == TODAY
 
 
-def test_kein_follow_up_gibt_kein_datum() -> None:
+def test_no_follow_up_yields_no_date() -> None:
     # Der Langweilfall: personal ohne Dringlichkeit — kein Datum, keine Flagge.
     triage = classification_to_triage(
         klasse(category="personal", sentiment="Positive"), eingabe(), TODAY
@@ -169,7 +168,7 @@ def test_kein_follow_up_gibt_kein_datum() -> None:
     assert triage.interaction.follow_up_needed is False
 
 
-def test_compute_follow_up_date_offsettabelle() -> None:
+def test_compute_follow_up_date_offset_table() -> None:
     base = date(2026, 9, 23)
     assert compute_follow_up_date("job_application", "Positive", base) == date(2026, 9, 26)
     assert compute_follow_up_date("networking", "Positive", base) == date(2026, 10, 7)
@@ -182,7 +181,7 @@ def test_compute_follow_up_date_offsettabelle() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_titel_nennt_datum_person_und_betreff() -> None:
+def test_the_title_names_date_person_and_subject() -> None:
     triage = classification_to_triage(
         klasse(people=["Anna Meier"]),
         eingabe(subject="Kaffeenext Woche?"),
@@ -191,28 +190,28 @@ def test_titel_nennt_datum_person_und_betreff() -> None:
     assert triage.interaction.title == "2026-09-23 · Anna Meier · Kaffeenext Woche?"
 
 
-def test_titel_ohne_betreff_faellt_auf_die_kategorie_zurueck() -> None:
+def test_a_title_without_a_subject_falls_back_to_the_category() -> None:
     triage = classification_to_triage(
         klasse(category="business_opportunity"), eingabe(subject=None), TODAY
     )
     assert triage.interaction.title.startswith("2026-09-23 · Unknown · Business Opportunity")
 
 
-def test_titel_ist_auf_120_zeichen_gedeckelt() -> None:
+def test_the_title_is_capped_at_120_characters() -> None:
     triage = classification_to_triage(
         klasse(people=["Anna Meier"]), eingabe(subject="x" * 300), TODAY
     )
     assert len(triage.interaction.title) <= 120
 
 
-def test_leerer_interaction_type_faellt_auf_die_eingabe_zurueck() -> None:
+def test_an_empty_interaction_type_falls_back_to_the_input() -> None:
     triage = classification_to_triage(
         klasse(interaction_type=""), eingabe(interaction_type="Call"), TODAY
     )
     assert triage.interaction.interaction_type == "Call"
 
 
-def test_organisationen_werden_durchgereicht() -> None:
+def test_organisations_are_passed_through() -> None:
     triage = classification_to_triage(
         klasse(organizations=["Ongiini e.V.", "Mistral AI"]), eingabe(), TODAY
     )
@@ -222,13 +221,13 @@ def test_organisationen_werden_durchgereicht() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Auto-Tags — Invariante gegen die echte Config
+# Auto tags — an invariant against the real config
 # ---------------------------------------------------------------------------
 
 
-def test_auto_tags_bleiben_immer_im_vokabular() -> None:
-    # Nicht pro Fall raten, sondern die ganze Fläche abdecken: Jede Kombination
-    # aus Kategorie, Sub-Kategorie und Priorität darf nur Tags erzeugen, die
+def test_auto_tags_always_stay_in_the_vocabulary() -> None:
+    # Do not guess case by case, cover the whole surface: every combination of
+    # category, sub-category and priority may only produce tags that
     # im Notion-Vokabular existieren — sonst lehnt Notion den Schreibzugriff ab.
     for category in CATEGORIES:
         for sub_category in SUB_CATEGORIES:
@@ -237,13 +236,13 @@ def test_auto_tags_bleiben_immer_im_vokabular() -> None:
                 assert set(tags) <= set(AUTO_TAGS), (category, sub_category, priority)
 
 
-def test_auto_tags_sind_ohne_duplikate() -> None:
+def test_auto_tags_have_no_duplicates() -> None:
     tags = derive_auto_tags("business_opportunity", "business_partnership", "High")
     assert len(tags) == len(set(tags))
     assert "high_priority" in tags
 
 
-def test_auto_tag_nur_bei_passender_sub_kategorie() -> None:
+def test_an_auto_tag_only_on_a_matching_sub_category() -> None:
     # job_application_ongiini ist ein Auto-Tag nur, wenn es auch Sub-Kategorie ist.
     assert "job_application_ongiini" in derive_auto_tags(
         "job_application", "job_application_ongiini", "Low"

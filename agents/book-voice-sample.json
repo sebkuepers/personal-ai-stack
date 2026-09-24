@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "stimmprobe",
+        "name": "voice_sample",
         "schema": {
           "additionalProperties": false,
           "description": "Beobachtet die Erzählstimme an EINEM Abschnitt und belegt jede Beobachtung wörtlich. Map-Schritt des Stimmprofils.",

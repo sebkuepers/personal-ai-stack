@@ -1,8 +1,11 @@
-"""Der Report als Markdown — für Canvas, Chat und das Library-Dossier.
+"""The report as Markdown — for the canvas, the chat and the library dossier.
 
-Reines Rendern, kein I/O: Dieselbe Report-Instanz wird im Gespräch als Canvas
-gezeigt, im Chat zusammengefasst und als Dossier in die Library gelegt — ein
-Zuschnitt, drei Empfänger, keine Drift.
+Pure rendering, no I/O: the same report instance is shown as a canvas in the
+conversation, summarised in the chat and stored as a dossier in the library —
+one cut, three recipients, no drift.
+
+The rendered text is German: the author reads it, and so does Vibe when it
+works with him.
 """
 
 from __future__ import annotations
@@ -10,140 +13,139 @@ from __future__ import annotations
 from workflows.inbox.models import InboxScanReport
 
 
-def _tabelle(zeilen: list[list[str]]) -> str:
-    """Eine Markdown-Tabelle mit Kopfzeile."""
-    if not zeilen:
+def _table(rows: list[list[str]]) -> str:
+    """A Markdown table with a header row."""
+    if not rows:
         return "_(nichts)_"
-    kopf, rest = zeilen[0], zeilen[1:]
-    out = ["| " + " | ".join(kopf) + " |", "|" + "|".join(["---"] * len(kopf)) + "|"]
-    out += ["| " + " | ".join(z) + " |" for z in rest]
+    head, rest = rows[0], rows[1:]
+    out = ["| " + " | ".join(head) + " |", "|" + "|".join(["---"] * len(head)) + "|"]
+    out += ["| " + " | ".join(r) + " |" for r in rest]
     return "\n".join(out)
 
 
 def headline(r: InboxScanReport) -> str:
-    """Die Zusammenfassung für den Chat — kurz, das Detail steht im Canvas."""
-    teile = [f"**{r.inbox_found} Mails** in {r.window_days} Tag(en) gesichtet"]
+    """The summary for the chat — short; the detail is in the canvas."""
+    parts = [f"**{r.inbox_found} Mails** in {r.window_days} Tag(en) gesichtet"]
     if r.skipped_no_messages:
-        teile.append(f"{r.skipped_no_messages} ohne Umschlag übersprungen")
+        parts.append(f"{r.skipped_no_messages} ohne Umschlag übersprungen")
     if r.own_replies:
-        teile.append(f"{r.own_replies} eigene Antworten")
+        parts.append(f"{r.own_replies} eigene Antworten")
     if r.second_review_count:
-        teile.append(f"{r.second_review_count}× Zweitblick ({r.second_review_changed} geändert)")
-    offen = [a for a in r.needs_reply if not a.beantwortet]
-    if offen:
-        teile.append(f"**{len(offen)} Antwort(en) erwartet**")
-    return " · ".join(teile)
+        parts.append(f"{r.second_review_count}× Zweitblick ({r.second_review_changed} geändert)")
+    open_replies = [a for a in r.needs_reply if not a.answered]
+    if open_replies:
+        parts.append(f"**{len(open_replies)} Antwort(en) erwartet**")
+    return " · ".join(parts)
 
 
 def report_as_markdown(r: InboxScanReport) -> str:
-    """Der volle Report als Markdown-Dokument — Canvas und Dossier."""
-    z: list[str] = [f"# Inbox · Sichtung ({r.window_days} Tage)"]
-    z += ["", headline(r), ""]
+    """The full report as a Markdown document — canvas and dossier."""
+    lines: list[str] = [f"# Inbox · Sichtung ({r.window_days} Tage)"]
+    lines += ["", headline(r), ""]
 
-    z += ["## Dringend — Antwort erwartet", ""]
+    lines += ["## Dringend — Antwort erwartet", ""]
     if r.needs_reply:
         for a in r.needs_reply:
-            haken = " ✓ beantwortet" if a.beantwortet else ""
-            z.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*{haken}")
+            check = " ✓ beantwortet" if a.answered else ""
+            lines.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*{check}")
     else:
-        z.append("_(keine)_")
-    z.append("")
+        lines.append("_(keine)_")
+    lines.append("")
 
-    z += ["## Finanzen", ""]
-    if r.finanzen:
-        z += [
+    lines += ["## Finanzen", ""]
+    if r.finance:
+        lines += [
             "",
-            _tabelle(
+            _table(
                 [["Absender", "Art", "Betrag", "Fälligkeit", "Betreff"]]
                 + [
-                    [f.sender, f.art, f.betrag or "—", f.due_date or "—", f.subject]
-                    for f in r.finanzen
+                    [f.sender, f.kind, f.amount or "—", f.due_date or "—", f.subject]
+                    for f in r.finance
                 ]
             ),
         ]
     else:
-        z.append("_(keine)_")
-    z.append("")
+        lines.append("_(keine)_")
+    lines.append("")
 
-    z += ["## Lärm nach Absender-Gruppe", ""]
-    z += [
-        _tabelle([["Gruppe", "Mails"]] + [[g, str(n)] for g, n in r.subscription_groups.items()])
-        or "_(keine)_"
+    lines += ["## Lärm nach Absender-Gruppe", ""]
+    lines += [
+        _table([["Gruppe", "Mails"]] + [[g, str(n)] for g, n in r.subscription_groups.items()])
     ]
-    z.append("")
+    lines.append("")
 
-    z += ["## Typen", ""]
-    z += [_tabelle([["Typ", "Mails"]] + [[t, str(n)] for t, n in r.type_counts.items()])]
-    z.append("")
+    lines += ["## Typen", ""]
+    lines += [_table([["Typ", "Mails"]] + [[t, str(n)] for t, n in r.type_counts.items()])]
+    lines.append("")
 
-    z += ["## Abbestell-Kandidaten", ""]
+    lines += ["## Abbestell-Kandidaten", ""]
     if r.unsub_links:
-        z += [
-            _tabelle(
+        lines += [
+            _table(
                 [["Absender", "Abmeldelink"]]
                 + [[u.sender, f"[Abmelden]({u.url})"] for u in r.unsub_links]
             )
         ]
     else:
-        z.append("_(keine Links gefunden)_")
-    z.append("")
+        lines.append("_(keine Links gefunden)_")
+    lines.append("")
 
-    z += ["## Kontext für Vibe", ""]
-    if r.kontext:
-        z += [f"- {k}" for k in r.kontext]
+    lines += ["## Kontext für Vibe", ""]
+    if r.context:
+        lines += [f"- {c}" for c in r.context]
     else:
-        z.append("_(nichts)_")
-    z.append("")
+        lines.append("_(nichts)_")
+    lines.append("")
 
-    z += ["## Gesendet im Fenster", ""]
+    lines += ["## Gesendet im Fenster", ""]
     if r.sent:
-        z += [
-            _tabelle(
+        lines += [
+            _table(
                 [["An", "Betreff", "Datum"]]
                 + [[", ".join(s.to), s.subject, str(s.received_on or "")] for s in r.sent]
             )
         ]
     else:
-        z.append("_(nichts gesendet)_")
-    return "\n".join(z)
+        lines.append("_(nichts gesendet)_")
+    return "\n".join(lines)
 
 
-def dossier(r: InboxScanReport, stand: str) -> str:
-    """Das Kontext-Dossier für die Library — auf Vibe zugeschnitten.
+def dossier(r: InboxScanReport, as_of: str) -> str:
+    """The context dossier for the library — cut for Vibe.
 
-    Keine Kopie des Reports: Vibe braucht das, was eine Arbeitssitzung
-    beeinflusst — Antworten, Fristen, Kontext, zugesagte Dinge. Die
-    Lärm-Statistik steht im Canvas, nicht im Dossier.
+    Not a copy of the report: Vibe needs what influences a working session —
+    replies owed, deadlines, context, things promised. The noise statistic is
+    in the canvas, not in the dossier.
     """
-    z: list[str] = [f"# Inbox · Kontext — Stand {stand}", ""]
-    z += [headline(r), ""]
+    lines: list[str] = [f"# Inbox · Kontext — Stand {as_of}", ""]
+    lines += [headline(r), ""]
 
-    z += ["## Antworten, die du schuldest", ""]
-    offen = [a for a in r.needs_reply if not a.beantwortet]
-    for a in offen:
-        z.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*")
-    if not offen:
-        z.append("_(keine offenen Antworten)_")
-    z.append("")
+    lines += ["## Antworten, die du schuldest", ""]
+    open_replies = [a for a in r.needs_reply if not a.answered]
+    for a in open_replies:
+        lines.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*")
+    if not open_replies:
+        lines.append("_(keine offenen Antworten)_")
+    lines.append("")
 
-    z += ["## Fristen und Finanzen", ""]
-    for f in r.finanzen:
-        frist = f" bis **{f.due_date}**" if f.due_date else ""
-        z.append(f"- {f.art.capitalize()}{frist} · {f.sender} — *{f.subject}*")
-    if not r.finanzen:
-        z.append("_(keine)_")
-    z.append("")
+    lines += ["## Fristen und Finanzen", ""]
+    for f in r.finance:
+        due = f" bis **{f.due_date}**" if f.due_date else ""
+        lines.append(f"- {f.kind.capitalize()}{due} · {f.sender} — *{f.subject}*")
+    if not r.finance:
+        lines.append("_(keine)_")
+    lines.append("")
 
-    z += ["## Was du zugesagt oder erfahren hast", ""]
-    for k in r.kontext:
-        z.append(f"- {k}")
-    if not r.kontext:
-        z.append("_(nichts)_")
-    z.append("")
+    lines += ["## Was du zugesagt oder erfahren hast", ""]
+    for c in r.context:
+        lines.append(f"- {c}")
+    if not r.context:
+        lines.append("_(nichts)_")
+    lines.append("")
 
-    z += ["## Was du geschrieben hast", ""]
+    lines += ["## Was du geschrieben hast", ""]
     for s in r.sent:
-        z.append(f"- An {', '.join(s.to)}: *{s.subject}* ({s.received_on})")
+        lines.append(f"- An {', '.join(s.to)}: *{s.subject}* ({s.received_on})")
     if not r.sent:
-        z.append("_(nichts gesendet)_")
-    return "\n".join(z)
+        lines.append("_(nichts gesendet)_")
+    return "\n".join(lines)

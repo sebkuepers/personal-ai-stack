@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "stimmprofil",
+        "name": "voice_profile",
         "schema": {
           "additionalProperties": false,
           "description": "Verdichtet Stimmproben, Kennzahlen und die Lektoratsnotizen des Autors zu höchstens 12 prüfbaren Regeln. Reduce-Schritt des Stimmprofils.",

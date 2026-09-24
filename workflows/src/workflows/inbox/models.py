@@ -1,13 +1,17 @@
-"""Pydantic-Modelle für die inbox-Domäne.
+"""Pydantic models for the inbox domain.
 
-Zwei Schichten wie bei CRM: ``InboxReview`` spiegelt das JSON-Schema des
-Studio-Agents ``Inbox · Review`` exakt (``extra="forbid"``), und der Report
-ist die deterministische Verdichtung einer Sichtungs-Runde.
+Two layers as in CRM: ``InboxReview`` mirrors the JSON schema of the Studio
+agent ``Inbox · Review`` exactly (``extra="forbid"``), and the report is the
+deterministic condensation of one triage run.
 
-Die Umschlag-Modelle sind bewusst body-los: ``search_threads`` liefert Bodies
-IMMER null (live verifiziert, 644 Messages in zwei Läufen) — der Umschlag
-(Absender, Betreff, Snippet, Labels) trägt die Klassifizierung, Bodies werden
-nur einzeln über ``get_thread`` geholt, wo ein Abmeldelink gebraucht wird.
+The envelope models are deliberately body-less: ``search_threads`` returns
+bodies ALWAYS as null (verified live, 644 messages over two runs) — the
+envelope (sender, subject, snippet, labels) carries the classification, and
+bodies are fetched individually through ``get_thread`` only where an
+unsubscribe link is needed.
+
+The enum values stay English here because the agent produces them and they are
+this system's vocabulary, not German subject matter.
 """
 
 from __future__ import annotations
@@ -18,12 +22,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 # --------------------------------------------------------------------------- #
-# Umschläge — was die Gmail-Suche liefert
+# Envelopes — what the Gmail search returns
 # --------------------------------------------------------------------------- #
 
 
 class InboxEnvelope(BaseModel):
-    """Umschlag einer empfangenen Mail. Der Body fehlt immer — siehe Modul-Docstring."""
+    """Envelope of a received mail. The body is always missing — see the module docstring."""
 
     thread_id: str = ""
     message_id: str = ""
@@ -31,36 +35,36 @@ class InboxEnvelope(BaseModel):
     subject: str = ""
     snippet: str = ""
     labels: list[str] = Field(default_factory=list)
-    category: str = ""  # CATEGORY_* ohne Präfix, z.B. "UPDATES"; "" wenn ohne Kategorie
+    category: str = ""  # CATEGORY_* without the prefix, e.g. "UPDATES"; "" when uncategorised
     unread: bool = False
     received_on: date | None = None
 
 
 class SentEnvelope(BaseModel):
-    """Gesendete Mail — Empfänger und Betreff tragen Kontext und Antwort-Zustand."""
+    """A sent mail — recipients and subject carry context and reply state."""
 
     thread_id: str = ""
     message_id: str = ""
-    sender: str = ""  # die eigene Adresse (steht im Umschlag der gesendeten Mail)
+    sender: str = ""  # one's own address (it is in the envelope of the sent mail)
     to: list[str] = Field(default_factory=list)
     subject: str = ""
     received_on: date | None = None
 
 
 # --------------------------------------------------------------------------- #
-# Eingaben
+# Inputs
 # --------------------------------------------------------------------------- #
 
 
 class InboxScanInput(BaseModel):
-    """Eingabe des Sichtungs-Workflows. Fenster in Tagen — Gmail-Suche kennt keine Stunden."""
+    """Input of the triage workflow. The window is in days — Gmail search knows no hours."""
 
     window_days: int = Field(
-        default=1, description="Zeitfenster in Tagen für beide Pässe (Inbox und Sent)."
+        default=1, description="Time window in days, for both passes (inbox and sent)."
     )
-    max_threads: int = Field(default=50, description="Höchstens so viele Inbox-Threads sichten.")
+    max_threads: int = Field(default=50, description="Triage at most this many inbox threads.")
     max_unsub: int = Field(
-        default=15, description="Höchstens so viele Bodies für Abmeldelinks holen."
+        default=15, description="Fetch at most this many bodies for unsubscribe links."
     )
     second_review: bool = Field(
         default=True,
@@ -72,79 +76,79 @@ class InboxScanInput(BaseModel):
 
 
 class SenderStatsInput(BaseModel):
-    """Eingabe der Absender-Statistik — reine Arithmetik, kein Modell."""
+    """Input of the sender statistic — pure arithmetic, no model."""
 
-    window_days: int = Field(default=90, description="Zeitfenster in Tagen.")
+    window_days: int = Field(default=90, description="Time window in days.")
     query: str | None = Field(
         default=None,
         description=(
-            "Gmail-Suchausdruck. Default: '-in:sent newer_than:<n>d' — alles Empfangene, "
-            "das dich erreicht. Achtung: Spam und Trash sind von der Suche "
-            "standardmäßig AUSGESCHLOSSEN (live verifiziert); 'in:anywhere' holt sie."
+            "Gmail search expression. Default: '-in:sent newer_than:<n>d' — everything "
+            "received that reaches you. Careful: spam and trash are EXCLUDED from the "
+            "search by default (verified live); 'in:anywhere' includes them."
         ),
     )
-    max_threads: int = Field(default=4000, description="Obergrenze der Durchsicht.")
+    max_threads: int = Field(default=4000, description="Upper bound of the sweep.")
 
 
 # --------------------------------------------------------------------------- #
-# Sichtung — Spiegel des Studio-Agent-Schemas
+# Triage — mirror of the Studio agent schema
 # --------------------------------------------------------------------------- #
 
 
 class InboxReview(BaseModel):
-    """Spiegelt das Antwortschema des Studio-Agents ``Inbox · Review`` exakt."""
+    """Mirrors the answer schema of the Studio agent ``Inbox · Review`` exactly."""
 
     model_config = ConfigDict(extra="forbid")
 
-    type: str                      # newsletter|notification|transaction|invoice_payment|correspondence|other
+    type: str  # newsletter|notification|transaction|invoice_payment|correspondence|other
     needs_reply: bool
-    urgency: str            # today|this_week|whenever
-    subscription_group: str = ""          # sender cluster, "" if not applicable
-    finance_type: str = "none"   # invoice|reminder|direct_debit|confirmation|none
-    betrag: str = ""
-    due_date: str = ""         # YYYY-MM-DD oder ""
+    urgency: str  # today|this_week|whenever
+    subscription_group: str = ""  # sender cluster, "" if not applicable
+    finance_type: str = "none"  # invoice|reminder|direct_debit|confirmation|none
+    amount: str = ""
+    due_date: str = ""  # YYYY-MM-DD or ""
     context_for_vibe: str = ""
     reasoning: str = ""
 
 
 # --------------------------------------------------------------------------- #
-# Report-Bausteine
+# Report building blocks
 # --------------------------------------------------------------------------- #
 
 
 class ReplyItem(BaseModel):
-    """Eine Mail, die eine Antwort von Sebastian erwartet — inklusive Antwort-Zustand."""
+    """A mail awaiting a reply — including the reply state."""
 
     sender: str
     subject: str
     urgency: str
     reasoning: str
-    beantwortet: bool  # Empfänger steht im Sent-Fenster — er hat wohl schon geantwortet
+    answered: bool  # the recipient is in the sent window — probably already answered
 
 
 class FinanceItem(BaseModel):
-    """Eine Mail mit Geldfluss — erkannt, nicht verbucht."""
+    """A mail with money in it — recognised, not booked."""
 
     sender: str
     subject: str
-    art: str
-    betrag: str
+    kind: str
+    amount: str
     due_date: str
 
 
 class UnsubCandidate(BaseModel):
-    """Ein Abmeldelink, deterministisch aus dem HTML gezogen — kein Modell."""
+    """An unsubscribe link, pulled deterministically out of the HTML — no model."""
 
     sender: str
     subject: str
     thread_id: str
-    url: str  # https-Link oder mailto:
+    url: str  # https link or mailto:
 
 
 class ReviewItem(BaseModel):
-    """Eine gesichtete Mail mit ihrer Einordnung — der volle Per-Mail-Befund."""
+    """One triaged mail with its classification — the full per-mail finding."""
 
-    thread_id: str = ""  # Gmail-Thread-ID — der Aufräum-Plan greift darüber zu
+    thread_id: str = ""  # Gmail thread ID — the cleanup plan addresses it through this
     sender: str
     subject: str
     received_on: date | None
@@ -153,32 +157,32 @@ class ReviewItem(BaseModel):
 
 
 class InboxScanReport(BaseModel):
-    """Ergebnis eines Sichtungs-Laufs — reine Daten, nichts wurde verändert."""
+    """Result of a triage run — pure data, nothing was changed."""
 
     window_days: int
     inbox_found: int
-    skipped_no_messages: int  # Threads, die ohne Umschlag kamen — schwankt pro Lauf (26–57)
-    own_replies: int    # Threads im Posteingang, in denen er das letzte Wort hatte
+    skipped_no_messages: int  # threads that came without an envelope — varies per run (26–57)
+    own_replies: int  # threads in the inbox where he had the last word
     pages: int
-    second_review_count: int = 0  # wie viele Sichtungen die zweite Stufe geprüft hat
-    second_review_changed: int = 0  # wie oft sie das Ergebnis TATSÄCHLICH geändert hat (Kill-Switch)
+    second_review_count: int = 0  # how many reviews the second stage checked
+    second_review_changed: int = 0  # how often it ACTUALLY changed the result (kill switch)
     type_counts: dict[str, int] = Field(default_factory=dict)
     subscription_groups: dict[str, int] = Field(default_factory=dict)
     needs_reply: list[ReplyItem] = Field(default_factory=list)
-    finanzen: list[FinanceItem] = Field(default_factory=list)
-    kontext: list[str] = Field(default_factory=list)
+    finance: list[FinanceItem] = Field(default_factory=list)
+    context: list[str] = Field(default_factory=list)
     unsub_links: list[UnsubCandidate] = Field(default_factory=list)
     sent: list[SentEnvelope] = Field(default_factory=list)
     reviews: list[ReviewItem] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
-# Absender-Statistik — die falsifizierbare Abbestell-Grundlage
+# Sender statistic — the falsifiable basis for unsubscribing
 # --------------------------------------------------------------------------- #
 
 
 class SenderItem(BaseModel):
-    """Ein Absender mit Mails und ungelesenen im Fenster — Arithmetik, keine Meinung."""
+    """One sender with mails and unread in the window — arithmetic, not an opinion."""
 
     sender: str
     mails: int
@@ -186,7 +190,7 @@ class SenderItem(BaseModel):
 
 
 class SenderStats(BaseModel):
-    """Ergebnis des Absender-Durchlaufs: Rangfolge nach Lärm, nicht nach Gefühl."""
+    """Result of the sender sweep: ranked by noise, not by feeling."""
 
     window_days: int
     query: str
@@ -197,26 +201,26 @@ class SenderStats(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# Aufräumen — Stufe 2/3 der Sicherheitsleiter, nur mit Freigabe pro Lauf
+# Cleanup — level 2/3 of the safety ladder, only with approval per run
 # --------------------------------------------------------------------------- #
 
 
 class CleanupAction(BaseModel):
-    """Was mit EINEM Thread passieren soll, aus seiner Sichtung abgeleitet."""
+    """What should happen to ONE thread, derived from its review."""
 
     thread_id: str
-    aktion: str  # laerm | finanzen | antwort | behalten
+    action: str  # noise | finance | reply | keep
     sender: str
     subject: str
 
 
 class CleanupResult(BaseModel):
-    """Was der Lauf tatsächlich getan hat — die Quittung pro Aktion."""
+    """What the run actually did — the receipt, per action."""
 
-    archiviert: int = 0
-    gelesen: int = 0
-    gelabelt_finanzen: int = 0
-    gelabelt_antwort: int = 0
+    archived: int = 0
+    marked_read: int = 0
+    labelled_finance: int = 0
+    labelled_reply: int = 0
     mailto_drafts: int = 0
-    fehler: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
     skipped: int = 0

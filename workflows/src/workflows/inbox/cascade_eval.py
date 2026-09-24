@@ -1,23 +1,23 @@
-"""Ende-zu-Ende-Eval der Inbox-Cascade — nicht der einzelnen Agenten.
+"""End-to-end eval of the inbox cascade — not of the individual agents.
 
-Die Stufen einzeln zu messen (``make inbox-eval``) sagt, was small und medium
-könnten. Die Cascade ist aber ein eigenes System mit eigenem Fehlerprofil:
+Measuring the stages separately (``make inbox-eval``) says what small and
+medium could do. But the cascade is a system of its own with its own failure
+profile:
 
-- Small liegt richtig, eskaliert trotzdem → medium kann Richtiges
-  verschlimmern (medium selbst trifft nur ~91 %).
-- Small liegt falsch, OHNE dass die Eskalationsregel greift → der Fehler
-  bleibt stehen.
-- Die Eskalationsregel selbst ist im Verbund ungetestet.
+- Small is right and escalates anyway → medium can make correct things worse
+  (medium itself only hits ~91 %).
+- Small is wrong WITHOUT the escalation rule firing → the error stands.
+- The escalation rule itself is untested in the assembly.
 
-Dieses Eval fährt den ECHTEN Ablauf je Fall — First stage (small, so wie er in
-``agents/inbox-review.json`` konfiguriert ist), Eskalationsentscheidung aus
-``escalation.needs_second_review``, Second stage (medium, ``agents/inbox-
-zweitblick.json``), Second stage gewinnt — und prüft das Endergebnis gegen
-denselben Fallkatalog. Zum Vergleich laufen First stage-allein und
-Second stage-allein mit, denn die eigentliche Frage lautet: Was kauft die
-Cascade gegenüber „medium auf alles", und was kostet sie an Qualität?
+This eval runs the REAL flow per case — first stage (small, exactly as
+configured in ``agents/inbox-review.json``), the escalation decision from
+``escalation.needs_second_review``, second stage (medium,
+``agents/inbox-second-review.json``), second stage wins — and checks the final
+result against the same case catalogue. For comparison, first-stage-alone and
+second-stage-alone run too, because the actual question is: what does the
+cascade buy over "medium on everything", and what does it cost in quality?
 
-    uv run python -m workflows.inbox.cascade_eval --laeufe 2
+    uv run python -m workflows.inbox.cascade_eval --runs 2
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from evalkit.modelle import Fall, bilanziere, pruefe
+from evalkit.models import Case, evaluate, tally
 from evalkit.runner import agent_definition
 from workflows.inbox.escalation import needs_second_review
 from workflows.inbox.models import InboxReview
@@ -41,7 +41,7 @@ REPO = Path(__file__).resolve().parents[4]
 API = "https://api.mistral.ai/v1/chat/completions"
 
 
-def _agent_modus(name: str) -> tuple[str, str, dict]:
+def _agent_setup(name: str) -> tuple[str, str, dict]:
     """(model, instructions, response_schema) of an agent from agents/<name>.json."""
     instructions, schema = agent_definition(REPO, name)
     d = json.loads((REPO / "agents" / f"{name}.json").read_text(encoding="utf-8"))
@@ -50,7 +50,7 @@ def _agent_modus(name: str) -> tuple[str, str, dict]:
 
 @dataclass
 class Stage:
-    """Ein Aufruf einer Cascadenstufe mit ihrer echten Konfiguration."""
+    """One call of a cascade stage with its real configuration."""
 
     name: str
     model: str
@@ -58,13 +58,13 @@ class Stage:
     schema: dict
 
 
-def _rufe(stage: Stage, eingabe: str) -> tuple[dict, int, float]:
+def _call(stage: Stage, text: str) -> tuple[dict, int, float]:
     """One chat-completions call of a stage → (answer dict, tokens, seconds)."""
     body = {
         "model": stage.model,
         "messages": [
             {"role": "system", "content": stage.instructions},
-            {"role": "user", "content": eingabe},
+            {"role": "user", "content": text},
         ],
         "temperature": 0.2,
         "max_tokens": 4000,
@@ -83,8 +83,12 @@ def _rufe(stage: Stage, eingabe: str) -> tuple[dict, int, float]:
     with urllib.request.urlopen(req) as resp:
         d = json.loads(resp.read())
     text = d["choices"][0]["message"]["content"]
-    if isinstance(text, list):  # Thinking-Chunks vor dem Text
-        text = "".join(t.get("text", "") for t in text if isinstance(t, dict) and t.get("type") == "text")
+    if isinstance(text, list):  # thinking chunks before the text
+        text = "".join(
+            t.get("text", "")
+            for t in text
+            if isinstance(t, dict) and t.get("type") == "text"
+        )
     return (
         json.loads(text),
         d.get("usage", {}).get("completion_tokens", 0),
@@ -93,74 +97,77 @@ def _rufe(stage: Stage, eingabe: str) -> tuple[dict, int, float]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Die Inbox-Cascade Ende-zu-Ende messen.")
-    p.add_argument("--faelle", default="shared/inbox/eval-review.json")
-    p.add_argument("--laeufe", type=int, default=1)
+    p = argparse.ArgumentParser(description="Measure the inbox cascade end to end.")
+    p.add_argument("--cases", default="shared/inbox/eval-review.json")
+    p.add_argument("--runs", type=int, default=1)
     args = p.parse_args(argv)
 
     load_dotenv(REPO / "workflows" / ".env")
 
-    first = Stage("inbox-review", *_agent_modus("inbox-review"))
-    second = Stage("inbox-second-review", *_agent_modus("inbox-second-review"))
+    first = Stage("inbox-review", *_agent_setup("inbox-review"))
+    second = Stage("inbox-second-review", *_agent_setup("inbox-second-review"))
     print(f"Cascade: first stage={first.model}, second stage={second.model}")
 
-    faelle = [Fall.from_dict(f) for f in json.loads((REPO / args.faelle).read_text(encoding="utf-8"))]
+    cases = [
+        Case.from_dict(c)
+        for c in json.loads((REPO / args.cases).read_text(encoding="utf-8"))
+    ]
 
-    cascade_results = []      # Endergebnisse der Cascade
-    first_results = []         # First stage allein (Was hat der Second stage repariert/ruiniert?)
+    cascade_results = []  # final results of the cascade
+    first_results = []  # first stage alone (what did the second stage fix or ruin?)
     cascade_tokens = 0
     escalations = 0
 
-    for _ in range(args.laeufe):
-        for fall in faelle:
+    for _ in range(args.runs):
+        for case in cases:
             # Stage 1 — the first stage sees every envelope.
-            antwort, tokens, dauer = _rufe(first, fall.eingabe)
-            review = InboxReview.model_validate(antwort)
-            e1 = pruefe(fall, antwort)
-            e1.tokens, e1.dauer = tokens, dauer
-            first_results.append(e1)
+            answer, tokens, seconds = _call(first, case.input)
+            review = InboxReview.model_validate(answer)
+            r1 = evaluate(case, answer)
+            r1.tokens, r1.seconds = tokens, seconds
+            first_results.append(r1)
             cascade_tokens += tokens
 
             # Stage 2 — the second stage only where the escalation rule fires; it wins.
             if needs_second_review(review):
                 escalations += 1
-                antwort2, tokens2, dauer2 = _rufe(second, fall.eingabe)
+                answer2, tokens2, seconds2 = _call(second, case.input)
                 cascade_tokens += tokens2
-                e2 = pruefe(fall, antwort2)
-                e2.dauer = dauer + dauer2
-                cascade_results.append(e2)
+                r2 = evaluate(case, answer2)
+                r2.seconds = seconds + seconds2
+                cascade_results.append(r2)
             else:
-                e = pruefe(fall, antwort)
-                e.tokens, e.dauer = tokens, dauer
-                cascade_results.append(e)
+                r = evaluate(case, answer)
+                r.tokens, r.seconds = tokens, seconds
+                cascade_results.append(r)
 
-    # Second stage allein auf ALLE Fälle — die Strategie, gegen die sich die
-    # Cascade behaupten muss (medium auf alles: teurer, aber ohne Small-Fehler).
+    # Second stage alone on ALL cases — the strategy the cascade has to beat
+    # (medium on everything: more expensive, but without small's mistakes).
     second_alone = []
-    for _ in range(args.laeufe):
-        for fall in faelle:
-            antwort, tokens, dauer = _rufe(second, fall.eingabe)
-            e = pruefe(fall, antwort)
-            e.tokens, e.dauer = tokens, dauer
-            second_alone.append(e)
+    for _ in range(args.runs):
+        for case in cases:
+            answer, tokens, seconds = _call(second, case.input)
+            r = evaluate(case, answer)
+            r.tokens, r.seconds = tokens, seconds
+            second_alone.append(r)
 
-    gesamt = len(faelle) * args.laeufe
-    print(f"\n{gesamt} Fälle · Eskalationen: {escalations} ({escalations / gesamt:.0%})\n")
-    for name, ergebnisse, tokens in (
-        ("first review alone (small)", first_results, sum(e.tokens for e in first_results)),
-        ("second review alone (medium)", second_alone, sum(e.tokens for e in second_alone)),
+    total = len(cases) * args.runs
+    print(f"\n{total} cases · escalations: {escalations} ({escalations / total:.0%})\n")
+    for name, results, tokens in (
+        ("first review alone (small)", first_results, sum(r.tokens for r in first_results)),
+        ("second review alone (medium)", second_alone, sum(r.tokens for r in second_alone)),
         ("CASCADE (final)", cascade_results, cascade_tokens),
     ):
-        b = bilanziere(name, faelle * args.laeufe, ergebnisse)
-        b.tokens = tokens
-        print("  " + b.als_zeile())
+        summary = tally(name, cases * args.runs, results)
+        summary.tokens = tokens
+        print("  " + summary.as_line())
 
-    print("\nVerpasst/Getappt der Cascade:")
-    for e in cascade_results:
-        for v in e.verpasst:
-            print(f"  ○ {e.fall_id}: verpasst {v}")
-        for f in e.fehltritte:
-            print(f"  ✗ {e.fall_id}: Falle {f}")
+    print("\nMissed / trapped by the cascade:")
+    for r in cascade_results:
+        for m in r.missed:
+            print(f"  ○ {r.case_id}: missed {m}")
+        for t in r.trapped:
+            print(f"  ✗ {r.case_id}: trap {t}")
     return 0
 
 

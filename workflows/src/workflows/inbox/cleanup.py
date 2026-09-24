@@ -1,47 +1,47 @@
-"""Der Aufräum-Plan — aus der Sichtung folgt, was in Gmail passiert.
+"""The cleanup plan — what happens in Gmail follows from the triage.
 
-Deterministisch und damit testbar: Der Plan ist reine Mathematik über den
-Sichtungen, keine Modell-Entscheidung zur Laufzeit. Die gefährliche Richtung
-ist das OVER-archivieren: Eine Mail, die Antwort oder Geld verlangt, darf nie
-im Lärm landen — deshalb prüft die Regel ``needs_reply`` und
-``finance_type`` VOR der Typ-Zugehörigkeit. Der Plan läuft ausschließlich
-hinter einer Freigabe pro Sitzung; er wird nie still angewendet.
+Deterministic and therefore testable: the plan is pure arithmetic over the
+reviews, not a model decision at runtime. The dangerous direction is
+OVER-archiving: a mail that wants a reply or involves money must never end up
+in the noise — which is why the rule checks ``needs_reply`` and
+``finance_type`` BEFORE the type. The plan only ever runs behind a per-session
+approval; it is never applied silently.
 """
 
 from __future__ import annotations
 
 from workflows.inbox.models import CleanupAction, ReviewItem
 
-# Diese Typen sind Lärm — NUR solange keine Antwort und kein Geld im Spiel ist.
+# These types are noise — ONLY as long as no reply and no money is involved.
 NOISE_TYPES = {"newsletter", "notification", "transaction"}
 
-NOISE = "laerm"           # archivieren + gelesen + verarbeitet-Label
-FINANCE = "finanzen"      # Label labels.finance, bleibt ungelesen im Posteingang
-NEEDS_REPLY = "antwort"        # Label labels.needs_reply, bleibt ungelesen
-KEEP = "behalten"      # keine Aktion — der unsichere Rest bleibt, wo er ist
+NOISE = "noise"            # archive + mark read + processed label
+FINANCE = "finance"        # label labels.finance, stays unread in the inbox
+NEEDS_REPLY = "reply"      # label labels.needs_reply, stays unread
+KEEP = "keep"              # no action — the uncertain rest stays where it is
 
 
 def cleanup_plan(reviews: list[ReviewItem]) -> list[CleanupAction]:
-    """Eine Sichtung → eine Aktion pro Thread."""
+    """One review → one action per thread."""
     plan: list[CleanupAction] = []
     for r in reviews:
         if r.review.needs_reply:
-            aktion = NEEDS_REPLY
+            action = NEEDS_REPLY
         elif r.review.finance_type != "none" or r.review.type == "invoice_payment":
-            # Der Typ selbst zählt als Signal: Eine Mail, die der Erstblick für
-            # Geldfluss hielt, wird nie nach Lärm-Logik behandelt — auch wenn
-            # das finance_type-Feld leer blieb (widersprüchliche Sichtung).
-            aktion = FINANCE
+            # The type itself counts as a signal: a mail the first stage took
+            # for money is never handled by noise logic — even when the
+            # finance_type field stayed empty (a contradictory review).
+            action = FINANCE
         elif r.review.type in NOISE_TYPES:
-            aktion = NOISE
+            action = NOISE
         elif r.review.type == "correspondence":
-            aktion = NEEDS_REPLY  # ein Mensch hat geschrieben — nie Lärm, auch ohne Frist
+            action = NEEDS_REPLY  # a human wrote — never noise, deadline or not
         else:
-            aktion = KEEP
+            action = KEEP
         plan.append(
             CleanupAction(
                 thread_id=r.thread_id,
-                aktion=aktion,
+                action=action,
                 sender=r.sender,
                 subject=r.subject,
             )
@@ -49,19 +49,23 @@ def cleanup_plan(reviews: list[ReviewItem]) -> list[CleanupAction]:
     return plan
 
 
-def cleanup_summary(plan: list[CleanupAction]) -> str:
-    """Der Plan als ein Satz — für die Bestätigung vor dem Aufräumen."""
-    laerm = [a for a in plan if a.aktion == NOISE]
-    finanzen = [a for a in plan if a.aktion == FINANCE]
-    antwort = [a for a in plan if a.aktion == NEEDS_REPLY]
-    behalten = [a for a in plan if a.aktion == KEEP]
-    teile = []
-    if laerm:
-        teile.append(f"{len(laerm)} archivieren + gelesen setzen")
-    if finanzen:
-        teile.append(f"{len(finanzen)} behalten (label inbox/finance)")
-    if antwort:
-        teile.append(f"{len(antwort)} behalten (label inbox/needs-reply)")
-    if behalten:
-        teile.append(f"{len(behalten)} unangetastet")
-    return ", ".join(teile) if teile else "nichts zu tun"
+def cleanup_summary(plan: list[CleanupAction], labels: dict[str, str]) -> str:
+    """The plan in one sentence — for the confirmation before cleaning up.
+
+    ``labels`` comes from the configuration so that the preview names the same
+    labels the run will actually apply. German, because the author reads it.
+    """
+    noise = [a for a in plan if a.action == NOISE]
+    finance = [a for a in plan if a.action == FINANCE]
+    reply = [a for a in plan if a.action == NEEDS_REPLY]
+    keep = [a for a in plan if a.action == KEEP]
+    parts = []
+    if noise:
+        parts.append(f"{len(noise)} archivieren + gelesen setzen")
+    if finance:
+        parts.append(f"{len(finance)} behalten (Label {labels['finance']})")
+    if reply:
+        parts.append(f"{len(reply)} behalten (Label {labels['needs_reply']})")
+    if keep:
+        parts.append(f"{len(keep)} unangetastet")
+    return ", ".join(parts) if parts else "nichts zu tun"

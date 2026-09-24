@@ -1,26 +1,28 @@
-"""Die Sprechstunde — der Sichtungs-Lauf als Gespräch in Le Chat und Vibe Work.
+"""The consultation — the triage run as a conversation in Le Chat and Vibe Work.
 
-``inbox-scan`` ist stumm: Parameter rein, Report raus. Diese Hülle darum ist
-der Ort, an dem man mit dem Ergebnis arbeitet. Sie fragt die Konfiguration im
-Gespräch ab (kein Eingabeschema — Gotcha 11: sonst fällt Le Chat auf einen
-rohen JSON-Editor zurück), zeigt den Fortschritt live in einer TodoList
-(Gotcha 12: sie umschließt die GANZE Sitzung, sonst sieht sie niemand), lässt
-den Scan als Kindworkflow laufen (eigene Historie, in Studio aufklappbar),
-zeigt das Ergebnis im Canvas und legt das Dossier in die Library — der
-Zustellweg, über den Vibe es in jeder Sitzung im Kontext hat.
+``inbox-scan`` is mute: parameters in, report out. This shell around it is
+where one works with the result. It asks for the configuration in the
+conversation (no input schema — gotcha 11: otherwise Le Chat falls back to a
+raw JSON editor), shows progress live in a TodoList (gotcha 12: it wraps the
+WHOLE session, otherwise nobody sees it), runs the scan as a child workflow
+(its own history, expandable in Studio), shows the result in a canvas and puts
+the dossier into the library — the delivery route through which Vibe has it in
+context in every session.
 
-  Konfiguration     Formular: Fenster · Zweitblick an/aus
-    ↓  TodoList     konfigurieren → scannen → ergebnis → abos → abschluss
-  inbox-scan        Kindworkflow mit der gewählten Konfiguration
-    ↓  Canvas       der volle Report als Markdown-Dokument
-  Abo-Ansicht       Abmeldelinks der gewählten Gruppe — zum Klicken
-  inbox-senders    optional: die 90-Tage-Absenderstatistik (Kindworkflow)
-    ↓  Library      Dossier „Inbox · Kontext, Stand <datum>" — Zustellweg für Vibe
+  configuration     form: window · second stage on/off
+    ↓  TodoList     configure → scan → result → cleanup → finish
+  inbox-scan        child workflow with the chosen configuration
+    ↓  canvas       the full report as a Markdown document
+  unsubscribe view  unsubscribe links of the chosen group — to click
+  inbox-senders     optional: the 90-day sender statistic (child workflow)
+    ↓  library      dossier "Inbox · Kontext, Stand <date>" — the route for Vibe
 
-Geschrieben wird in Gmail nichts — auch diese Sitzung ist ein Dry run. Labels
-und Drafts sind die nächste Stufe mit eigener Freigabe.
+Writing to Gmail happens only behind the explicit approval in the cleanup step,
+never silently. The connector cannot send at all.
 
-Starten: in Le Chat / Vibe Work den Workflow wählen, oder
+The user-facing strings are German: the author reads them.
+
+Start it by choosing the workflow in Le Chat / Vibe Work, or
   make inbox-review
 """
 
@@ -45,331 +47,342 @@ with workflow.unsafe.imports_passed_through():
     )
     from workflows.inbox.library import store_dossier
 
+from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # noqa: E402
+
 from workflows.crm.connectors import gmail_connector  # noqa: E402
-from workflows.inbox.unsubscribe import ist_mailto  # noqa: E402
-from workflows.inbox.senders import InboxSendersWorkflow  # noqa: E402
-from workflows.inbox.cleanup import NOISE, cleanup_plan, cleanup_summary  # noqa: E402
-from workflows.inbox.render import dossier, headline, report_as_markdown  # noqa: E402
+from workflows.inbox import config  # noqa: E402
+from workflows.inbox.cleanup import (  # noqa: E402
+    FINANCE,
+    KEEP,
+    NOISE,
+    cleanup_plan,
+    cleanup_summary,
+)
 from workflows.inbox.models import (  # noqa: E402
-    SenderStats,
     CleanupResult,
     InboxScanInput,
     InboxScanReport,
+    SenderStats,
 )
+from workflows.inbox.render import dossier, headline, report_as_markdown  # noqa: E402
 from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
-from workflows.inbox import config  # noqa: E402
-from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # noqa: E402
+from workflows.inbox.senders import InboxSendersWorkflow  # noqa: E402
+from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 
-# Das Fenster als Auswahl — die Erklärung steht in der Workflow-Beschreibung,
-# nicht in der Auswahlzeile (im Dropdown wird sie abgeschnitten).
-FENSTER = [("1", "Heute (1 Tag)"), ("3", "3 Tage"), ("7", "7 Tage")]
+# The window as a choice — the explanation belongs in the workflow description,
+# not in the option line (in a dropdown it gets truncated).
+WINDOWS = [("1", "Heute (1 Tag)"), ("3", "3 Tage"), ("7", "7 Tage")]
 SECOND_REVIEW = [
-    ("on", "Second review on (medium re-checks critical cases)"),
-    ("off", "Second review off (small only — faster, unverified)"),
+    ("on", "Zweitblick an (medium prüft kritische Fälle nach)"),
+    ("off", "Zweitblick aus (nur Erstblick — schneller, ungeprüft)"),
 ]
 
-# Sichtungs-Obergrenze pro Lauf — im Fenster können deutlich mehr Threads
-# liegen, als jemand sichten will.
-LIMIT = [("25", "25 Mails"), ("50", "50 Mails"), ("100", "100 Mails")]
+# Triage ceiling per run — the window can hold considerably more threads than
+# anyone wants to go through.
+LIMITS = [("25", "25 Mails"), ("50", "50 Mails"), ("100", "100 Mails")]
 
 
-def _konfiguration() -> type[wf_chat.FormInput]:
-    class Konfiguration(wf_chat.FormInput):
-        fenster: str = wf_chat.SingleChoice(
-            options=FENSTER, description="Welches Fenster?", prefilled_value="1"
+def _configuration() -> type[wf_chat.FormInput]:
+    class Configuration(wf_chat.FormInput):
+        window: str = wf_chat.SingleChoice(
+            options=WINDOWS, description="Welches Fenster?", prefilled_value="1"
         )
         second_review: str = wf_chat.SingleChoice(
             options=SECOND_REVIEW, description="Kaskade?", prefilled_value="on"
         )
         limit: str = wf_chat.SingleChoice(
-            options=LIMIT, description="Höchstens so viele Mails sichten?", prefilled_value="50"
+            options=LIMITS,
+            description="Höchstens so viele Mails sichten?",
+            prefilled_value="50",
         )
 
-    return Konfiguration
+    return Configuration
 
 
-def _weiter() -> type[wf_chat.FormInput]:
-    """Was nach dem Ergebnis? Eine Ansicht zur Zeit — kein Menü aus allem."""
+def _next_view() -> type[wf_chat.FormInput]:
+    """What after the result? One view at a time — not a menu of everything."""
 
-    class Weiter(wf_chat.FormInput):
-        wahl: str = wf_chat.SingleChoice(
+    class NextView(wf_chat.FormInput):
+        choice: str = wf_chat.SingleChoice(
             options=[
-                ("abos", "Abbestell-Kandidaten ansehen"),
-                ("statistik", "Absender-Statistik über 90 Tage"),
-                ("fertig", "Fertig — Dossier ablegen"),
+                ("unsub", "Abbestell-Kandidaten ansehen"),
+                ("stats", "Absender-Statistik über 90 Tage"),
+                ("done", "Fertig — Dossier ablegen"),
             ],
             description="Weiter?",
-            prefilled_value="fertig",
+            prefilled_value="done",
         )
 
-    return Weiter
+    return NextView
 
 
-def _abo_auswahl(report: InboxScanReport) -> type[wf_chat.FormInput]:
-    gruppen = list(report.subscription_groups)[:20]
+def _group_choice(report: InboxScanReport) -> type[wf_chat.FormInput]:
+    groups = list(report.subscription_groups)[:20]
 
-    class AboAuswahl(wf_chat.FormInput):
-        gruppe: str = wf_chat.SingleChoice(
-            options=[(g, f"{g} ({report.subscription_groups[g]})") for g in gruppen],
+    class GroupChoice(wf_chat.FormInput):
+        group: str = wf_chat.SingleChoice(
+            options=[(g, f"{g} ({report.subscription_groups[g]})") for g in groups],
             description="Welche Gruppe?",
-            prefilled_value=gruppen[0] if gruppen else "",
+            prefilled_value=groups[0] if groups else "",
         )
 
-    return AboAuswahl
+    return GroupChoice
 
 
-def _markdown_nachricht(inhalt: str) -> list:
-    """Eine Nachricht mit Markdown-Komponente — die Form aus book-editing."""
+def _markdown_message(content: str) -> list:
+    """A message with a Markdown component — the shape from book-editing."""
     return [
         wf_mistral.ResourceOutput(
-            resource=wf_mistral.UIComponentResource(component=Markdown(content=inhalt))
+            resource=wf_mistral.UIComponentResource(component=Markdown(content=content))
         )
     ]
 
 
 @workflows.workflow.define(
     name="inbox-review",
-    on_behalf_of=True,  # der Kindworkflow (inbox-scan) braucht die Gmail-OAuth
+    on_behalf_of=True,  # the child workflow (inbox-scan) needs the Gmail OAuth
     workflow_display_name="Inbox · Review (conversational)",
     workflow_description=(
         "Der Sichtungs-Lauf als Gespräch: Konfiguration im Chat wählen, "
         "inbox-scan läuft als Kindworkflow mit Fortschritt, das Ergebnis steht "
         "im Canvas, Abbestell-Links und Absender-Statistik sind eine Ansicht "
-        "entfernt — und das Dossier für Vibe landet in der Library. "
-        "Dry run — nichts wird in Gmail verändert."
+        "entfernt — und das Dossier für Vibe landet in der Library. Aufgeräumt "
+        "wird nur nach ausdrücklicher Freigabe; gesendet wird nie."
     ),
 )
 @uses_connectors(gmail_connector)
 class InboxReviewWorkflow(workflows.InteractiveWorkflow):
     @workflows.workflow.entrypoint
     async def run(self) -> wf_mistral.ChatAssistantWorkflowOutput:
-        schritt = {
-            "konfigurieren": wf_chat.TodoListItem(title="Konfiguration"),
-            "scannen": wf_chat.TodoListItem(title="Sichtung laufen lassen"),
-            "ergebnis": wf_chat.TodoListItem(title="Ergebnis & Ansichten"),
-            "aufräumen": wf_chat.TodoListItem(title="Aufräumen (mit Freigabe)"),
-            "abschluss": wf_chat.TodoListItem(title="Dossier in die Library"),
+        step = {
+            "configure": wf_chat.TodoListItem(title="Konfiguration"),
+            "scan": wf_chat.TodoListItem(title="Sichtung laufen lassen"),
+            "result": wf_chat.TodoListItem(title="Ergebnis & Ansichten"),
+            "cleanup": wf_chat.TodoListItem(title="Aufräumen (mit Freigabe)"),
+            "finish": wf_chat.TodoListItem(title="Dossier in die Library"),
         }
-        # Gotcha 12: Die TodoList umschließt die GANZE Sitzung, inklusive der
-        # Wartezeiten auf Eingaben — sonst ist sie weg, bevor jemand hinsieht.
-        async with wf_chat.TodoList(items=list(schritt.values())):
-            return await self._sitzung(schritt)
+        # Gotcha 12: the TodoList wraps the WHOLE session, waiting times for
+        # input included — otherwise it is gone before anyone looks.
+        async with wf_chat.TodoList(items=list(step.values())):
+            return await self._session(step)
 
-    async def _sitzung(
-        self, schritt: dict[str, wf_chat.TodoListItem]
+    async def _session(
+        self, step: dict[str, wf_chat.TodoListItem]
     ) -> wf_mistral.ChatAssistantWorkflowOutput:
-        # --- Konfiguration -----------------------------------------------
-        async with schritt["konfigurieren"]:
+        # --- configuration ------------------------------------------------
+        async with step["configure"]:
             await wf_mistral.send_assistant_message(
                 "Wie soll der Sichtungs-Lauf konfiguriert werden? Der Zweitblick "
                 "(medium) prüft Antwortbedarf, Finanzen und Korrespondenz nach — "
                 "ohne ihn sichtet nur der Erstblick (small)."
             )
-            konfig = await self.wait_for_input(
-                _konfiguration(), label="Fenster und Kaskade", timeout=timedelta(hours=8)
+            chosen = await self.wait_for_input(
+                _configuration(), label="Fenster und Kaskade", timeout=timedelta(hours=8)
             )
-            fenster = int(konfig.fenster)
-            limit = int(konfig.limit)
-            second_review = konfig.second_review == "on"
+            window = int(chosen.window)
+            limit = int(chosen.limit)
+            second_review = chosen.second_review == "on"
 
-        # --- Scan als Kindworkflow ---------------------------------------
-        async with schritt["scannen"]:
-            roh = await workflows.workflow.execute_workflow(
+        # --- scan as a child workflow -------------------------------------
+        async with step["scan"]:
+            raw = await workflows.workflow.execute_workflow(
                 InboxScanWorkflow,
                 params=InboxScanInput(
-                    window_days=fenster, max_threads=limit, second_review=second_review
+                    window_days=window, max_threads=limit, second_review=second_review
                 ),
                 execution_timeout=timedelta(minutes=15),
             )
             report = InboxScanReport.model_validate(
-                roh if isinstance(roh, dict) else roh.model_dump()
+                raw if isinstance(raw, dict) else raw.model_dump()
             )
 
-        # --- Ergebnis: Ansichten im Chat, alles im Canvas ----------------
-        async with schritt["ergebnis"]:
+        # --- result: views in the chat, everything in the canvas ----------
+        async with step["result"]:
             await wf_mistral.send_assistant_message(f"{headline(report)}")
             while True:
-                wahl = await self.wait_for_input(
-                    _weiter(), label="Ansicht", timeout=timedelta(hours=8)
+                view = await self.wait_for_input(
+                    _next_view(), label="Ansicht", timeout=timedelta(hours=8)
                 )
-                if wahl.wahl == "abos":
-                    await self._abos(report)
-                elif wahl.wahl == "statistik":
-                    await self._statistik()
+                if view.choice == "unsub":
+                    await self._unsub_view(report)
+                elif view.choice == "stats":
+                    await self._sender_stats_view()
                 else:
                     break
 
-        # --- Aufräumen: Stufe 2/3, NUR mit Freigabe pro Sitzung ----------
-        async with schritt["aufräumen"]:
-            aufgeraeumt = await self._aufräumen(report)
+        # --- cleanup: level 2/3, ONLY with approval per session -----------
+        async with step["cleanup"]:
+            cleaned = await self._clean_up(report)
 
-        # --- Abschluss: Dossier in die Library, Canvas als Gabe ----------
-        async with schritt["abschluss"]:
-            heute = date.fromisoformat(await get_today())
-            ablage = await store_dossier(
-                name=f"inbox-context-{heute.isoformat()}.md",
-                text=dossier(report, heute.isoformat()),
+        # --- finish: dossier into the library, canvas as the parting gift --
+        async with step["finish"]:
+            today = date.fromisoformat(await get_today())
+            stored = await store_dossier(
+                name=f"inbox-context-{today.isoformat()}.md",
+                text=dossier(report, today.isoformat()),
             )
 
-        inhalt: list = [
+        content: list = [
             wf_mistral.TextOutput(
                 text=(
                     f"{headline(report)}\n\n"
                     + (
-                        f"Aufgeräumt: {aufgeraeumt.archiviert} archiviert + gelesen, "
-                        f"{aufgeraeumt.gelabelt_finanzen}× {config.LABELS['finance']}, "
-                        f"{aufgeraeumt.gelabelt_antwort}× {config.LABELS['needs_reply']}, "
-                        f"{aufgeraeumt.mailto_drafts} Abmeldungs-Draft(s).\n\n"
-                        if aufgeraeumt.archiviert or aufgeraeumt.gelabelt_finanzen
-                        or aufgeraeumt.gelabelt_antwort or aufgeraeumt.mailto_drafts
+                        f"Aufgeräumt: {cleaned.archived} archiviert + gelesen, "
+                        f"{cleaned.labelled_finance}× {config.LABELS['finance']}, "
+                        f"{cleaned.labelled_reply}× {config.LABELS['needs_reply']}, "
+                        f"{cleaned.mailto_drafts} Abmeldungs-Draft(s).\n\n"
+                        if cleaned.archived or cleaned.labelled_finance
+                        or cleaned.labelled_reply or cleaned.mailto_drafts
                         else ""
                     )
-                    + f"Dossier abgelegt: **{ablage['name']}** — Vibe hat es "
+                    + f"Dossier abgelegt: **{stored['name']}** — Vibe hat es "
                     "damit in jeder Sitzung im Kontext."
                 )
             ),
             wf_mistral.ResourceOutput(
                 resource=wf_mistral.CanvasResource(
-                    uri=f"file://inbox/sichtung-{heute.isoformat()}",
+                    uri=f"file://inbox/triage-{today.isoformat()}",
                     readonly=True,
                     canvas=wf_mistral.CanvasPayload(
                         type="text/markdown",
-                        title=f"Inbox · Sichtung ({fenster} Tage)",
+                        title=f"Inbox · Sichtung ({window} Tage)",
                         content=report_as_markdown(report),
                     ),
                 )
             ),
         ]
         return wf_mistral.ChatAssistantWorkflowOutput(
-            content=inhalt,
+            content=content,
             structuredContent={
                 "report": report.model_dump(mode="json"),
-                "aufgeraeumt": aufgeraeumt.model_dump(mode="json"),
+                "cleaned": cleaned.model_dump(mode="json"),
             },
         )
 
-    async def _aufräumen(self, report: InboxScanReport) -> CleanupResult:
-        """Der Plan steht fest (deterministisch), die Freigabe kommt von dir.
+    async def _clean_up(self, report: InboxScanReport) -> CleanupResult:
+        """The plan is fixed (deterministic), the approval comes from you.
 
-        Stufe 2/3 der Sicherheitsleiter: Lärm archivieren + gelesen setzen,
-        Finanzen/Antworten labeln (bleiben ungelesen), mailto-Abmeldungen als
-        Draft. Ohne Freigabe passiert nichts — auch nicht teilweise.
+        Level 2/3 of the safety ladder: archive noise and mark it read, label
+        finance and replies (they stay unread), prepare mailto unsubscribes as
+        drafts. Without approval nothing happens — not even partially.
         """
         plan = cleanup_plan(report.reviews)
-        mailto = [u for u in report.unsub_links if ist_mailto(u.url)]
-        vorschau = cleanup_summary(plan)
+        mailto = [u for u in report.unsub_links if is_mailto(u.url)]
+        preview = cleanup_summary(plan, config.LABELS)
         if mailto:
-            vorschau += f", {len(mailto)} Abmeldungs-Draft(s) vorbereiten"
-        if vorschau == "nichts zu tun":
+            preview += f", {len(mailto)} Abmeldungs-Draft(s) vorbereiten"
+        if preview == "nichts zu tun":
             await wf_mistral.send_assistant_message("Nichts aufzuräumen — das Fenster trägt.")
             return CleanupResult()
 
         await wf_mistral.send_assistant_message(
-            f"Der Plan: {vorschau}. Gesendet wird nichts — Drafts und Labels nur."
+            f"Der Plan: {preview}. Gesendet wird nichts — Drafts und Labels nur."
         )
-        wahl = await self.wait_for_input(
+        answer = await self.wait_for_input(
             wf_chat.ConfirmationInput(
                 options=[
-                    ("aufräumen", "Aufräumen wie geplant"),
-                    ("nur_labeln", "Nur labeln — nichts archivieren"),
-                    ("nichts", "Nichts verändern"),
+                    ("clean", "Aufräumen wie geplant"),
+                    ("label_only", "Nur labeln — nichts archivieren"),
+                    ("nothing", "Nichts verändern"),
                 ],
                 description="Aufräumen: freigeben?",
             ),
             label="Freigabe",
             timeout=timedelta(hours=8),
         )
-        modus = getattr(wahl, "choice", None) or getattr(wahl, "value", "nichts")
-        if modus == "nichts":
+        mode = getattr(answer, "choice", None) or getattr(answer, "value", "nothing")
+        if mode == "nothing":
             return CleanupResult(skipped=len(plan))
 
-        archivieren = modus == "aufräumen"
-        # Die Namen stehen in shared/inbox.json, nicht hier (Goldregel 2) —
-        # sonst laeuft der Plan gegen andere Labels als der Report behauptet.
-        label_verarbeitet = await gmail_ensure_label(name=config.LABELS["processed"])
-        label_finanzen = await gmail_ensure_label(name=config.LABELS["finance"])
-        label_antwort = await gmail_ensure_label(name=config.LABELS["needs_reply"])
+        archive = mode == "clean"
+        # The names come from shared/inbox.json, not from here (golden rule 2) —
+        # otherwise the plan runs against different labels than the report claims.
+        label_processed = await gmail_ensure_label(name=config.LABELS["processed"])
+        label_finance = await gmail_ensure_label(name=config.LABELS["finance"])
+        label_reply = await gmail_ensure_label(name=config.LABELS["needs_reply"])
 
-        ergebnis = CleanupResult()
-        for a in plan:
-            if a.aktion == "behalten" or not a.thread_id:
-                ergebnis.skipped += 1
+        result = CleanupResult()
+        for action in plan:
+            if action.action == KEEP or not action.thread_id:
+                result.skipped += 1
                 continue
-            if a.aktion == NOISE:
+            if action.action == NOISE:
                 await gmail_process_thread(
-                    thread_id=a.thread_id, label_id=label_verarbeitet,
-                    archivieren=archivieren, gelesen=archivieren,
+                    thread_id=action.thread_id, label_id=label_processed,
+                    archive=archive, mark_read=archive,
                 )
-                ergebnis.archiviert += 1 if archivieren else 0
-                ergebnis.gelesen += 1 if archivieren else 0
-            elif a.aktion == "finanzen":
+                result.archived += 1 if archive else 0
+                result.marked_read += 1 if archive else 0
+            elif action.action == FINANCE:
                 await gmail_process_thread(
-                    thread_id=a.thread_id, label_id=label_finanzen,
-                    archivieren=False, gelesen=False,
+                    thread_id=action.thread_id, label_id=label_finance,
+                    archive=False, mark_read=False,
                 )
-                ergebnis.gelabelt_finanzen += 1
-            else:  # antwort
+                result.labelled_finance += 1
+            else:  # NEEDS_REPLY
                 await gmail_process_thread(
-                    thread_id=a.thread_id, label_id=label_antwort,
-                    archivieren=False, gelesen=False,
+                    thread_id=action.thread_id, label_id=label_reply,
+                    archive=False, mark_read=False,
                 )
-                ergebnis.gelabelt_antwort += 1
+                result.labelled_reply += 1
 
         for u in mailto:
             await gmail_draft(
-                to=u.url[7:],  # mailto: abschneiden
+                to=u.url[7:],  # strip "mailto:"
                 subject="Abmeldung",
                 body="Bitte nehmen Sie diese Adresse von allen Verteilern.",
             )
-            ergebnis.mailto_drafts += 1
-        return ergebnis
+            result.mailto_drafts += 1
+        return result
 
-    async def _abos(self, report: InboxScanReport) -> None:
-        """Abmeldelinks der gewählten Gruppe — zum Klicken, nicht zum Abschreiben."""
+    async def _unsub_view(self, report: InboxScanReport) -> None:
+        """Unsubscribe links of the chosen group — to click, not to copy out."""
         if not report.subscription_groups:
             await wf_mistral.send_assistant_message("Keine Abo-Gruppen im Fenster.")
             return
-        wahl = await self.wait_for_input(
-            _abo_auswahl(report), label="Gruppe", timeout=timedelta(hours=8)
+        chosen = await self.wait_for_input(
+            _group_choice(report), label="Gruppe", timeout=timedelta(hours=8)
         )
-        # Die Links gehören über den Absender zur Gruppe: Die Sichtung trägt
-        # die Gruppe, der Link den Absender — beides kommt aus demselben Lauf.
-        senders = {r.sender for r in report.reviews if r.review.subscription_group == wahl.gruppe}
-        treffer = [u for u in report.unsub_links if u.sender in senders]
-        z = [f"### {wahl.gruppe}", ""]
-        if treffer:
-            z += [f"- [{u.sender}]({u.url}) — *{u.subject}*" for u in treffer]
+        # The links belong to the group through the sender: the review carries
+        # the group, the link the sender — both come from the same run.
+        senders = {
+            r.sender for r in report.reviews if r.review.subscription_group == chosen.group
+        }
+        hits = [u for u in report.unsub_links if u.sender in senders]
+        lines = [f"### {chosen.group}", ""]
+        if hits:
+            lines += [f"- [{u.sender}]({u.url}) — *{u.subject}*" for u in hits]
         else:
-            z += [
+            lines += [
                 "Kein Abmeldelink für diese Gruppe im Fenster — entweder kein "
                 "Newsletter dabei, oder der Linktext sagt nicht "
                 "„Abmelden/unsubscribe“."
             ]
-        await wf_mistral.send_assistant_message(_markdown_nachricht("\n".join(z)))
+        await wf_mistral.send_assistant_message(_markdown_message("\n".join(lines)))
 
-    async def _statistik(self) -> None:
-        """Die 90-Tage-Absenderstatistik als Kindworkflow — reine Arithmetik."""
-        roh = await workflows.workflow.execute_workflow(
+    async def _sender_stats_view(self) -> None:
+        """The 90-day sender statistic as a child workflow — pure arithmetic."""
+        raw = await workflows.workflow.execute_workflow(
             InboxSendersWorkflow,
             params={"window_days": 90, "max_threads": 4000},
             execution_timeout=timedelta(minutes=15),
         )
         stats = SenderStats.model_validate(
-            roh if isinstance(roh, dict) else roh.model_dump()
+            raw if isinstance(raw, dict) else raw.model_dump()
         )
-        z = [
+        lines = [
             "### Absender über 90 Tage",
-            f"{stats.threads} mails · {len(stats.senders)} senders · "
+            f"{stats.threads} Mails · {len(stats.senders)} Absender · "
             f"{stats.unread_total} ungelesen",
             "",
         ]
-        z += [
-            f"- **{a.mails}** ({a.unread} ungelesen) — {a.sender}"
-            for a in stats.senders[:15]
+        lines += [
+            f"- **{s.mails}** ({s.unread} ungelesen) — {s.sender}"
+            for s in stats.senders[:15]
         ]
-        z += [
+        lines += [
             "",
-            "_Scope: alles Empfangene, das dich erreicht (Spam und Trash wie "
+            "_Umfang: alles Empfangene, das dich erreicht (Spam und Trash sind "
             "von der Gmail-Suche standardmäßig ausgeschlossen)._",
         ]
-        await wf_mistral.send_assistant_message(_markdown_nachricht("\n".join(z)))
+        await wf_mistral.send_assistant_message(_markdown_message("\n".join(lines)))

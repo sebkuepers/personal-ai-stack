@@ -1,11 +1,11 @@
-"""Konfiguration der inbox-Domäne — geladen aus ``shared/inbox.json``.
+"""Configuration of the inbox domain — loaded from ``shared/inbox.json``.
 
-Dasselbe Muster wie ``workflows/buch/config.py``: die Datei unter ``shared/``
-ist die einzige Quelle der Wahrheit (Agent-ID, Modelle, Connector-Slug,
-Tool-Namen, Label-Vokabular, Grenzen). Der Gmail-Connector und seine
-Tool-Namen sind live verifiziert (2026-09-23, ``connectors.list_tools``) —
-``shared/inbox.json`` führt die echten Namen (``search_threads``,
-``create_draft``, ``label_*``), nicht die älteren aus ``shared/crm.json``.
+The same pattern as ``workflows/book/config.py``: the file under ``shared/`` is
+the single source of truth (agent IDs, models, connector slug, tool names,
+label vocabulary, limits). The Gmail connector and its tool names are verified
+live (2026-09-23, ``connectors.list_tools``) — ``shared/inbox.json`` carries
+the real names (``search_threads``, ``create_draft``, ``label_*``), not the
+older ones that once sat in ``shared/crm.json``.
 """
 
 from __future__ import annotations
@@ -17,8 +17,9 @@ from workflows.shared_config import load_shared
 _CFG: dict[str, Any] = load_shared("inbox.json")
 
 # --------------------------------------------------------------------------- #
-# Studio agents — die Kaskade: Erstblick (small) sichtet, Zweitblick (medium)
-# prüft die kritische Teilmenge nach. IDs vergibt agents/sync.py.
+# Studio agents — the cascade: the first stage (small) triages everything, the
+# second (medium) re-checks the critical subset. IDs are assigned by
+# agents/sync.py.
 # --------------------------------------------------------------------------- #
 INBOX_REVIEW_AGENT_ID: str = _CFG["agent"]["inbox_review_agent_id"]
 INBOX_SECOND_REVIEW_AGENT_ID: str = _CFG["agent"]["inbox_second_review_agent_id"]
@@ -27,21 +28,21 @@ INBOX_SECOND_REVIEW_AGENT_ID: str = _CFG["agent"]["inbox_second_review_agent_id"
 # Models
 # --------------------------------------------------------------------------- #
 REVIEW_MODEL: str = _CFG["models"]["review"]  # first stage (small) — the bulk
-SECOND_REVIEW_MODEL: str = _CFG["models"]["second_review"]  # second stage (medium) — critical cases
+SECOND_REVIEW_MODEL: str = _CFG["models"]["second_review"]  # second stage (medium)
 
 # --------------------------------------------------------------------------- #
-# Connector (lowercase slug, nicht der Studio-Display-Name)
+# Connector (lowercase slug, not the Studio display name)
 # --------------------------------------------------------------------------- #
 CONNECTOR_GMAIL: str = _CFG["connectors"]["gmail"]["name"]
 GMAIL_TOOLS: dict[str, str] = dict(_CFG["connector_tools"]["gmail"])
 
 # --------------------------------------------------------------------------- #
-# Label-Vokabular — Phase 2 wendet genau diese Labels an, keine anderen.
+# Label vocabulary — the cleanup step applies exactly these labels, no others.
 # --------------------------------------------------------------------------- #
 LABELS: dict[str, str] = dict(_CFG["labels"])
 
 # --------------------------------------------------------------------------- #
-# Kontrollierte Vokabulare — spiegeln die Enums im Agent-Schema.
+# Controlled vocabularies — mirror the enums in the agent schema.
 # --------------------------------------------------------------------------- #
 _V = _CFG["vocab"]
 TYPES: list[str] = list(_V["type"])
@@ -49,15 +50,15 @@ URGENCIES: list[str] = list(_V["urgency"])
 FINANCE_TYPES: list[str] = list(_V["finance_type"])
 
 # --------------------------------------------------------------------------- #
-# Mistral Library — das rollierende Kontext-Dossier für Vibe
+# Mistral Library — the rolling context dossier for Vibe
 # --------------------------------------------------------------------------- #
 LIBRARY_NAME: str = _CFG["mistral"]["library_name"]
 LIBRARY_ID: str = _CFG["mistral"]["library_id"]
 
 # --------------------------------------------------------------------------- #
-# Bewusste Obergrenzen
+# Deliberate ceilings
 # --------------------------------------------------------------------------- #
-_G = _CFG["limits"]
-MAX_EMAILS: int = _G["max_emails"]
-WINDOW_HOURS: int = _G["window_hours"]
-MAX_BODY_ZEICHEN: int = _G["max_body_zeichen"]
+_L = _CFG["limits"]
+MAX_EMAILS: int = _L["max_emails"]
+WINDOW_HOURS: int = _L["window_hours"]
+MAX_BODY_CHARS: int = _L["max_body_chars"]

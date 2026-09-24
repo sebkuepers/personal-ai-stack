@@ -1,12 +1,11 @@
-"""Agent-Konfigurationen gegen Testfälle fahren — domänenunabhängig.
+"""Run agent configurations against test cases — domain-independent.
 
-Getestet wird der **echte Agent** mit seinen echten Instruktionen: ``model`` und
-``completion_args`` lassen sich pro Aufruf überschreiben, ohne die Definition in
-Studio anzufassen. Gemessen wird also das, was später auch läuft.
+What is tested is the **real agent** with its real instructions: ``model`` and
+``completion_args`` can be overridden per call without touching the definition
+in Studio. So what is measured is what later runs.
 
-Bewusst ohne die nachgelagerten Filter einer Domäne — sonst misst man die
-Filter, nicht den Agenten, und weiß nie, ob eine Modelländerung etwas gebracht
-hat.
+Deliberately without a domain's downstream filters — otherwise one measures the
+filters, not the agent, and never learns whether a model change helped.
 """
 
 from __future__ import annotations
@@ -18,88 +17,88 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from .modelle import Bilanz, Ergebnis, Fall, bilanziere, pruefe
+from .models import Case, Result, Tally, evaluate, tally
 
 API = "https://api.mistral.ai/v1/chat/completions"
 
 
 @dataclass(frozen=True)
-class Konfiguration:
-    """Eine zu vergleichende Einstellung."""
+class Config:
+    """One setting to compare."""
 
     name: str
-    modell: str
+    model: str
     reasoning: str | None = None
-    temperatur: float = 0.1
+    temperature: float = 0.1
 
     @property
     def max_tokens(self) -> int:
-        # Reasoning verbraucht leicht 2000+ Tokens, bevor die eigentliche Antwort
-        # beginnt. Zu knapp bemessen kommt eine abgeschnittene Antwort zurück —
-        # und die sieht aus wie ein Modellfehler, ist aber ein Budgetfehler.
+        # Reasoning easily burns 2000+ tokens before the actual answer starts.
+        # Budgeted too tightly, a truncated answer comes back — and that looks
+        # like a model failure while being a budget failure.
         #
-        # Gemessen an GLM: 4000 reichten nicht, die Antworten brachen mitten im
-        # JSON ab und zählten als Modellfehler. Mistral-Modelle hören von selbst
-        # früher auf, für sie kostet die höhere Grenze also nichts. Wer Modelle
-        # vergleicht, muss ihnen denselben Platz geben.
+        # Measured on GLM: 4000 were not enough, the answers broke off mid-JSON
+        # and counted as model errors. Mistral models stop earlier by
+        # themselves, so the higher limit costs them nothing. Whoever compares
+        # models has to give them the same room.
         return 16000 if self.reasoning else 12000
 
 
-# Beide Modelle akzeptieren laut API nur 'none' oder 'high';
-# 'minimal'/'low'/'medium'/'xhigh' werden mit HTTP 400 abgelehnt.
-STANDARD_KONFIGURATIONEN = [
-    Konfiguration("small/none", "mistral-small-latest"),
-    Konfiguration("small/high", "mistral-small-latest", "high"),
-    Konfiguration("medium/none", "mistral-medium-latest"),
-    Konfiguration("medium/high", "mistral-medium-latest", "high"),
+# Both models accept only 'none' or 'high' per the API;
+# 'minimal'/'low'/'medium'/'xhigh' are rejected with HTTP 400.
+DEFAULT_CONFIGS = [
+    Config("small/none", "mistral-small-latest"),
+    Config("small/high", "mistral-small-latest", "high"),
+    Config("medium/none", "mistral-medium-latest"),
+    Config("medium/high", "mistral-medium-latest", "high"),
 ]
 
 
 def agent_definition(repo: Path, name: str) -> tuple[str, dict]:
-    """Instruktionen und Antwortschema eines Agents aus seiner Repo-Definition.
+    """An agent's instructions and answer schema from its repo definition.
 
-    Die Datei ist die Quelle der Wahrheit (siehe ``agents/README.md``), also
-    misst man hier genau das, was auch in Studio steht.
+    The file is the source of truth (see ``agents/README.md``), so this
+    measures exactly what is in Studio too.
     """
     d = json.loads((repo / "agents" / f"{name}.json").read_text(encoding="utf-8"))
     return d["instructions"], d["completion_args"]["response_format"]
 
 
-def _antworttext(msg: dict) -> str:
-    """Holt den Antworttext; bei aktivem Reasoning liegen Thinking-Chunks davor."""
-    inhalt = msg.get("content")
-    if isinstance(inhalt, str):
-        return inhalt
+def _answer_text(msg: dict) -> str:
+    """Get the answer text; with reasoning active, thinking chunks come first."""
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content
     return "".join(
         t.get("text", "")
-        for t in (inhalt or [])
+        for t in (content or [])
         if isinstance(t, dict) and t.get("type") == "text"
     )
 
 
-def einmal(
-    fall: Fall,
-    konf: Konfiguration,
-    instruktionen: str,
+def run_once(
+    case: Case,
+    config: Config,
+    instructions: str,
     schema: dict,
     *,
-    zaehlpfad: str | None = None,
-) -> Ergebnis:
-    """Führt einen Fall unter einer Konfiguration aus."""
+    count_path: str | None = None,
+) -> Result:
+    """Run one case under one configuration."""
     body: dict = {
-        "model": konf.modell,
+        "model": config.model,
         "messages": [
-            {"role": "system", "content": instruktionen},
-            {"role": "user", "content": fall.eingabe},
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": case.input},
         ],
-        "temperature": konf.temperatur,
-        "max_tokens": konf.max_tokens,
+        "temperature": config.temperature,
+        "max_tokens": config.max_tokens,
         "response_format": schema,
     }
-    if konf.reasoning:
-        body["reasoning_effort"] = konf.reasoning
+    if config.reasoning:
+        body["reasoning_effort"] = config.reasoning
 
-    r = urllib.request.Request(
+    request = urllib.request.Request(
         API,
         method="POST",
         data=json.dumps(body).encode(),
@@ -108,39 +107,41 @@ def einmal(
             "Content-Type": "application/json",
         },
     )
-    t0 = time.time()
+    started = time.time()
     try:
-        with urllib.request.urlopen(r) as resp:
-            d = json.loads(resp.read())
-        antwort = json.loads(_antworttext(d["choices"][0]["message"]))
-        e = pruefe(fall, antwort, zaehlpfad=zaehlpfad)
-        e.dauer = time.time() - t0
-        e.tokens = d.get("usage", {}).get("completion_tokens", 0)
-        return e
-    except Exception as exc:  # noqa: BLE001 — jeder Fehler ist ein Datenpunkt
-        return Ergebnis(
-            fall_id=fall.id, dauer=time.time() - t0, fehler=f"{type(exc).__name__}: {exc}"
+        with urllib.request.urlopen(request) as resp:
+            payload = json.loads(resp.read())
+        answer = json.loads(_answer_text(payload["choices"][0]["message"]))
+        result = evaluate(case, answer, count_path=count_path)
+        result.seconds = time.time() - started
+        result.tokens = payload.get("usage", {}).get("completion_tokens", 0)
+        return result
+    except Exception as exc:  # noqa: BLE001 — every failure is a data point
+        return Result(
+            case_id=case.id, seconds=time.time() - started, error=f"{type(exc).__name__}: {exc}"
         )
 
 
-def vergleiche(
-    faelle: list[Fall],
-    konfigurationen: list[Konfiguration],
-    instruktionen: str,
+def compare(
+    cases: list[Case],
+    configs: list[Config],
+    instructions: str,
     schema: dict,
     *,
-    laeufe: int = 1,
-    zaehlpfad: str | None = None,
-    fortschritt=None,  # noqa: ANN001 — optionaler Callback(konf_name, fall_id)
-) -> list[tuple[Bilanz, list[Ergebnis]]]:
-    """Fährt alle Fälle gegen alle Konfigurationen und bilanziert."""
-    ergebnis: list[tuple[Bilanz, list[Ergebnis]]] = []
-    for konf in konfigurationen:
-        alle: list[Ergebnis] = []
-        for _ in range(laeufe):
-            for f in faelle:
-                if fortschritt:
-                    fortschritt(konf.name, f.id)
-                alle.append(einmal(f, konf, instruktionen, schema, zaehlpfad=zaehlpfad))
-        ergebnis.append((bilanziere(konf.name, faelle * laeufe, alle), alle))
-    return ergebnis
+    runs: int = 1,
+    count_path: str | None = None,
+    progress=None,  # noqa: ANN001 — optional callback(config_name, case_id)
+) -> list[tuple[Tally, list[Result]]]:
+    """Run all cases against all configurations and tally them."""
+    out: list[tuple[Tally, list[Result]]] = []
+    for config in configs:
+        results: list[Result] = []
+        for _ in range(runs):
+            for case in cases:
+                if progress:
+                    progress(config.name, case.id)
+                results.append(
+                    run_once(case, config, instructions, schema, count_path=count_path)
+                )
+        out.append((tally(config.name, cases * runs, results), results))
+    return out

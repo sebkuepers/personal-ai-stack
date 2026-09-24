@@ -1,28 +1,27 @@
-"""INBOX workflow — der tägliche Sichtungs-Lauf über Posteingang UND Postausgang.
+"""INBOX workflow — the daily triage run over the inbox AND the sent folder.
 
 Category: inbox (Gmail connector → on_behalf_of + OAuth).
 
-Drei Schritte, beide Pässe deterministisch gelesen (Muster A — kein Lese-Agent):
+Three steps, both passes read deterministically (pattern A — no reading agent):
 
-  1. LESEN: INBOX und SENT des Fensters über ``search_threads`` (Umschläge,
-     Bodies fehlen immer). Eigene Antworten im Posteingang sind keine
-     Sichtungs-Kandidaten — sie gehören inhaltlich zum Postausgang.
-  2. SICHTEN: Erstblick (small) sichtet jeden Umschlag, PARALLEL — sequenziell
-     sprengen 50 Aufrufe das Workflow-Timeout (gemessen: TIMED_OUT). Die
-     Eskalationsregel (``escalation.needs_second_review``) holt den Zweitblick
-     (medium) nur für die kritische Teilmenge nach; er gewinnt.
-  3. VERDICHTEN: Abmeldelinks für Newsletter aus den Bodies ziehen (reines
-     Python, max_unsub Stück), dann deterministisch verdichten.
+  1. READ: inbox and sent for the window via ``search_threads`` (envelopes;
+     bodies are always missing). One's own replies in the inbox are not triage
+     candidates — they belong to the sent folder in substance.
+  2. TRIAGE: the first stage (small) triages every envelope, IN PARALLEL —
+     sequentially, 50 calls blow the workflow timeout (measured: TIMED_OUT).
+     The escalation rule (``escalation.needs_second_review``) pulls in the
+     second stage (medium) for the critical subset only; it wins.
+  3. CONDENSE: pull unsubscribe links for newsletters out of the bodies (pure
+     Python, at most max_unsub of them), then condense deterministically.
 
-Phase 1 = DRY RUN: Dieser Lauf verändert nichts — kein Label, kein Draft,
-nichts gesendet.
+Phase 1 = DRY RUN: this run changes nothing — no label, no draft, nothing sent.
 
-Live verifizierte Grundlagen (2026-09-23): Bodies in search_threads immer
-null; ``messages: null`` schwankt pro Lauf (Normalfall, wird gezählt);
-resultCountEstimate unbrauchbar — paginiert bis zum Tokenende; Seitenpause
-1,2 s gegen Rate-Limit.
+Foundations verified live (2026-09-23): bodies in search_threads always null;
+``messages: null`` varies per run (the normal case, and counted);
+resultCountEstimate useless — paginate to the end of the token; 1.2 s page
+pause against the rate limit.
 
-Trigger (lokal, Worker muss laufen):
+Trigger (locally, the worker has to run):
   make inbox-scan
   make inbox-scan input='{"window_days":1,"max_threads":50}'
 """
@@ -37,11 +36,15 @@ from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
     from workflows.crm.agent_tools import get_today
-    from workflows.inbox.gmail import gmail_search_threads, gmail_thread_body
     from workflows.inbox.classify import review_email, second_review_email
+    from workflows.inbox.gmail import gmail_search_threads, gmail_thread_body
 
-from workflows.crm.connectors import gmail_connector  # noqa: E402 — Wiederverwendung des Slots
-from workflows.inbox.unsubscribe import extract_unsub_link  # noqa: E402
+from workflows.crm.connectors import gmail_connector  # noqa: E402 — reuses the slot
+from workflows.inbox.envelope import (  # noqa: E402
+    own_address,
+    thread_to_envelope,
+    thread_to_sent,
+)
 from workflows.inbox.escalation import needs_second_review  # noqa: E402
 from workflows.inbox.models import (  # noqa: E402
     InboxEnvelope,
@@ -51,27 +54,23 @@ from workflows.inbox.models import (  # noqa: E402
     UnsubCandidate,
 )
 from workflows.inbox.report import build_report  # noqa: E402
-from workflows.inbox.envelope import (  # noqa: E402
-    own_address,
-    thread_to_sent,
-    thread_to_envelope,
-)
+from workflows.inbox.unsubscribe import extract_unsub_link  # noqa: E402
 
-# Wie viele Sichtungen gleichzeitig laufen dürfen — 10 ist mit dem
-# Conversations-API-Limit komfortabel unter dem Deckel.
-_GLEICHZEITIG = 10
+# How many triage calls may run at once — 10 sits comfortably under the
+# conversations API limit.
+_CONCURRENT = 10
 
 
-def _eingabe(u: InboxEnvelope, heute: date) -> dict:
-    """Ein Umschlag als Stichwort-Argument für die Sichtungs-Aktivitäten."""
+def _input_for(envelope: InboxEnvelope, today: date) -> dict:
+    """One envelope as keyword arguments for the triage activities."""
     return {
-        "sender": u.sender,
-        "subject": u.subject,
-        "snippet": u.snippet,
-        "category": u.category,
-        "unread": u.unread,
-        "received_on": u.received_on.isoformat() if u.received_on else None,
-        "today": heute.isoformat(),
+        "sender": envelope.sender,
+        "subject": envelope.subject,
+        "snippet": envelope.snippet,
+        "category": envelope.category,
+        "unread": envelope.unread,
+        "received_on": envelope.received_on.isoformat() if envelope.received_on else None,
+        "today": today.isoformat(),
     }
 
 
@@ -82,7 +81,7 @@ def _eingabe(u: InboxEnvelope, heute: date) -> dict:
     workflow_description=(
         "Täglicher Sichtungs-Lauf: liest Posteingang und Postausgang des Fensters "
         "über direkte Gmail-Tool-Aufrufe, sichtet jeden Umschlag mit der Kaskade "
-        "Inbox · Review (small) → Inbox · Zweitblick (medium, kritische Fälle) "
+        "Inbox · Review (small) → Inbox · Second read (medium, kritische Fälle) "
         "und verdichtet deterministisch. Dry run — kein Label, kein Draft, "
         "nichts gesendet."
     ),
@@ -91,111 +90,112 @@ def _eingabe(u: InboxEnvelope, heute: date) -> dict:
 class InboxScanWorkflow:
     @workflows.workflow.entrypoint
     async def run(self, params: InboxScanInput) -> InboxScanReport:
-        # Step 1 — beide Pässe lesen (deterministisch, Null-Guard im Parser).
-        inbox_roh = await gmail_search_threads(
+        # Step 1 — read both passes (deterministic, null-guard in the parser).
+        inbox_raw = await gmail_search_threads(
             query=f"in:inbox newer_than:{params.window_days}d",
             max_threads=params.max_threads,
         )
-        sent_roh = await gmail_search_threads(
+        sent_raw = await gmail_search_threads(
             query=f"in:sent newer_than:{params.window_days}d",
             max_threads=params.max_threads,
         )
 
-        umschlaege: list[InboxEnvelope] = []
+        envelopes: list[InboxEnvelope] = []
         skipped = 0
-        for thread in inbox_roh["threads"]:
-            u = thread_to_envelope(thread)
-            if u is None:
+        for thread in inbox_raw["threads"]:
+            envelope = thread_to_envelope(thread)
+            if envelope is None:
                 skipped += 1
             else:
-                umschlaege.append(u)
-        gesendet = [
-            g for t in sent_roh["threads"] if (g := thread_to_sent(t)) is not None
+                envelopes.append(envelope)
+        sent = [
+            s for t in sent_raw["threads"] if (s := thread_to_sent(t)) is not None
         ]
 
-        # Eigene Antworten im Posteingang sind keine Sichtungs-Kandidaten:
-        # Er hatte das letzte Wort; sie gehören inhaltlich zum Postausgang.
-        eigene = own_address(gesendet)
-        kandidaten = [
-            u
-            for u in umschlaege
-            if not eigene or u.sender.strip().lower() != eigene.strip().lower()
+        # One's own replies in the inbox are not triage candidates: he had the
+        # last word; in substance they belong to the sent folder.
+        own = own_address(sent)
+        candidates = [
+            e
+            for e in envelopes
+            if not own or e.sender.strip().lower() != own.strip().lower()
         ]
-        eigene_antworten = len(umschlaege) - len(kandidaten)
+        own_replies = len(envelopes) - len(candidates)
 
-        if not kandidaten:
+        if not candidates:
             return build_report(
                 window_days=params.window_days,
                 envelopes=[],
                 reviews=[],
-                gesendet=gesendet,
-                abmeldungen=[],
-                pages=inbox_roh["pages"],
+                sent=sent,
+                unsub_links=[],
+                pages=inbox_raw["pages"],
                 skipped_no_messages=skipped,
-                own_replies=eigene_antworten,
+                own_replies=own_replies,
                 second_review_indices=set(),
                 second_review_changed=0,
             )
 
-        # Step 2 — Erstblick sichtet alles, parallel. today über die Aktivität:
-        # Der Workflow-Körper darf keine Uhr lesen.
-        heute = date.fromisoformat(await get_today())
-        eingaben = [_eingabe(u, heute) for u in kandidaten]
-        roh = await execute_activities_in_parallel(
-            review_email, items=eingaben, max_concurrent_scheduled_tasks=_GLEICHZEITIG
+        # Step 2 — the first stage triages everything, in parallel. today comes
+        # through the activity: the workflow body must not read a clock.
+        today = date.fromisoformat(await get_today())
+        inputs = [_input_for(e, today) for e in candidates]
+        raw = await execute_activities_in_parallel(
+            review_email, items=inputs, max_concurrent_scheduled_tasks=_CONCURRENT
         )
-        reviews = [InboxReview.model_validate(r) for r in roh]
+        reviews = [InboxReview.model_validate(r) for r in raw]
 
-        # Zweitblick nur für die kritische Teilmenge — die Regel ist Python.
-        # Gezählt wird, ob er ETWAS ÄNDERT (nicht nur nachsieht): Das ist der
-        # Kill-Switch der Kaskade — auf den konstruierten Fällen re-rollte er
-        # auch korrekte Erstblick-Antworten. Nach einer Woche echter Läufe
-        # entscheidet diese Zahl, ob die zweite Stufe bleibt.
-        # Mit ``second_review=False`` (Konfiguration der Sprechstunde) entfällt sie.
-        indizes = (
+        # The second stage only for the critical subset — the rule is Python.
+        # What is counted is whether it CHANGES ANYTHING (not merely that it
+        # looked): that is the cascade's kill switch — on the constructed cases
+        # it re-rolled correct first-stage answers too. After a week of real
+        # runs that number decides whether the second stage stays.
+        # With ``second_review=False`` (chosen in the conversation) it is skipped.
+        indices = (
             [i for i, r in enumerate(reviews) if needs_second_review(r)]
             if params.second_review
             else []
         )
-        geaendert = 0
-        if indizes:
-            zweite_roh = await execute_activities_in_parallel(
+        changed = 0
+        if indices:
+            second_raw = await execute_activities_in_parallel(
                 second_review_email,
-                items=[eingaben[i] for i in indizes],
-                max_concurrent_scheduled_tasks=_GLEICHZEITIG,
+                items=[inputs[i] for i in indices],
+                max_concurrent_scheduled_tasks=_CONCURRENT,
             )
-            for i, r in zip(indizes, zweite_roh, strict=True):
-                if r != roh[i]:
-                    geaendert += 1
+            for i, r in zip(indices, second_raw, strict=True):
+                if r != raw[i]:
+                    changed += 1
                 reviews[i] = InboxReview.model_validate(r)
 
-        # Step 3 — Abmeldelink für Newsletter aus dem Body ziehen (reines Python).
-        abmeldungen: list[UnsubCandidate] = []
-        for u, r in zip(kandidaten, reviews, strict=True):
-            if r.type != "newsletter" or len(abmeldungen) >= params.max_unsub:
+        # Step 3 — pull the unsubscribe link for newsletters out of the body
+        # (pure Python).
+        unsub_links: list[UnsubCandidate] = []
+        for envelope, review in zip(candidates, reviews, strict=True):
+            if review.type != "newsletter" or len(unsub_links) >= params.max_unsub:
                 continue
-            body = await gmail_thread_body(u.thread_id)
+            body = await gmail_thread_body(envelope.thread_id)
             url = extract_unsub_link(body)
             if url:
-                abmeldungen.append(
+                unsub_links.append(
                     UnsubCandidate(
-                        sender=u.sender,
-                        subject=u.subject,
-                        thread_id=u.thread_id,
+                        sender=envelope.sender,
+                        subject=envelope.subject,
+                        thread_id=envelope.thread_id,
                         url=url,
                     )
                 )
 
-        # Step 4 — deterministisch verdichten.
+        # Step 4 — condense deterministically.
         return build_report(
             window_days=params.window_days,
-            envelopes=kandidaten,
+            envelopes=candidates,
             reviews=reviews,
-            gesendet=gesendet,
-            abmeldungen=abmeldungen,
-            pages=inbox_roh["pages"],
+            sent=sent,
+            unsub_links=unsub_links,
+            pages=inbox_raw["pages"],
             skipped_no_messages=skipped,
-            own_replies=eigene_antworten,
-            second_review_indices=set(indizes),
-            second_review_changed=geaendert,
+            own_replies=own_replies,
+            second_review_indices=set(indices),
+            second_review_changed=changed,
         )

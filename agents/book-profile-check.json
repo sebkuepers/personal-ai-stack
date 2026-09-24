@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "profil_pruefung",
+        "name": "profile_check",
         "schema": {
           "additionalProperties": false,
           "description": "Hält jede Stimmprofil-Regel gegen ihre eigene Fundstelle: Zeigt der Satz das, was die Regel behauptet? Die Belegprüfung in Python kann nur prüfen, ob er existiert.",

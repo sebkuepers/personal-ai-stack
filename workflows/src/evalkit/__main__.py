@@ -1,18 +1,18 @@
-"""Generisches Eval-CLI für jeden Agent im Repo.
+"""Generic eval CLI for every agent in the repo.
 
-    python -m evalkit --agent book-copyedit --faelle shared/book/eval-immer-wieder-ruegen.json
-    python -m evalkit --agent crm-classification --faelle shared/crm/eval-faelle.json --zaehlpfad ""
+    python -m evalkit --agent book-copyedit --cases shared/book/eval-immer-wieder-ruegen.json
+    python -m evalkit --agent crm-classification --cases shared/crm/eval-cases.json --count-path ""
 
-Die Fall-Datei ist eine JSON-Liste:
+The case file is a JSON list:
 
     [{"id": "…",
-      "eingabe": "der Text, der an den Agent geht",
-      "erwartet": [{"pfad": "corrections[].search", "wert": "…"}],
-      "verboten": [{"pfad": "corrections[].search", "operator": "paar",
-                    "paar_pfad": "corrections[].replace", "wert": ["runter", "hinunter"]}]}]
+      "input": "the text that goes to the agent",
+      "expected": [{"path": "corrections[].search", "value": "…"}],
+      "forbidden": [{"path": "corrections[].search", "operator": "pair",
+                     "pair_path": "corrections[].replace", "value": ["runter", "hinunter"]}]}]
 
-Domänen bringen eigene Generatoren mit (z. B. ``bookcli.eval --generate``); das
-Messen selbst ist hier für alle gleich.
+Domains bring their own generators (e.g. ``bookcli.eval --generate``); the
+measuring itself is the same for all of them.
 """
 
 from __future__ import annotations
@@ -24,108 +24,108 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .modelle import Fall
-from .runner import STANDARD_KONFIGURATIONEN, Konfiguration, agent_definition
+from .models import Case, tally
+from .runner import DEFAULT_CONFIGS, Config, agent_definition, run_once
 
 REPO = Path(__file__).resolve().parents[3]
 
 
+def _configs(models: str | None, only: str | None) -> list[Config]:
+    """The configurations to compare — either explicit models or the defaults."""
+    if not models:
+        return [c for c in DEFAULT_CONFIGS if not only or c.name == only]
+    out: list[Config] = []
+    for raw in models.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        with_high = raw.endswith("+")
+        raw = raw.rstrip("+")
+        model, _, effort = raw.partition(":")
+        short = model.replace("-latest", "").replace("mistral-", "")
+        out.append(Config(f"{short}/{effort or 'none'}", model, effort or None))
+        if with_high:
+            out.append(Config(f"{short}/high", model, "high"))
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Agent-Konfigurationen messen.")
-    p.add_argument("--agent", required=True, help="Name der Datei in agents/ ohne .json")
-    p.add_argument("--faelle", required=True, help="Pfad zur Fall-Datei (relativ zum Repo)")
-    p.add_argument("--laeufe", type=int, default=1)
-    p.add_argument("--nur", help="nur diese Konfiguration, z. B. small/high")
+    p = argparse.ArgumentParser(description="Measure agent configurations.")
+    p.add_argument("--agent", required=True, help="file name in agents/ without .json")
+    p.add_argument("--cases", required=True, help="path to the case file (relative to the repo)")
+    p.add_argument("--runs", type=int, default=1)
+    p.add_argument("--only", help="this configuration only, e.g. small/high")
     p.add_argument(
-        "--modelle",
+        "--models",
         help=(
-            "Statt der Standardkonfigurationen: Modell-IDs, kommagetrennt. "
-            "Ein '+' hängt einen Reasoning-Lauf an, z. B. "
-            "'mistral-large-latest+,zai-glm-5'. Für Judge-Vergleiche gedacht — "
-            "ein zweites Augenpaar aus derselben Modellfamilie teilt die blinden "
-            "Flecken des ersten."
+            "Instead of the default configurations: model IDs, comma-separated. "
+            "A '+' appends a reasoning run, e.g. 'mistral-large-latest+,zai-glm-5'. "
+            "Meant for reviewer comparisons — a second pair of eyes from the same "
+            "model family shares the first one's blind spots."
         ),
     )
     p.add_argument(
-        "--zaehlpfad",
+        "--count-path",
         default="corrections[]",
-        help="was als ein Befund zählt (leer lassen für Klassifikations-Agents)",
+        help="what counts as one finding (leave empty for classification agents)",
     )
-    p.add_argument("--still", action="store_true", help="keine Fortschrittsanzeige")
+    p.add_argument("--quiet", action="store_true", help="no progress display")
     args = p.parse_args(argv)
 
-    pfad = REPO / args.faelle
-    if not pfad.is_file():
-        print(f"Fall-Datei nicht gefunden: {pfad}", file=sys.stderr)
+    path = REPO / args.cases
+    if not path.is_file():
+        print(f"Case file not found: {path}", file=sys.stderr)
         return 1
 
     load_dotenv(REPO / "workflows" / ".env", override=True)
-    faelle = [Fall.from_dict(d) for d in json.loads(pfad.read_text(encoding="utf-8"))]
-    instruktionen, schema = agent_definition(REPO, args.agent)
+    cases = [Case.from_dict(d) for d in json.loads(path.read_text(encoding="utf-8"))]
+    instructions, schema = agent_definition(REPO, args.agent)
 
-    if args.modelle:
-        konfigs = []
-        for roh in args.modelle.split(","):
-            roh = roh.strip()
-            if not roh:
-                continue
-            mit_high = roh.endswith("+")
-            roh = roh.rstrip("+")
-            modell, _, stufe = roh.partition(":")
-            kurz = modell.replace("-latest", "").replace("mistral-", "")
-            konfigs.append(
-                Konfiguration(f"{kurz}/{stufe or 'none'}", modell, stufe or None)
-            )
-            if mit_high:
-                konfigs.append(Konfiguration(f"{kurz}/high", modell, "high"))
-    else:
-        konfigs = [k for k in STANDARD_KONFIGURATIONEN if not args.nur or k.name == args.nur]
-    if not konfigs:
-        verfuegbar = ", ".join(k.name for k in STANDARD_KONFIGURATIONEN)
-        print(f"Unbekannt: {args.nur}. Verfügbar: {verfuegbar}", file=sys.stderr)
+    configs = _configs(args.models, args.only)
+    if not configs:
+        available = ", ".join(c.name for c in DEFAULT_CONFIGS)
+        print(f"Unknown: {args.only}. Available: {available}", file=sys.stderr)
         return 1
 
-    erwartet = sum(len(f.erwartet) for f in faelle)
-    verboten = sum(len(f.verboten) for f in faelle)
+    expected = sum(len(c.expected) for c in cases)
+    forbidden = sum(len(c.forbidden) for c in cases)
     print(
-        f"{args.agent} · {len(faelle)} Fälle · {erwartet} Erwartungen · "
-        f"{verboten} Fallen · {args.laeufe} Lauf/Läufe\n"
+        f"{args.agent} · {len(cases)} cases · {expected} expectations · "
+        f"{forbidden} traps · {args.runs} run(s)\n"
     )
-    if not erwartet:
-        print("  Hinweis: keine Erwartungen annotiert — gemessen wird nur die Fallenquote.\n")
+    if not expected:
+        print("  Note: no expectations annotated — only the trap rate is measured.\n")
 
-    def fortschritt(konf: str, fall: str) -> None:
-        if not args.still:
-            print(f"  … {konf}  {fall[:40]}", end="\r", file=sys.stderr)
+    def progress(config: str, case: str) -> None:
+        if not args.quiet:
+            print(f"  … {config}  {case[:40]}", end="\r", file=sys.stderr)
 
-    # Konfiguration für Konfiguration ausgeben, nicht erst am Ende: Ein Lauf mit
-    # Reasoning kann Minuten dauern, und ein stummer Prozess sieht aus wie ein
-    # hängender.
-    from .modelle import bilanziere
-    from .runner import einmal
-
-    ergebnisse = []
-    for konf in konfigs:
-        alle = []
-        for _ in range(args.laeufe):
-            for f in faelle:
-                fortschritt(konf.name, f.id)
-                alle.append(einmal(f, konf, instruktionen, schema,
-                                   zaehlpfad=args.zaehlpfad or None))
-        bilanz = bilanziere(konf.name, faelle * args.laeufe, alle)
-        ergebnisse.append((bilanz, alle))
+    # Print configuration by configuration, not only at the end: a run with
+    # reasoning can take minutes, and a silent process looks like a hung one.
+    results = []
+    for config in configs:
+        all_results = []
+        for _ in range(args.runs):
+            for case in cases:
+                progress(config.name, case.id)
+                all_results.append(
+                    run_once(case, config, instructions, schema,
+                             count_path=args.count_path or None)
+                )
+        summary = tally(config.name, cases * args.runs, all_results)
+        results.append((summary, all_results))
         print(" " * 70, end="\r")
-        print(bilanz.als_zeile(), flush=True)
+        print(summary.as_line(), flush=True)
 
     print()
-    for _bilanz, einzeln in sorted(ergebnisse, key=lambda x: -x[0].punktzahl):
-        for e in einzeln:
-            for ft in e.fehltritte:
-                print(f"      ✗ {e.fall_id[:30]}: {ft[:80]}")
-            for v in e.verpasst:
-                print(f"      ○ {e.fall_id[:30]}: verpasst {v[:70]}")
-            if e.fehler:
-                print(f"      ! {e.fall_id[:30]}: {e.fehler[:80]}")
+    for _summary, single in sorted(results, key=lambda x: -x[0].score):
+        for r in single:
+            for t in r.trapped:
+                print(f"      ✗ {r.case_id[:30]}: {t[:80]}")
+            for m in r.missed:
+                print(f"      ○ {r.case_id[:30]}: missed {m[:70]}")
+            if r.error:
+                print(f"      ! {r.case_id[:30]}: {r.error[:80]}")
     return 0
 
 

@@ -10,6 +10,7 @@ for the part you're changing:
 | `mcp-server/` | [`mcp-server/README.md`](mcp-server/README.md) |
 | the CRM domain | [`docs/CRM.md`](docs/CRM.md) + `agents/README.md` |
 | the book domain | [`docs/BOOK.md`](docs/BOOK.md) |
+| the inbox domain | [`docs/INBOX.md`](docs/INBOX.md) |
 
 ## Golden rules (short form — details and rationale in CLAUDE.md)
 

@@ -1,11 +1,11 @@
-"""Reines Parsen der Gmail-Antworten in Umschläge — die Fallstricke wohnen hier.
+"""Pure parsing of the Gmail answers into envelopes — the pitfalls live here.
 
-Live verifiziert (2026-09-23, gegen das Konto gemessen):
-- ``search_threads`` liefert Bodies IMMER null (644 Messages, zwei Läufe).
-- Ein Teil der Threads kommt mit ``messages: null`` zurück — nichtdeterministisch,
-  26–57 pro Lauf bei identischer Query. Kein Fehler, nur ein Zustand.
-- Die Kategorie (UPDATES/PROMOTIONS/…) steckt in ``labelIds`` als ``CATEGORY_*``.
-- Spam und Trash sind von der Suche standardmäßig ausgeschlossen.
+Verified live (2026-09-23, measured against the account):
+- ``search_threads`` returns bodies ALWAYS as null (644 messages, two runs).
+- Some threads come back with ``messages: null`` — non-deterministically,
+  26–57 per run on an identical query. Not an error, just a state.
+- The category (UPDATES/PROMOTIONS/…) sits in ``labelIds`` as ``CATEGORY_*``.
+- Spam and trash are excluded from the search by default.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from datetime import date
 from workflows.inbox.models import InboxEnvelope, SentEnvelope
 
 
-def _datum(text: str | None) -> date | None:
-    """ISO-Datetime („2026-09-23T12:59:32-07:00") auf das Datum kürzen."""
+def _to_date(text: str | None) -> date | None:
+    """Shorten an ISO datetime („2026-09-23T12:59:32-07:00") to the date."""
     if not text:
         return None
     try:
@@ -27,15 +27,15 @@ def _datum(text: str | None) -> date | None:
 
 
 def thread_to_envelope(thread: dict) -> InboxEnvelope | None:
-    """Ein roher Thread aus search_threads → Umschlag; None bei ``messages: null``.
+    """A raw thread from search_threads → envelope; None on ``messages: null``.
 
-    Der Umschlag ist die LETZTE Message des Threads — bei einer Antwort von
-    Sebastian selbst steht dort seine eigene Adresse (siehe own_address()).
+    The envelope is the LAST message of the thread — for a reply written by
+    Sebastian himself his own address stands there (see own_address()).
     """
-    msgs = thread.get("messages")
-    if not msgs:
+    messages = thread.get("messages")
+    if not messages:
         return None
-    m = msgs[-1]
+    m = messages[-1]
     labels = m.get("labelIds") or []
     category = next(
         (label[len("CATEGORY_") :] for label in labels if label.startswith("CATEGORY_")),
@@ -50,16 +50,16 @@ def thread_to_envelope(thread: dict) -> InboxEnvelope | None:
         labels=labels,
         category=category,
         unread="UNREAD" in labels,
-        received_on=_datum(m.get("date")),
+        received_on=_to_date(m.get("date")),
     )
 
 
 def thread_to_sent(thread: dict) -> SentEnvelope | None:
-    """Ein roher Thread aus der Sent-Suche → gesendeter Umschlag; None ohne Messages."""
-    msgs = thread.get("messages")
-    if not msgs:
+    """A raw thread from the sent search → sent envelope; None without messages."""
+    messages = thread.get("messages")
+    if not messages:
         return None
-    m = msgs[-1]
+    m = messages[-1]
     to = m.get("toRecipients") or []
     if isinstance(to, str):
         to = [to]
@@ -69,30 +69,30 @@ def thread_to_sent(thread: dict) -> SentEnvelope | None:
         sender=m.get("sender") or "",
         to=[a for a in to if a],
         subject=m.get("subject") or "",
-        received_on=_datum(m.get("date")),
+        received_on=_to_date(m.get("date")),
     )
 
 
-def own_address(gesendet: list[SentEnvelope]) -> str:
-    """Die eigene Adresse — die häufigste Absender-Adresse im Sent-Fenster.
+def own_address(sent: list[SentEnvelope]) -> str:
+    """One's own address — the most frequent sender address in the sent window.
 
-    Leer, wenn nichts gesendet wurde; dann bleiben alle Inbox-Umschläge
-    Sichtungs-Kandidaten (der Filter greift nur mit bekannter Adresse).
+    Empty when nothing was sent; all inbox envelopes then stay triage
+    candidates (the filter only bites with a known address).
     """
-    zaehler = Counter(s.sender for s in gesendet if s.sender)
-    if not zaehler:
+    counter = Counter(s.sender for s in sent if s.sender)
+    if not counter:
         return ""
-    return zaehler.most_common(1)[0][0]
+    return counter.most_common(1)[0][0]
 
 
-def replied_recipients(gesendet: list[SentEnvelope]) -> set[str]:
-    """Alle Adressen (kleingeschrieben), an die im Fenster geschrieben wurde.
+def replied_recipients(sent: list[SentEnvelope]) -> set[str]:
+    """Every address (lower-cased) written to within the window.
 
-    Die Grundlage für den Antwort-Zustand: Ein „antwortbedürftig"-Kandidat,
-    dessen Absender hier steht, ist vermutlich schon beantwortet.
+    The basis for the reply state: a "needs a reply" candidate whose sender is
+    in here has probably been answered already.
     """
-    menge: set[str] = set()
-    for s in gesendet:
-        for adresse in s.to:
-            menge.add(adresse.strip().lower())
-    return menge
+    addresses: set[str] = set()
+    for s in sent:
+        for address in s.to:
+            addresses.add(address.strip().lower())
+    return addresses

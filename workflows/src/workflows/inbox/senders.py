@@ -1,23 +1,20 @@
-"""INBOX workflow — Absender-Statistik: die falsifizierbare Abbestell-Grundlage.
+"""INBOX workflow — the sender statistic: the falsifiable basis for unsubscribing.
 
-Category: inbox (Gmail connector → on_behalf_of + OAuth). Reine Arithmetik,
-kein einziger Modellaufruf — genau wie die Messung, auf der sie beruht
-(2026-09-23 live gemessen): „647 Mails, 0 gelesen" schlägt „fühlt sich nach
-zu viel an".
+Pure arithmetic, not a single model call — just like the measurement it rests
+on (measured live 2026-09-23): "647 mails, 0 read" beats "feels like too much".
 
-Default-Scope: ``-in:sent newer_than:<n>d`` — alles EMPFANGENE, das ihn
-erreicht. Zwei bewusste Grenzen, live verifiziert:
-- Spam und Trash sind von der Gmail-Suche standardmäßig AUSGESCHLOSSEN. In der
-  Trash liegen meist selbst gelöschte Mails (gemessen: my-hammer — dielöschte
-  Sebastian von Hand, Gmail hat dort nichts weggefiltert), im Spam das, was
-  Gmail begraben hat. Beides ist kein *aktueller* Lärm — wer alles sehen
-  will, übergibt ``in:anywhere`` im query.
-- Gesendete Mails sind ausgeschlossen — sie sind kein Lärm.
+Default scope: ``-in:sent newer_than:<n>d`` — everything RECEIVED that reaches
+him. Two deliberate limits, verified live:
+- Spam and trash are EXCLUDED from the Gmail search by default. The trash
+  mostly holds mails he deleted himself, the spam what Gmail buried. Neither is
+  *current* noise — whoever wants to see everything passes ``in:anywhere`` in
+  the query.
+- Sent mails are excluded — they are not noise.
 
-Ein kompletter 90-Tage-Lauf: ~70+ Seiten à 1,2 s Pause, rund 4 Minuten.
+A complete 90-day run: ~70+ pages at 1.2 s pause each, around four minutes.
 
-Trigger (lokal, Worker muss laufen):
-  make inbox-senders fenster=90
+Trigger (locally, the worker has to run):
+  make inbox-senders window=90
 """
 
 from __future__ import annotations
@@ -31,7 +28,7 @@ from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 with workflow.unsafe.imports_passed_through():
     from workflows.inbox.gmail import gmail_search_threads
 
-from workflows.crm.connectors import gmail_connector  # noqa: E402 — Wiederverwendung des Slots
+from workflows.crm.connectors import gmail_connector  # noqa: E402 — reuses the slot
 from workflows.inbox.models import (  # noqa: E402
     SenderItem,
     SenderStats,
@@ -55,19 +52,19 @@ class InboxSendersWorkflow:
     @workflows.workflow.entrypoint
     async def run(self, params: SenderStatsInput) -> SenderStats:
         query = params.query or f"-in:sent newer_than:{params.window_days}d"
-        roh = await gmail_search_threads(query=query, max_threads=params.max_threads)
+        raw = await gmail_search_threads(query=query, max_threads=params.max_threads)
 
         mails: Counter[str] = Counter()
         unread: Counter[str] = Counter()
         skipped = 0
-        for thread in roh["threads"]:
-            u = thread_to_envelope(thread)
-            if u is None:
+        for thread in raw["threads"]:
+            envelope = thread_to_envelope(thread)
+            if envelope is None:
                 skipped += 1
                 continue
-            mails[u.sender] += 1
-            if u.unread:
-                unread[u.sender] += 1
+            mails[envelope.sender] += 1
+            if envelope.unread:
+                unread[envelope.sender] += 1
 
         senders = [
             SenderItem(sender=s, mails=n, unread=unread[s])

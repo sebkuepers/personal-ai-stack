@@ -1,29 +1,29 @@
-"""Die Eskalationsregel der Inbox-Kaskade — deterministisch, hier getestet.
+"""The escalation rule of the inbox cascade — deterministic, and tested here.
 
-Small sichtet alles (schnell, günstig — die Masse sind Newsletter und
-Notifications). Medium prüft nur nach, wo ein Small-Fehler teuer würde:
-Antwortbedarf, Geldfluss, Frist heute — und die beiden kleinen, aber
-heiklen Typen (Korrespondenz und „sonstiges", wo ein verpasster
-Antwortbedarf unterginge, bevor jemand nachsieht).
+Small triages everything (fast, cheap — the bulk is newsletters and
+notifications). Medium re-checks only where a small mistake would be expensive:
+a needed reply, money, a deadline today — plus the two small but delicate types
+(correspondence and "other", where a missed reply would sink out of sight
+before anyone looks).
 
-Die Regel ist absichtlich Python und nicht Modellgefühl: Sie entscheidet
-über Geld, und ihre Fehlrichtungen sind asymmetrisch —
-- Small meldet zu viel → medium korrigiert (billig).
-- Small verpasst etwas Kritisches → es muss trotzdem eskalieren.
-Deshalb eskaliert sie auf TYP-Ebene bei correspondence/other und auf FELD-
-Ebene bei needs_reply/finanzen/urgency.
+The rule is deliberately Python and not a model's feeling: it decides about
+money, and its failure directions are asymmetric —
+- small reports too much → medium corrects it (cheap).
+- small misses something critical → it has to escalate anyway.
+So it escalates at TYPE level for correspondence/other and at FIELD level for
+needs_reply / finance / urgency.
 """
 
 from __future__ import annotations
 
 from workflows.inbox.models import InboxReview
 
-# Typen, die IMMER nachgesehen werden: selten im Volumen, kritisch im Fehler.
+# Types that are ALWAYS re-checked: rare in volume, critical when wrong.
 ALWAYS_ESCALATE = {"correspondence", "other"}
 
 
 def needs_second_review(review: InboxReview) -> bool:
-    """True, wenn die zweite Stufe (medium) diese Sichtung prüfen muss."""
+    """True when the second stage (medium) has to check this review."""
     return (
         review.needs_reply
         or review.finance_type != "none"

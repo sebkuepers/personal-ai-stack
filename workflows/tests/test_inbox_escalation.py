@@ -1,10 +1,10 @@
-"""Die Eskalationsregel entscheidet über Geld und Antworten — hier ihr Vertrag.
+"""The escalation rule decides about money and replies — this is its contract.
 
-Die Fehlrichtungen sind asymmetrisch, deshalb die Grenzen:
+Its failure directions are asymmetric, hence the boundaries:
 - Small meldet zu viel → Zweitblick korrigiert (billig, gewollt).
 - Small verpasst etwas Kritisches → muss trotzdem eskalieren. Deshalb
-  eskaliert die Regel auf Typ-Ebene bei correspondence/other, selbst wenn
-  small „keine Antwort nötig" sagt — genau das ist die gefährliche Lücke.
+  the rule escalates at type level for correspondence/other, even when small
+  says "no reply needed" — that is precisely the dangerous gap.
 """
 
 from __future__ import annotations
@@ -14,53 +14,53 @@ from workflows.inbox.models import InboxReview
 
 
 def sicht(**kwargs: object) -> InboxReview:
-    basis = {
+    base = {
         "type": "newsletter",
         "needs_reply": False,
         "urgency": "whenever",
         "subscription_group": "",
         "finance_type": "none",
-        "betrag": "",
+        "amount": "",
         "due_date": "",
         "context_for_vibe": "",
         "reasoning": "",
     }
-    basis.update(kwargs)
-    return InboxReview(**basis)  # type: ignore[arg-type]
+    base.update(kwargs)
+    return InboxReview(**base)  # type: ignore[arg-type]
 
 
-def test_routine_laeuft_nicht_zur_zweiten_stufe() -> None:
-    # Die Masse: Newsletter und Notifications ohne Antwortbedarf — small genügt.
+def test_routine_does_not_reach_the_second_stage() -> None:
+    # The bulk: newsletters and notifications with no reply needed — small suffices.
     assert needs_second_review(sicht(type="newsletter")) is False
     assert needs_second_review(sicht(type="notification")) is False
     assert needs_second_review(sicht(type="transaction")) is False
 
 
-def test_antwortbedarf_eskaliert() -> None:
+def test_a_needed_reply_escalates() -> None:
     assert needs_second_review(sicht(type="notification", needs_reply=True)) is True
 
 
-def test_finanzen_eskaliert() -> None:
+def test_money_escalates() -> None:
     assert needs_second_review(sicht(type="invoice_payment", finance_type="invoice")) is True
     assert needs_second_review(sicht(finance_type="direct_debit")) is True
 
 
-def test_urgency_heute_eskaliert() -> None:
+def test_urgency_today_escalates() -> None:
     assert needs_second_review(sicht(urgency="today")) is True
 
 
-def test_korrespondenz_eskaliert_auch_ohne_flags() -> None:
+def test_correspondence_escalates_even_without_flags() -> None:
     # Die entscheidende Lücke: Small sagt „keine Antwort nötig" zu einer Mail
-    # eines echten Menschen — die Regel darf dem nicht trauen und eskaliert
-    # auf Typ-Ebene. PERSONAL ist selten, die Versicherung ist billig.
+    # of a real human — the rule must not trust that and escalates at type
+    # level. PERSONAL is rare, so the insurance is cheap.
     assert needs_second_review(sicht(type="correspondence")) is True
 
 
-def test_other_eskaliert() -> None:
-    # „Sonstiges" ist der Unsicherheits-Bucket — nachsehen.
+def test_other_escalates() -> None:
+    # "Other" is the uncertainty bucket — look again.
     assert needs_second_review(sicht(type="other")) is True
 
 
-def test_nur_urgency_this_week_ohne_alles_escalationsfrei() -> None:
+def test_this_week_alone_does_not_escalate() -> None:
     # this_week allein (ohne Antwortbedarf/Finanzen) ist keine Kritikalität.
     assert needs_second_review(sicht(type="notification", urgency="this_week")) is False

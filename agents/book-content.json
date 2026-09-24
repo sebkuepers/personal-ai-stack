@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "inhalt_befund",
+        "name": "content_review",
         "schema": {
           "additionalProperties": false,
           "description": "Ebene 3: prüft ein ganzes Kapitel gegen die Rubrik des Autors — Prüfsteine, was es tragen muss und was nicht. Stellt Fragen, ändert nichts.",

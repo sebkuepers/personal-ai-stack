@@ -98,7 +98,7 @@ personal-ai-stack/
 ├── Dockerfile     # the workflows worker image (built by worker-host)
 ├── skills/        # Agent Skills (SKILL.md) for Vibe Work
 ├── shared/        # one <domain>.json per domain — single source of truth (IDs, schema, vocab)
-├── docs/          # CRM.md, BOOK.md (workflow maps), architecture.md (infra rationale)
+├── docs/          # CRM.md, BOOK.md, INBOX.md (workflow maps), architecture.md
 ├── README.md      # this file
 └── CLAUDE.md      # engineering conventions across the monorepo
 ```

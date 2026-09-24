@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "stil_gegenlesung",
+        "name": "style_second_read",
         "schema": {
           "additionalProperties": false,
           "description": "Das zweite Augenpaar über Ebene 2: prüft je Stilvorschlag, ob er hält, was seine Regel verspricht — oder ob er sie verdreht, zu weit greift oder gar keinen Verstoß behebt.",

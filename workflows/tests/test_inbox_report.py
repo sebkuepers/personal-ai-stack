@@ -1,10 +1,10 @@
 """Die Verdichtung eines Sichtungs-Laufs ist deterministisch — hier ist ihr Vertrag.
 
-``report.build_report`` zählt und sortiert; kein Modell, kein I/O. Die Zahlen
-landen im täglichen Report, ein Fehler hier verfälscht jede Entscheidung, die
-darauf basiert. Der Langweilfall ist ausdrücklich dabei: eine leere Runde muss
-einen leeren, aber wohlgeformten Report ergeben. Und der Antwort-Zustand kommt
-aus dem Sent-Fenster — Offene vor Beantworteten, das ist der Punkt des Digests.
+``report.build_report`` counts and sorts; no model, no I/O. The numbers land
+in the daily report, and a mistake here distorts every decision based on it.
+The boring case is explicitly included: an empty round has to yield an empty
+but well-formed report. And the reply state comes from the sent window — open
+before answered, which is the point of the digest.
 """
 
 from __future__ import annotations
@@ -35,19 +35,19 @@ def gesendet(to: list[str], subject: str = "Re: Betreff") -> SentEnvelope:
 
 def sicht(**kwargs: object) -> InboxReview:
     """Eine gültige Sichtung mit übersteuerbaren Feldern."""
-    basis = {
+    base = {
         "type": "newsletter",
         "needs_reply": False,
         "urgency": "whenever",
         "subscription_group": "",
         "finance_type": "none",
-        "betrag": "",
+        "amount": "",
         "due_date": "",
         "context_for_vibe": "",
         "reasoning": "",
     }
-    basis.update(kwargs)
-    return InboxReview(**basis)  # type: ignore[arg-type]
+    base.update(kwargs)
+    return InboxReview(**base)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -55,9 +55,9 @@ def sicht(**kwargs: object) -> InboxReview:
 # ---------------------------------------------------------------------------
 
 
-def test_leerer_lauf_gibt_leeren_bericht() -> None:
+def test_an_empty_run_yields_an_empty_report() -> None:
     report = build_report(
-        window_days=1, envelopes=[], reviews=[], gesendet=[], abmeldungen=[],
+        window_days=1, envelopes=[], reviews=[], sent=[], unsub_links=[],
         pages=3, skipped_no_messages=4, own_replies=0,
     )
     assert report.inbox_found == 0
@@ -65,24 +65,24 @@ def test_leerer_lauf_gibt_leeren_bericht() -> None:
     assert report.type_counts == {}
     assert report.subscription_groups == {}
     assert report.needs_reply == []
-    assert report.finanzen == []
+    assert report.finance == []
     assert report.sent == []
 
 
-def test_envelopes_und_reviews_muessen_paarweise_sein() -> None:
-    with pytest.raises(ValueError, match="paarweise"):
+def test_envelopes_and_reviews_have_to_be_pairwise() -> None:
+    with pytest.raises(ValueError, match="pairwise"):
         build_report(
-            window_days=1, envelopes=[umschlag()], reviews=[], gesendet=[],
-            abmeldungen=[], pages=1, skipped_no_messages=0, own_replies=0,
+            window_days=1, envelopes=[umschlag()], reviews=[], sent=[],
+            unsub_links=[], pages=1, skipped_no_messages=0, own_replies=0,
         )
 
 
 # ---------------------------------------------------------------------------
-# Antwort-Zustand — der Grund, warum der Digest auch den Postausgang liest
+# Reply state — the reason the digest reads the sent folder too
 # ---------------------------------------------------------------------------
 
 
-def test_beantwortete_landen_hinten_offene_vorne() -> None:
+def test_answered_go_last_open_go_first() -> None:
     report = build_report(
         window_days=1,
         envelopes=[
@@ -93,17 +93,17 @@ def test_beantwortete_landen_hinten_offene_vorne() -> None:
             sicht(type="correspondence", needs_reply=True, urgency="today"),
             sicht(type="correspondence", needs_reply=True, urgency="today"),
         ],
-        gesendet=[gesendet(to=["b@example.com"])],
-        abmeldungen=[],
+        sent=[gesendet(to=["b@example.com"])],
+        unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
-    assert [(a.sender, a.beantwortet) for a in report.needs_reply] == [
+    assert [(a.sender, a.answered) for a in report.needs_reply] == [
         ("a@example.com", False),
         ("b@example.com", True),
     ]
 
 
-def test_antwortbedarf_nur_bei_flag_sortiert_nach_urgency() -> None:
+def test_replies_only_on_the_flag_sorted_by_urgency() -> None:
     report = build_report(
         window_days=1,
         envelopes=[
@@ -118,8 +118,8 @@ def test_antwortbedarf_nur_bei_flag_sortiert_nach_urgency() -> None:
             sicht(type="notification", needs_reply=False),
             sicht(type="correspondence", needs_reply=True, urgency="this_week"),
         ],
-        gesendet=[],
-        abmeldungen=[],
+        sent=[],
+        unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
     assert [a.urgency for a in report.needs_reply] == [
@@ -130,7 +130,7 @@ def test_antwortbedarf_nur_bei_flag_sortiert_nach_urgency() -> None:
     assert all(a.subject != "Ohne Antwortbedarf" for a in report.needs_reply)
 
 
-def test_gleiche_urgency_nach_absender() -> None:
+def test_equal_urgency_sorts_by_sender() -> None:
     report = build_report(
         window_days=1,
         envelopes=[umschlag("A", "z@example.com"), umschlag("B", "a@example.com")],
@@ -138,18 +138,18 @@ def test_gleiche_urgency_nach_absender() -> None:
             sicht(type="correspondence", needs_reply=True, urgency="today"),
             sicht(type="correspondence", needs_reply=True, urgency="today"),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
     assert [a.sender for a in report.needs_reply] == ["a@example.com", "z@example.com"]
 
 
 # ---------------------------------------------------------------------------
-# Zählen und Gruppieren
+# Counting and grouping
 # ---------------------------------------------------------------------------
 
 
-def test_typ_zaehlung_und_leere_subscription_group_zaehlt_nicht() -> None:
+def test_type_counts_and_an_empty_group_does_not_count() -> None:
     report = build_report(
         window_days=1,
         envelopes=[umschlag(), umschlag("Re: Termin", "mensch@example.com"), umschlag()],
@@ -158,14 +158,14 @@ def test_typ_zaehlung_und_leere_subscription_group_zaehlt_nicht() -> None:
             sicht(type="correspondence"),
             sicht(type="notification", subscription_group=""),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
     assert report.type_counts == {"newsletter": 1, "notification": 1, "correspondence": 1}
     assert report.subscription_groups == {"LinkedIn": 1}
 
 
-def test_subscription_groups_nach_laerm_sortiert_dann_alphabetisch() -> None:
+def test_groups_sorted_by_noise_then_alphabetically() -> None:
     report = build_report(
         window_days=1,
         envelopes=[umschlag()] * 4,
@@ -175,13 +175,13 @@ def test_subscription_groups_nach_laerm_sortiert_dann_alphabetisch() -> None:
             sicht(subscription_group="LinkedIn"),
             sicht(subscription_group="Amazon"),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
     assert list(report.subscription_groups) == ["LinkedIn", "Amazon", "Zeit"]
 
 
-def test_finanzen_nur_bei_art_und_mit_allen_feldern() -> None:
+def test_finance_only_with_a_kind_and_with_every_field() -> None:
     report = build_report(
         window_days=1,
         envelopes=[umschlag("Mahnung"), umschlag("Newsletter")],
@@ -189,20 +189,20 @@ def test_finanzen_nur_bei_art_und_mit_allen_feldern() -> None:
             sicht(
                 type="invoice_payment",
                 finance_type="reminder",
-                betrag="89,00 EUR",
+                amount="89,00 EUR",
                 due_date="2026-09-25",
             ),
             sicht(type="newsletter", finance_type="none"),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
-    assert len(report.finanzen) == 1
-    f = report.finanzen[0]
-    assert (f.art, f.betrag, f.due_date) == ("reminder", "89,00 EUR", "2026-09-25")
+    assert len(report.finance) == 1
+    f = report.finance[0]
+    assert (f.kind, f.amount, f.due_date) == ("reminder", "89,00 EUR", "2026-09-25")
 
 
-def test_kontext_sammelt_nur_nicht_leere_eintraege() -> None:
+def test_context_collects_only_non_empty_entries() -> None:
     report = build_report(
         window_days=1,
         envelopes=[umschlag(), umschlag(), umschlag("Re: Termin")],
@@ -211,14 +211,14 @@ def test_kontext_sammelt_nur_nicht_leere_eintraege() -> None:
             sicht(context_for_vibe=""),
             sicht(type="notification", context_for_vibe="Zahnarzttermin morgen 9 Uhr."),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
     )
-    assert report.kontext == ["Zusage für Freitag, 10 Uhr.", "Zahnarzttermin morgen 9 Uhr."]
+    assert report.context == ["Zusage für Freitag, 10 Uhr.", "Zahnarzttermin morgen 9 Uhr."]
 
 
 # ---------------------------------------------------------------------------
-# Sent-Sektion, Abmeldelinks und Kopfzahlen
+# Sent section, unsubscribe links and the headline figures
 # ---------------------------------------------------------------------------
 
 
@@ -230,7 +230,7 @@ def test_second_review_flag_and_count() -> None:
             sicht(type="correspondence"),
             sicht(type="newsletter"),
         ],
-        gesendet=[], abmeldungen=[],
+        sent=[], unsub_links=[],
         pages=1, skipped_no_messages=0, own_replies=0,
         second_review_indices={0},
     )
@@ -239,7 +239,7 @@ def test_second_review_flag_and_count() -> None:
     assert report.reviews[1].second_review is False
 
 
-def test_sent_und_abmeldungen_werden_durchgereicht() -> None:
+def test_sent_and_unsub_links_are_passed_through() -> None:
     s = gesendet(to=["marie@example.com"])
     kandidat = UnsubCandidate(
         sender="news@example.com", subject="Rundbrief", thread_id="t1",
@@ -249,8 +249,8 @@ def test_sent_und_abmeldungen_werden_durchgereicht() -> None:
         window_days=1,
         envelopes=[umschlag("Rundbrief", "news@example.com")],
         reviews=[sicht(reasoning="Massenversand mit Abbestell-Link.")],
-        gesendet=[s],
-        abmeldungen=[kandidat],
+        sent=[s],
+        unsub_links=[kandidat],
         pages=7, skipped_no_messages=26, own_replies=2,
     )
     assert report.sent == [s]

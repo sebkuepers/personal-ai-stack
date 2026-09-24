@@ -1,17 +1,21 @@
-"""Direkte Gmail-Tool-Aufrufe als Aktivitäten — kein Lese-Agent (Muster A).
+"""Direct Gmail tool calls as activities — no reading agent (pattern A).
 
-Workflows-CLAUDE.md Abschnitt 6, Muster A: deterministische Aufrufe mit
-bekannten Eingaben statt eines Agents, der die Tools selbst entdeckt. Das
-Lesen ist Arithmetik — ein Lese-Agent würde ein Modell dafür bezahlen, Zahlen
-zu ziehen, die Python exakt liefert.
+workflows/CLAUDE.md section 6, pattern A: deterministic calls with known
+inputs instead of an agent that discovers the tools itself. Reading is
+arithmetic — a reading agent would pay a model to pull numbers that Python
+delivers exactly.
 
-Live verifiziert (2026-09-23, gegen das Konto gemessen):
-- ``resultCountEstimate`` ist als Planzahl unbrauchbar (konstant 201 auf allen
-  Nicht-Endseiten) — paginiert wird bis ``nextPageToken`` fehlt.
-- Ohne Pause zwischen den Seiten kommt irgendwann eine leere Antwort
-  (Rate-Limit). 1,2 s pro Seite lief durch (70 Seiten am Stück).
-- ``search_threads`` nimmt ``query``, ``pageSize`` (max 50), ``pageToken``;
-  ``get_thread`` nimmt ``threadId`` und ``messageFormat``.
+Verified live (2026-09-23, measured against the account):
+- ``resultCountEstimate`` is useless as a planning figure (constant 201 on
+  every non-final page) — paginate until ``nextPageToken`` is missing.
+- Without a pause between pages an empty answer eventually comes back (rate
+  limit). 1.2 s per page ran through (70 pages in one go).
+- ``search_threads`` takes ``query``, ``pageSize`` (max 50), ``pageToken``;
+  ``get_thread`` takes ``threadId`` and ``messageFormat``.
+- ``list_labels`` returns ``labelId``, not ``id``, and ``create_label``
+  requires ``displayName``, not ``name``. Both cost a day.
+
+Messages that reach the author stay German.
 """
 
 from __future__ import annotations
@@ -29,25 +33,25 @@ from workflows.crm.connectors import gmail_connector
 
 from . import config
 
-_PAUSE_SEKUNDEN = 1.2  # ohne sie: leere Seiten (Rate-Limit) — live verifiziert
-_MAX_SEITEN = 200  # 200 × 50 = 10.000 Threads Deckel gegen Endlosschleifen
+_PAUSE_SECONDS = 1.2  # without it: empty pages (rate limit) — verified live
+_MAX_PAGES = 200  # 200 × 50 = 10,000 threads, a cap against endless loops
 
 
-def _tool_json(ergebnis: Any) -> dict:
-    """Extrahiert das JSON aus einer Tool-Antwort (``content[0].text``), beide Formen.
+def _tool_json(result: Any) -> dict:
+    """Extract the JSON from a tool answer (``content[0].text``), in both shapes.
 
-    ``ToolCallClient.call_tool`` gibt je nach SDK-Pfad das Response-Model oder
-    sein dict zurück — beides wird hier genommen.
+    Depending on the SDK path, ``ToolCallClient.call_tool`` returns the response
+    model or its dict — both are accepted here.
     """
-    content = getattr(ergebnis, "content", None)
-    if content is None and isinstance(ergebnis, dict):
-        content = ergebnis.get("content")
+    content = getattr(result, "content", None)
+    if content is None and isinstance(result, dict):
+        content = result.get("content")
     if not content:
-        raise RuntimeError(f"Tool-Antwort ohne content: {str(ergebnis)[:200]}")
-    erstes = content[0]
-    text = erstes.get("text") if isinstance(erstes, dict) else getattr(erstes, "text", None)
+        raise RuntimeError(f"Tool answer without content: {str(result)[:200]}")
+    first = content[0]
+    text = first.get("text") if isinstance(first, dict) else getattr(first, "text", None)
     if not text:
-        raise RuntimeError("Tool-Antwort ohne Text in content[0]")
+        raise RuntimeError("Tool answer without text in content[0]")
     return json.loads(text)
 
 
@@ -61,15 +65,15 @@ async def gmail_search_threads(
     max_threads: int,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> dict:
-    """Paginierte ``search_threads``-Suche → ``{"threads": [...], "pages": n}``.
+    """Paginated ``search_threads`` search → ``{"threads": [...], "pages": n}``.
 
-    Spam und Trash sind von Gmail standardmäßig ausgeschlossen; wer sie will,
-    formuliert es im query (``in:anywhere``).
+    Spam and trash are excluded by Gmail by default; whoever wants them says so
+    in the query (``in:anywhere``).
     """
     threads: list[dict] = []
     token: str | None = None
     pages = 0
-    while len(threads) < max_threads and pages < _MAX_SEITEN:
+    while len(threads) < max_threads and pages < _MAX_PAGES:
         arguments: dict[str, Any] = {"query": query, "pageSize": 50}
         if token:
             arguments["pageToken"] = token
@@ -83,7 +87,7 @@ async def gmail_search_threads(
         pages += 1
         if not token:
             break
-        await asyncio.sleep(_PAUSE_SEKUNDEN)
+        await asyncio.sleep(_PAUSE_SECONDS)
     return {"threads": threads[:max_threads], "pages": pages}
 
 
@@ -96,10 +100,10 @@ async def gmail_thread_body(
     thread_id: str,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> str:
-    """Letzte Message eines Threads als Text (HTML bevorzugt) — für Abmeldelinks.
+    """A thread's last message as text (HTML preferred) — for unsubscribe links.
 
-    Bodies gibt es nur über ``get_thread``; eine einzige Werbemail hatte
-    132.689 Zeichen HTML. Deshalb wird das nur einzeln geholt, nie flächig.
+    Bodies exist only through ``get_thread``; one single promotional mail had
+    132,689 characters of HTML. So this is fetched one at a time, never in bulk.
     """
     payload = _tool_json(
         await gmail.call_tool(
@@ -116,8 +120,8 @@ async def gmail_thread_body(
 
 
 # --------------------------------------------------------------------------- #
-# Schreibende Werkzeuge — Stufe 2/3 der Sicherheitsleiter. Sie laufen NUR über
-# die freigegebenen Aufräum-Schritte der Sprechstunde, nie im stillen Lauf.
+# Writing tools — level 2/3 of the safety ladder. They run ONLY through the
+# approved cleanup steps of the conversation, never in the silent run.
 # --------------------------------------------------------------------------- #
 
 
@@ -130,17 +134,17 @@ async def gmail_ensure_label(
     name: str,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> str:
-    """Holt die Label-ID nach Namen — oder legt das Label an, wenn es fehlt.
+    """Get the label ID by name — or create the label when it is missing.
 
-    Die Label-Namen kommen aus ``shared/inbox.json`` (``labels``), nie aus
-    freier Quelle. ``list_labels`` liefert nur Nutzer-Labels; System-Labels
-    (UNREAD, INBOX, SPAM …) brauchen keine IDs.
+    The label names come from ``shared/inbox.json`` (``labels``), never from a
+    free source. ``list_labels`` returns user labels only; system labels
+    (UNREAD, INBOX, SPAM …) need no IDs.
     """
-    # Beide Feldnamen sind live geprueft und NICHT das, was man erwartet:
-    # list_labels liefert "labelId" (nicht "id"), und create_label verlangt
-    # "displayName" (nicht "name"). Mit den erwarteten Namen fand der Abgleich
-    # nie ein vorhandenes Label, und das Anlegen scheiterte an der
-    # Schema-Validierung — der ganze Aufraeum-Schritt war tot.
+    # Both field names are verified live and NOT what one would expect:
+    # list_labels returns "labelId" (not "id"), and create_label requires
+    # "displayName" (not "name"). With the expected names the lookup never
+    # found an existing label, and creating one failed schema validation — the
+    # whole cleanup step was dead.
     payload = _tool_json(
         await gmail.call_tool(tool_name=config.GMAIL_TOOLS["list_labels"],
                               arguments={"pageSize": "200"})
@@ -168,29 +172,29 @@ async def gmail_ensure_label(
 async def gmail_process_thread(
     thread_id: str,
     label_id: str,
-    archivieren: bool,
-    gelesen: bool,
+    archive: bool,
+    mark_read: bool,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> dict:
-    """Setzt das verarbeitet-Label; optional gelesen (UNREAD weg) und archiviert (INBOX weg).
+    """Set the processed label; optionally mark read (drop UNREAD) and archive (drop INBOX).
 
-    „Als gelesen markieren" ist in Gmail das Entfernen des UNREAD-System-Labels,
-    „archivieren" das Entfernen des INBOX-Labels — die label_thread-Doku nennt
-    System-Label-IDs ausdrücklich. Beides ist reversibel; gesendet wird nie.
+    "Mark as read" in Gmail is removing the UNREAD system label, "archive" is
+    removing the INBOX label — the label_thread docs name system label IDs
+    explicitly. Both are reversible; nothing is ever sent.
     """
     await gmail.call_tool(
         tool_name=config.GMAIL_TOOLS["label_thread"],
         arguments={"threadId": thread_id, "labelIds": [label_id]},
     )
-    weg: list[str] = []
-    if gelesen:
-        weg.append("UNREAD")
-    if archivieren:
-        weg.append("INBOX")
-    if weg:
+    remove: list[str] = []
+    if mark_read:
+        remove.append("UNREAD")
+    if archive:
+        remove.append("INBOX")
+    if remove:
         await gmail.call_tool(
             tool_name=config.GMAIL_TOOLS["unlabel_thread"],
-            arguments={"threadId": thread_id, "labelIds": weg},
+            arguments={"threadId": thread_id, "labelIds": remove},
         )
     return {"thread_id": thread_id}
 
@@ -207,10 +211,10 @@ async def gmail_draft(
     reply_to_message_id: str | None = None,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> dict:
-    """Legt einen Draft an — der Connector KANN nicht senden (Gotcha 7).
+    """Create a draft — the connector CANNOT send (gotcha 7).
 
-    Für mailto-Abmeldelinks (Absenden bestätigt der Mensch) und später
-    vorformulierte Antworten (reply_to_message_id).
+    For mailto unsubscribe links (a human confirms the send) and later for
+    pre-written replies (reply_to_message_id).
     """
     arguments: dict[str, Any] = {"to": to, "subject": subject, "body": body}
     if reply_to_message_id:

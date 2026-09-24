@@ -457,7 +457,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 2048,
         "model_cls": VoiceSample,
-        "schema_name": "stimmprobe",
+        "schema_name": "voice_sample",
     },
     {
         "file": "book-voice-profile.json",
@@ -472,7 +472,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 8192,
         "model_cls": RawVoiceProfile,
-        "schema_name": "stimmprofil",
+        "schema_name": "voice_profile",
     },
     {
         "file": "book-copyedit.json",
@@ -487,7 +487,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 4096,
         "model_cls": Corrections,
-        "schema_name": "korrekturen",
+        "schema_name": "corrections",
     },
     {
         "file": "book-style.json",
@@ -502,7 +502,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 4096,
         "model_cls": StyleSuggestions,
-        "schema_name": "stilvorschlaege",
+        "schema_name": "style_suggestions",
     },
     {
         "file": "book-content.json",
@@ -520,7 +520,7 @@ AGENTS = [
         # leer — das Modell fing hinten an und kam nicht mehr dazu.
         "max_tokens": 8192,
         "model_cls": ContentReview,
-        "schema_name": "inhalt_befund",
+        "schema_name": "content_review",
     },
     {
         "file": "book-profile-check.json",
@@ -536,7 +536,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 4096,
         "model_cls": ProfileCheck,
-        "schema_name": "profil_pruefung",
+        "schema_name": "profile_check",
     },
     {
         "file": "book-style-second-read.json",
@@ -552,7 +552,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 4096,
         "model_cls": StyleSecondRead,
-        "schema_name": "stil_gegenlesung",
+        "schema_name": "style_second_read",
     },
     {
         "file": "book-second-read.json",
@@ -568,7 +568,7 @@ AGENTS = [
         "random_seed": 4711,
         "max_tokens": 2048,
         "model_cls": SecondRead,
-        "schema_name": "gegenlesung",
+        "schema_name": "second_read",
     },
 ]
 

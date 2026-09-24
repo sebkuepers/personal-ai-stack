@@ -1,41 +1,40 @@
-"""Agent-Evaluation für den ganzen Stack — domänenunabhängig.
+"""Agent evaluation for the whole stack — domain-independent.
 
-Entstanden beim Buch-Lektorat, aber bewusst nicht dort angesiedelt: Jeder Agent
-im Repo wirft dieselbe Frage auf — liefert er das Richtige, und woran merkt man
-eine Verschlechterung?
+Born during the book edit, but deliberately not housed there: every agent in
+the repo raises the same question — does it deliver the right thing, and how
+would one notice a regression?
 
-    from evalkit import Fall, Konfiguration, vergleiche, agent_definition
+    from evalkit import Case, Config, agent_definition, compare
 
-Aufbau:
-  modelle.py  Fall, Prüfung, Ergebnis, Bilanz — was gemessen wird
-  runner.py   führt Fälle gegen Konfigurationen aus — wie gemessen wird
-  __main__.py generisches CLI: python -m evalkit --agent <name> --faelle <datei>
+Layout:
+  models.py    Case, Check, Result, Tally — what is measured
+  runner.py    runs cases against configurations — how it is measured
+  __main__.py  generic CLI: python -m evalkit --agent <name> --cases <file>
 
-Eine Domäne steuert nur zwei Dinge bei: die Testfälle (welche Eingaben, welche
-Zusicherungen) und optional einen Generator dafür. Alles andere ist hier.
+A domain contributes only two things: the test cases (which inputs, which
+assertions) and optionally a generator for them. Everything else lives here.
 """
 
-from .modelle import Bilanz, Ergebnis, Fall, Pruefung, bilanziere, hole, pruefe
+from .models import Case, Check, Result, Tally, evaluate, pick, tally
 from .runner import (
-    STANDARD_KONFIGURATIONEN,
-    Konfiguration,
+    DEFAULT_CONFIGS,
+    Config,
     agent_definition,
-    einmal,
-    vergleiche,
+    compare,
+    run_once,
 )
 
 __all__ = [
-    "STANDARD_KONFIGURATIONEN",
-    "Bilanz",
-    "Ergebnis",
-    "Fall",
-    "Konfiguration",
-
-    "Pruefung",
+    "DEFAULT_CONFIGS",
+    "Case",
+    "Check",
+    "Config",
+    "Result",
+    "Tally",
     "agent_definition",
-    "bilanziere",
-    "einmal",
-    "hole",
-    "pruefe",
-    "vergleiche",
+    "compare",
+    "evaluate",
+    "pick",
+    "run_once",
+    "tally",
 ]

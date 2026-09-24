@@ -1,221 +1,221 @@
 [
   {
     "id": "komma-vor-nebensatz",
-    "quelle": "konstruiert",
-    "notiz": "Zwei fehlende Kommas vor Nebensätzen. Beide müssen gefunden werden.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist. Danach lege ich mich hin obwohl der Sand noch brennt.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Zwei fehlende Kommas vor Nebensätzen. Beide müssen gefunden werden.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Ich gehe ins Wasser weil es heiß ist. Danach lege ich mich hin obwohl der Sand noch brennt.",
+    "expected": [
       {
-        "pfad": "corrections[].search",
-        "wert": "Wasser weil"
+        "path": "corrections[].search",
+        "value": "Wasser weil"
       },
       {
-        "pfad": "corrections[].search",
-        "wert": "hin obwohl"
+        "path": "corrections[].search",
+        "value": "hin obwohl"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "tippfehler",
-    "quelle": "konstruiert",
-    "notiz": "Zwei klare Tippfehler.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Der Stranndkorb steht im Sand. Daneben liegt ein Handtch von gestern.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Zwei klare Tippfehler.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Der Stranndkorb steht im Sand. Daneben liegt ein Handtch von gestern.",
+    "expected": [
       {
-        "pfad": "corrections[].search",
-        "wert": "Stranndkorb"
+        "path": "corrections[].search",
+        "value": "Stranndkorb"
       },
       {
-        "pfad": "corrections[].search",
-        "wert": "Handtch"
+        "path": "corrections[].search",
+        "value": "Handtch"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "substantivierung",
-    "quelle": "konstruiert",
-    "notiz": "Substantiviertes Adjektiv kleingeschrieben — klassischer Fehler.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Das einzige was stört, ist mein Puls. Beim schwimmen vergesse ich das.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Substantiviertes Adjektiv kleingeschrieben — klassischer Fehler.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Das einzige was stört, ist mein Puls. Beim schwimmen vergesse ich das.",
+    "expected": [
       {
-        "pfad": "corrections[].search",
-        "wert": "einzige"
+        "path": "corrections[].search",
+        "value": "einzige"
       },
       {
-        "pfad": "corrections[].search",
-        "wert": "schwimmen"
+        "path": "corrections[].search",
+        "value": "schwimmen"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "gerade-anfuehrungszeichen",
-    "quelle": "konstruiert",
-    "notiz": "Gerade statt deutscher Anführungszeichen — echter Typografiefehler.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] \"Das Wasser ist zu kalt\", sagt die Nachbarin und dreht sich weg.",
-    "erwartet": [
+    "source": "konstruiert",
+    "note": "Gerade statt deutscher Anführungszeichen — echter Typografiefehler.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] \"Das Wasser ist zu kalt\", sagt die Nachbarin und dreht sich weg.",
+    "expected": [
       {
-        "pfad": "corrections[].kind",
-        "operator": "gleich",
-        "wert": "typografie"
+        "path": "corrections[].kind",
+        "operator": "equals",
+        "value": "typografie"
       }
     ],
-    "verboten": [
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "falle-umgangssprache-im-erzaehltext",
-    "quelle": "konstruiert",
-    "notiz": "Alles korrekt, nur umgangssprachlich. Darf NICHTS gemeldet werden.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Die Taschen ziehen mich runter. Ich muss mal gucken, ob ich das Board noch kriege.",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Alles korrekt, nur umgangssprachlich. Darf NICHTS gemeldet werden.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Die Taschen ziehen mich runter. Ich muss mal gucken, ob ich das Board noch kriege.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "paar",
-        "paar_pfad": "corrections[].replace",
-        "wert": [
+        "path": "corrections[].search",
+        "operator": "pair",
+        "pair_path": "corrections[].replace",
+        "value": [
           "runter",
           "hinunter"
         ]
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "paar",
-        "paar_pfad": "corrections[].replace",
-        "wert": [
+        "path": "corrections[].search",
+        "operator": "pair",
+        "pair_path": "corrections[].replace",
+        "value": [
           "gucken",
           "schauen"
         ]
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "paar",
-        "paar_pfad": "corrections[].replace",
-        "wert": [
+        "path": "corrections[].search",
+        "operator": "pair",
+        "pair_path": "corrections[].replace",
+        "value": [
           "kriege",
           "bekomme"
         ]
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "falle-figurenrede",
-    "quelle": "konstruiert",
-    "notiz": "Umgangssprache in direkter Rede. Darf nicht angetastet werden.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] „Ne, das mach ich nicht“, sagt der Junge. „Und nix da mit Gummistiefeln.“",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Umgangssprache in direkter Rede. Darf nicht angetastet werden.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] „Ne, das mach ich nicht“, sagt der Junge. „Und nix da mit Gummistiefeln.“",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "paar",
-        "paar_pfad": "corrections[].replace",
-        "wert": [
+        "path": "corrections[].search",
+        "operator": "pair",
+        "pair_path": "corrections[].replace",
+        "value": [
           "Ne",
           "Nein"
         ]
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "paar",
-        "paar_pfad": "corrections[].replace",
-        "wert": [
+        "path": "corrections[].search",
+        "operator": "pair",
+        "pair_path": "corrections[].replace",
+        "value": [
           "nix",
           "nichts"
         ]
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "unveraendert",
-        "paar_pfad": "corrections[].replace"
+        "path": "corrections[].search",
+        "operator": "unchanged",
+        "pair_path": "corrections[].replace"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "falle-korrekter-text",
-    "quelle": "konstruiert",
-    "notiz": "Vollständig korrekter Text. Die leere Liste ist das richtige Ergebnis — ein Agent, der hier etwas findet, erfindet.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Meine Füße verschwinden im Sand. Kein Wind. Keine Welle am Strand.\n\n[1] Ich kenne dieses Meer zu jeder Jahreszeit, und im November ist es am schönsten.",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Vollständig korrekter Text. Die leere Liste ist das richtige Ergebnis — ein Agent, der hier etwas findet, erfindet.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Meine Füße verschwinden im Sand. Kein Wind. Keine Welle am Strand.\n\n[1] Ich kenne dieses Meer zu jeder Jahreszeit, und im November ist es am schönsten.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "existiert"
+        "path": "corrections[].search",
+        "operator": "exists"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   },
   {
     "id": "falle-kurze-saetze",
-    "quelle": "konstruiert",
-    "notiz": "Unvollständige Sätze als Stilmittel — grammatisch 'falsch', aber gewollt. Darf nicht zusammengezogen werden.",
-    "eingabe": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Kein Wind. Keine Welle. Nur mein Puls und mein Keuchen.",
-    "erwartet": [],
-    "verboten": [
+    "source": "konstruiert",
+    "note": "Unvollständige Sätze als Stilmittel — grammatisch 'falsch', aber gewollt. Darf nicht zusammengezogen werden.",
+    "input": "ABSCHNITT: Test\n\n--- ABSÄTZE ---\n[0] Kein Wind. Keine Welle. Nur mein Puls und mein Keuchen.",
+    "expected": [],
+    "forbidden": [
       {
-        "pfad": "corrections[].search",
-        "operator": "existiert"
+        "path": "corrections[].search",
+        "operator": "exists"
       },
       {
-        "pfad": "corrections[].search",
-        "operator": "nicht_im_text"
+        "path": "corrections[].search",
+        "operator": "not_in_input"
       }
     ]
   }

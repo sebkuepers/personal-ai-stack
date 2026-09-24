@@ -1,8 +1,8 @@
-"""Der Aufräum-Plan entscheidet, was in Gmail passiert — hier ist sein Vertrag.
+"""The cleanup plan decides what happens in Gmail — this is its contract.
 
-Die gefährliche Richtung ist das OVER-archivieren: Eine Mail, die Antwort oder
-Geld verlangt, darf nie im Lärm landen. Deshalb prüft die Regel Antwort und
-Finanzen VOR dem Typ — und genau diese Rangfolge steht hier auf Probe.
+The dangerous direction is OVER-archiving: a mail that wants a reply or
+involves money must never end up in the noise. So the rule checks reply and
+finance BEFORE the type — and that ordering is exactly what is on trial here.
 """
 
 from __future__ import annotations
@@ -17,78 +17,79 @@ from workflows.inbox.cleanup import (
     cleanup_plan,
     cleanup_summary,
 )
+from workflows.inbox import config
 from workflows.inbox.models import InboxReview, ReviewItem
 
 
-def sichtung(thread_id: str = "t1", **kwargs: object) -> ReviewItem:
-    basis = {
+def review_item(thread_id: str = "t1", **kwargs: object) -> ReviewItem:
+    base = {
         "type": "newsletter",
         "needs_reply": False,
         "urgency": "whenever",
         "subscription_group": "",
         "finance_type": "none",
-        "betrag": "",
+        "amount": "",
         "due_date": "",
         "context_for_vibe": "",
         "reasoning": "",
     }
-    basis.update(kwargs)
+    base.update(kwargs)
     return ReviewItem(
         thread_id=thread_id,
         sender="a@example.com",
         subject="Betreff",
         received_on=date(2026, 9, 24),
-        review=InboxReview(**basis),  # type: ignore[arg-type]
+        review=InboxReview(**base),  # type: ignore[arg-type]
     )
 
 
-def test_routine_lärm_wird_archiviert() -> None:
+def test_routine_noise_is_archived() -> None:
     plan = cleanup_plan([
-        sichtung("t1", type="newsletter"),
-        sichtung("t2", type="notification"),
-        sichtung("t3", type="transaction"),
+        review_item("t1", type="newsletter"),
+        review_item("t2", type="notification"),
+        review_item("t3", type="transaction"),
     ])
-    assert [p.aktion for p in plan] == [NOISE, NOISE, NOISE]
+    assert [p.action for p in plan] == [NOISE, NOISE, NOISE]
 
 
-def test_antwortbedarf_geht_vor_lärm() -> None:
-    # Die gefährlichste Falle: Eine Notification, die eine Reaktion verlangt,
-    # darf NIEMALS als Lärm archiviert werden.
-    plan = cleanup_plan([sichtung("t1", type="notification", needs_reply=True)])
-    assert plan[0].aktion == NEEDS_REPLY
+def test_a_needed_reply_beats_noise() -> None:
+    # The most dangerous trap: a notification that wants a reaction must
+    # NEVER be archived as noise.
+    plan = cleanup_plan([review_item("t1", type="notification", needs_reply=True)])
+    assert plan[0].action == NEEDS_REPLY
 
 
-def test_finanzen_gehen_vor_lärm() -> None:
-    # Eine Bestätigung mit Geldfluss (Lastschrift angekündigt) ist keine
-    # Transaktion im Lärm-Sinn — sie bleibt sichtbar.
-    plan = cleanup_plan([sichtung("t1", type="transaction", finance_type="direct_debit")])
-    assert plan[0].aktion == FINANCE
+def test_money_beats_noise() -> None:
+    # A confirmation with money in it (a direct debit announced) is not a
+    # transaction in the noise sense — it stays visible.
+    plan = cleanup_plan([review_item("t1", type="transaction", finance_type="direct_debit")])
+    assert plan[0].action == FINANCE
 
 
-def test_korrespondenz_ist_nie_lärm() -> None:
-    plan = cleanup_plan([sichtung("t1", type="correspondence")])
-    assert plan[0].aktion == NEEDS_REPLY
+def test_correspondence_is_never_noise() -> None:
+    plan = cleanup_plan([review_item("t1", type="correspondence")])
+    assert plan[0].action == NEEDS_REPLY
 
 
-def test_unsicherer_rest_bleibt() -> None:
-    plan = cleanup_plan([sichtung("t1", type="other")])
-    assert plan[0].aktion == KEEP
+def test_the_uncertain_rest_is_kept() -> None:
+    plan = cleanup_plan([review_item("t1", type="other")])
+    assert plan[0].action == KEEP
 
 
-def test_cleanup_summary_zaehlt_ehrlich() -> None:
+def test_cleanup_summary_counts_honestly() -> None:
     plan = cleanup_plan([
-        sichtung("t1", type="newsletter"),
-        sichtung("t2", type="invoice_payment"),
-        sichtung("t3", type="correspondence"),
-        sichtung("t4", type="other"),
+        review_item("t1", type="newsletter"),
+        review_item("t2", type="invoice_payment"),
+        review_item("t3", type="correspondence"),
+        review_item("t4", type="other"),
     ])
-    text = cleanup_summary(plan)
+    text = cleanup_summary(plan, config.LABELS)
     assert "1 archivieren + gelesen setzen" in text
-    assert "1 behalten (label inbox/finance)" in text
-    assert "1 behalten (label inbox/needs-reply)" in text
+    assert f"1 behalten (Label {config.LABELS['finance']})" in text
+    assert f"1 behalten (Label {config.LABELS['needs_reply']})" in text
     assert "1 unangetastet" in text
 
 
-def test_leerer_plan() -> None:
+def test_empty_plan() -> None:
     assert cleanup_plan([]) == []
-    assert cleanup_summary([]) == "nichts zu tun"
+    assert cleanup_summary([], config.LABELS) == "nichts zu tun"

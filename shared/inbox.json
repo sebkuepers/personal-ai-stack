@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth der inbox-Domäne: Agent-ID, Modelle, Connector, Tool-Namen (live verifiziert 2026-09-23 via connectors.list_tools), Label-Vokabular und Grenzen. Python (workflows/src/workflows/inbox/config.py) liest hieraus; zukünftige MCP-Tools ebenfalls. Werkzeuge der gmail-Connector-Tools sind die LIVE-Namen (search_threads, create_draft, label_*), NICHT die älteren Namen aus crm.json.",
+  "_comment": "Single source of truth of the inbox domain: agent IDs, models, connector, tool names (verified live 2026-09-23 via connectors.list_tools), label vocabulary and limits. Python (workflows/src/workflows/inbox/config.py) reads from here. The gmail tool names are the LIVE ones (search_threads, create_draft, label_*), NOT the older names that were once in crm.json. Note two field names that are not what one would guess and cost a day: list_labels returns 'labelId' (not 'id'), and create_label requires 'displayName' (not 'name').",
   "agent": {
     "inbox_review_agent_id": "ag_01a0cfec1f6375dbbaf50c0ec60f9997",
     "inbox_second_review_agent_id": "ag_01a0d1bf2a6e75f7864942200055bc01"
@@ -63,60 +63,60 @@
   "limits": {
     "max_emails": 50,
     "window_hours": 26,
-    "max_body_zeichen": 2000
+    "max_body_chars": 2000
   },
   "measurement": {
-    "_comment": "Zahlen neben der Einstellung, die sie rechtfertigen (Goldregel 6). evalkit + Kaskaden-Eval, 8 konstruierte Faelle, 2026-09-24. Rubrik-Revision: B und E verlangen 'zeitkritisch erkannt' (verboten: whenever), nicht die exakte Schublade — today vs this_week ist Sortierung, kein Fehler.",
+    "_comment": "Numbers next to the setting they justify (golden rule 6). evalkit + cascade eval, 8 constructed cases, 2026-09-24. Rubric revision: B and E require 'recognised as time-critical' (forbidden: whenever), not the exact bucket — today vs this_week is sorting, not an error.",
     "first_small_none": {
-      "treffer": "41/42 (98%)",
-      "fallen": "0/30",
       "s": 1.0,
-      "tokens": 2092
+      "tokens": 2092,
+      "hits": "41/42 (98%)",
+      "traps": "0/30"
     },
     "first_small_high": {
-      "treffer": "22/23 (96%)",
-      "fallen": "1/13",
       "s": 4.1,
-      "tokens": 5551
+      "tokens": 5551,
+      "hits": "22/23 (96%)",
+      "traps": "1/13"
     },
     "second_medium_none": {
-      "treffer": "41/42 (98%)",
-      "fallen": "0/30",
       "s": 1.0,
-      "tokens": 1870
+      "tokens": 1870,
+      "hits": "41/42 (98%)",
+      "traps": "0/30"
     },
     "second_medium_high": {
-      "treffer": "23/23 (100%)",
-      "fallen": "0/13",
       "s": 5.3,
-      "tokens": 7182
+      "tokens": 7182,
+      "hits": "23/23 (100%)",
+      "traps": "0/13"
     },
     "cascade_final": {
-      "treffer": "40/42 (95%)",
-      "fallen": "0/30",
       "s": 1.6,
       "tokens": 3169,
-      "befund": "Der Zweitblick re-rollt auch korrekte Erstblick-Antworten (Fall F)."
+      "hits": "40/42 (95%)",
+      "traps": "0/30",
+      "finding": "The second stage re-rolls correct first-stage answers too (case F)."
     },
     "history": [
       {
-        "schritt": "Erstmessung",
-        "small_none": "87%/1 Falle",
+        "step": "first measurement",
+        "small_none": "87%/1 trap",
         "medium_none": "91%/0",
         "medium_high": "100%/0"
       },
       {
-        "schritt": "Dringlichkeits-Regel kalenderisch geschaerft",
+        "step": "urgency rule sharpened to calendar dates",
         "small_none": "87%/1",
         "small_high": "96%/1",
         "medium_none": "91%/0",
         "medium_high": "100%/0"
       },
       {
-        "schritt": "Rubrik ehrlich (B/E: Schublade -> zeitkritisch) + kontext-Bonus verboten",
+        "step": "rubric made honest (B/E: bucket -> time-critical) + context bonus forbidden",
         "small_none": "98%/0"
       }
     ],
-    "decision": "Erstblick small/none sichtet alles — 98% Treffer, 0 Fallen, 1.0s. Die Kaskade mit Zweitblick medium bleibt ALS VERSICHERUNG im Pfad (konstruierte Faelle beweisen nur, was man sich dachte; echte Daten fehlen), steht aber unter Beweis: Der Report zaehlt zweitblick_geaendert. Nach einer Woche echter Laeufe entscheidet diese Zahl — ~0 Geaenderungen heisst: zweite Stufe entfernen. Reasoning half hier uebrigens (medium/high 100%), im Gegensatz zum frueheren Lektorats-Befund."
+    "decision": "First stage small/none triages everything — 98% hits, 0 traps, 1.0s. The cascade with the medium second stage stays in the path AS INSURANCE (constructed cases only prove what one already thought of; real data is missing), but it is on probation: the report counts second_review_changed. After a week of real runs that number decides — ~0 changes means: remove the second stage. Reasoning helped here, by the way (medium/high 100%), unlike the earlier finding in the book domain."
   }
 }

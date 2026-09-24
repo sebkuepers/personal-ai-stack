@@ -1,10 +1,12 @@
-"""Abmeldelink deterministisch aus dem HTML ziehen — kein Modell, keine Header.
+"""Pull the unsubscribe link deterministically out of the HTML — no model, no headers.
 
-Live verifiziert (2026-09-23): Der Gmail-Connector liefert KEINE Header — ein
-List-Unsubscribe-Abweg per RFC 8058 existiert damit nicht. Aber 5–6 von 8
-Promo-Mails tragen einen ``<a>``-Anker, dessen Linktext „unsubscribe",
-„abmelden", „abbestellen" oder „opt-out" enthält. Das ist reines Python und
-trifft reale Abmeldedienste (sendgrid, kmail, …).
+Verified live (2026-09-23): the Gmail connector exposes NO headers — an
+RFC 8058 List-Unsubscribe route therefore does not exist. But 5–6 of 8
+promotional mails carry an ``<a>`` anchor whose link text contains
+"unsubscribe", "abmelden", "abbestellen" or "opt-out". That is pure Python and
+hits real unsubscribe services (sendgrid, kmail, …).
+
+The search terms are German and English because the mailbox is.
 """
 
 from __future__ import annotations
@@ -12,23 +14,23 @@ from __future__ import annotations
 import html
 import re
 
-_ANKER = re.compile(r'<a\s[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.I | re.S)
-_BEGRIFF = re.compile(r"unsubscribe|abmelden|abbestellen|opt[- ]?out", re.I)
+_ANCHOR = re.compile(r'<a\s[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.I | re.S)
+_TERM = re.compile(r"unsubscribe|abmelden|abbestellen|opt[- ]?out", re.I)
 
 
 def extract_unsub_link(html_text: str) -> str:
-    """Der erste Abmeldelink des HTML — "" wenn keiner gefunden wird.
+    """The first unsubscribe link of the HTML — "" when none is found.
 
-    Der Linktext darf Tags enthalten (``<span>Abmelden</span>``); entscheidend
-    ist der Textinhalt. Zurückgegeben wird die unescapte href (``&amp;`` → ``&``).
+    The link text may contain tags (``<span>Abmelden</span>``); what counts is
+    the text content. The returned href is unescaped (``&amp;`` → ``&``).
     """
-    for anker in _ANKER.finditer(html_text):
-        linktext = re.sub(r"<[^>]+>", " ", anker.group(2))
-        if _BEGRIFF.search(linktext):
-            return html.unescape(anker.group(1)).strip()
+    for anchor in _ANCHOR.finditer(html_text):
+        link_text = re.sub(r"<[^>]+>", " ", anchor.group(2))
+        if _TERM.search(link_text):
+            return html.unescape(anchor.group(1)).strip()
     return ""
 
 
-def ist_mailto(url: str) -> bool:
-    """Ein mailto-Abmeldelink lässt sich als Draft beantworten — merken für Phase 2."""
+def is_mailto(url: str) -> bool:
+    """A mailto unsubscribe link can be answered with a draft — noted for the cleanup step."""
     return url[:7].lower() == "mailto:"

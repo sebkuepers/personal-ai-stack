@@ -9,7 +9,7 @@ A personal AI system with three composable pillars on Mistral + Cloudflare:
 
 | Pillar | Stack | Deep doc |
 |---|---|---|
-| `workflows/` — durable Mistral Workflows (domains: `crm/`, `book/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
+| `workflows/` — durable Mistral Workflows (domains: `crm/`, `book/`, `inbox/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
 | `mcp-server/` — personal MCP server (a Mistral custom connector) | TypeScript · Cloudflare Worker | `mcp-server/README.md` |
 | `skills/` — Agent Skills for Vibe Work | Markdown (`SKILL.md`) | `skills/README.md` |
 
@@ -30,7 +30,8 @@ for the infra rationale.
    **Domain vs. work.** A domain is a *capability*, so its agents, workflows and skills are named
    `<domain>-*` and never carry the name of a concrete subject. What they operate on comes in as a
    parameter — e.g. `make book-sync work=immer-wieder-ruegen`. Per-subject config lives in
-   `shared/<domain>/<slug>.json`. See [`docs/BOOK.md`](docs/BOOK.md).
+   `shared/<domain>/<slug>.json`. See [`docs/BOOK.md`](docs/BOOK.md) and
+   [`docs/INBOX.md`](docs/INBOX.md).
 3. **This is a Mistral *Pro* account.** Judges, Datasets and Traces (`/v1/observability/*`) answer
    with HTTP 404 — they are Enterprise-only. Don't build against them; the repo has its own
    substitutes (`evalkit/` for measurement, judge *agents* for scoring). Skills and Prompts *are*

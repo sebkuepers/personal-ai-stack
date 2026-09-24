@@ -14,7 +14,7 @@
     "response_format": {
       "type": "json_schema",
       "json_schema": {
-        "name": "gegenlesung",
+        "name": "second_read",
         "schema": {
           "additionalProperties": false,
           "description": "Das zweite Augenpaar: sieht denselben Abschnitt wie die erste Stufe plus deren Befunde und prüft beides — was fehlt und was keiner ist. Läuft immer, auch bei null Befunden.",

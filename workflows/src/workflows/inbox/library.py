@@ -1,10 +1,10 @@
-"""Dossier-Ablage in die Mistral Library — der Zustellweg für Vibe.
+"""Store the dossier in the Mistral Library — the delivery route for Vibe.
 
-Vibe kann lokale Dateien nicht lesen; die Library kann es (document_library).
-Das Dossier ist rollierend EIN Dokument pro Tag: Gestanden ist, was heute
-drinsteht — die Geschichte steckt in den Studio-Ausführungen, nicht in der
-Library. Frühere Fassungen desselben Tages werden ersetzt (wie bookcli.sync:
-„die Library enthält nie zwei Stände").
+Vibe cannot read local files; the library it can (document_library). The
+dossier is a rolling ONE document per day: what stands there is today's state —
+the history is in the Studio executions, not in the library. Earlier versions
+of the same day are replaced (as in bookcli.sync: "the library never holds two
+states").
 """
 
 from __future__ import annotations
@@ -22,23 +22,28 @@ from . import config
     start_to_close_timeout=timedelta(seconds=60),
 )
 async def store_dossier(name: str, text: str) -> dict:
-    """Legt das Dossier als Dokument in die Inbox-Library; ersetzt Tages-Vorläufer.
+    """Store the dossier as a document in the inbox library; replace the day's predecessor.
 
-    Returns ein dict (JSON mode) mit Name und Dokument-ID — sauber über die
-    Sandbox-Grenze. Die Library-ID kommt aus ``shared/inbox.json``; fehlt sie,
-    ist das ein Konfigurationsfehler und der Lauf muss rot werden, statt
-    heimlich eine neue Library anzulegen (die Quelle der Wahrheit wird von
-    Hand gepflegt, wie bei bookcli).
+    Returns a dict (JSON mode) with name and document ID — clean across the
+    sandbox boundary. The library ID comes from ``shared/inbox.json``; if it is
+    missing that is a configuration error and the run has to go red instead of
+    silently creating a new library (the source of truth is maintained by hand,
+    as in bookcli).
     """
+    import os
+
     from mistralai.client import Mistral
 
-    client = Mistral()
+    # Explicit, not implicit: relying on the SDK reading MISTRAL_API_KEY from
+    # the environment hides a missing key behind an authentication error at the
+    # first request instead of naming it here.
+    client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
     lib_id = config.LIBRARY_ID
     if not lib_id:
         raise RuntimeError(
             "shared/inbox.json: mistral.library_id fehlt — Library 'Inbox' anlegen "
             "und die ID dort eintragen."
-        )
+        )  # author-facing: stays German
 
     for doc in client.beta.libraries.documents.list(library_id=lib_id).data:
         if doc.name == name:

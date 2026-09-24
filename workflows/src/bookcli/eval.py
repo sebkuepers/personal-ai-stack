@@ -10,8 +10,6 @@ apply to this work.
 The cases live in ``shared/book/eval-<slug>.json`` and are gitignored — they
 contain manuscript text.
 
-The case keys (``pfad``, ``operator``, ``wert`` …) are evalkit's schema and stay
-as they are until evalkit itself is renamed.
 """
 
 from __future__ import annotations
@@ -79,18 +77,18 @@ def generate(slug: str, count: int = 6, max_chars: int = 1800) -> list[dict]:
             # nothing is not one. Exactly this class of error triggered an
             # earlier instruction change without the measurement showing it.
             {
-                "pfad": "korrekturen[].search",
-                "operator": "unveraendert",
-                "paar_pfad": "korrekturen[].replace",
-                "hinweis": "Befund ohne Änderung",
+                "path": "corrections[].search",
+                "operator": "unchanged",
+                "pair_path": "corrections[].replace",
+                "note": "Befund ohne Änderung",
             },
         ] + [
             {
-                "pfad": "korrekturen[].search",
-                "operator": "paar",
-                "paar_pfad": "korrekturen[].replace",
-                "wert": [word, replacement],
-                "hinweis": "gewollte Umgangssprache (shared/book.json)",
+                "path": "corrections[].search",
+                "operator": "pair",
+                "pair_path": "corrections[].replace",
+                "value": [word, replacement],
+                "note": "gewollte Umgangssprache (shared/book.json)",
             }
             for word, replacement in c.INTENTIONAL_COLLOQUIALISMS.items()
             if f" {word} " in paragraph_block.lower()
@@ -99,14 +97,14 @@ def generate(slug: str, count: int = 6, max_chars: int = 1800) -> list[dict]:
         cases.append(
             {
                 "id": s.title[:30],
-                "quelle": "manuskript",
+                "source": "manuskript",
                 "_uuid": s.uuid,
-                "eingabe": f"ABSCHNITT: {s.title}\n\n--- ABSÄTZE ---\n{paragraph_block}",
-                "erwartet": [],
-                "verboten": forbidden,
-                "notiz": (
-                    "erwartet[] von Hand füllen — echte Fehler, die gefunden werden MÜSSEN. "
-                    'Format: {"pfad": "korrekturen[].search", "wert": "der fehlerhafte Text"}'
+                "input": f"ABSCHNITT: {s.title}\n\n--- ABSÄTZE ---\n{paragraph_block}",
+                "expected": [],
+                "forbidden": forbidden,
+                "note": (
+                    "expected[] von Hand füllen — echte Fehler, die gefunden werden MÜSSEN. "
+                    'Format: {"path": "corrections[].search", "value": "der fehlerhafte Text"}'
                 ),
             }
         )
@@ -126,12 +124,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.generate:
         if path.is_file():
             cases = json.loads(path.read_text(encoding="utf-8"))
-            expectations = sum(len(f.get("erwartet", [])) for f in cases)
-            traps = sum(len(f.get("verboten", [])) for f in cases)
+            expectations = sum(len(f.get("expected", [])) for f in cases)
+            traps = sum(len(f.get("forbidden", [])) for f in cases)
             print(f"{len(cases)} Fälle · {expectations} Erwartungen · {traps} Fallen  →  {path.name}")
             print(
                 "\nMessen:  python -m evalkit --agent book-copyedit "
-                f"--faelle {path.relative_to(REPO)}"
+                f"--cases {path.relative_to(REPO)}"
             )
         else:
             print(f"Keine Fälle vorhanden. Erzeugen mit: {p.prog} --generate")
@@ -139,10 +137,10 @@ def main(argv: list[str] | None = None) -> int:
 
     cases = generate(args.work, args.count, args.max_chars)
     path.write_text(json.dumps(cases, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    traps = sum(len(f["verboten"]) for f in cases)
+    traps = sum(len(f["forbidden"]) for f in cases)
     print(f"{len(cases)} Fälle → {path.relative_to(REPO)}")
     print(f"  {traps} Fallen automatisch gesetzt, 0 Erwartungen.")
-    print("  → erwartet[] von Hand füllen; das Urteil, was ein Fehler ist, gehört dir.")
+    print("  → expected[] von Hand füllen; das Urteil, was ein Fehler ist, gehört dir.")
     return 0
 
 
