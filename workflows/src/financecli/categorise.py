@@ -7,6 +7,11 @@
 Only what has no category yet, unless ``--all``. Re-running is therefore cheap,
 and interrupting it costs nothing but the bookings already paid for.
 
+The model work runs **through the workflow** ``finance-categorise``, not past
+it: Temporal does the retries, every chunk shows up in the Studio timeline, and
+a crash resumes. This CLI only reads the ledger, hands over prompts and writes
+the answers back.
+
 **The contradiction report is the point of ``--all``.** He chose "always a
 model" over "rules first", and the open question is not cost — 190 bookings a
 month are cents — but consistency: does the same merchant land in the same
@@ -20,7 +25,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import random
 import sys
 from collections import Counter
 from datetime import date
@@ -30,78 +34,37 @@ from dotenv import load_dotenv
 
 from workflows.finance import config as c
 from workflows.finance import ledger
-from workflows.finance.categorise import parse, prompt_for
-from workflows.finance.models import LedgerEntry
+from workflows.finance.categorise import prompt_for
+from workflows.finance.models import FinanceCategory, LedgerEntry
 from workflows.finance.render import euro
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 DATA = Path(__file__).resolve().parents[2] / "data" / "finance"
 
 
-async def _ask(client, agent_id: str, entry: LedgerEntry, limit: asyncio.Semaphore):
-    """One booking, with backoff.
+async def run(prompts: list[str]) -> list[dict]:
+    """Trigger the ``finance-categorise`` workflow and wait for it.
 
-    650 bookings in quick succession hit ``429 Token rate limit reached`` — at
-    concurrency 10 the first real run died after 23. The limit is on tokens per
-    minute, not on requests, so waiting is the only remedy; retrying immediately
-    just burns the next window too.
+    Through Studio, not past it: Temporal does the retries, the run appears in
+    the timeline, and a crash resumes instead of starting over. The first
+    version of this CLI called the agent directly and was therefore invisible —
+    which is the one thing this repo is built to avoid.
     """
-    from mistralai.client import models as m
+    from mistralai.extra.workflows import WorkflowEncodingConfig, configure_workflow_encoding
+    from mistralai.workflows.client import get_mistral_client
 
-    async with limit:
-        for attempt in range(6):
-            try:
-                response = await client.beta.conversations.start_async(
-                    agent_id=agent_id, inputs=prompt_for(entry), store=False
-                )
-                break
-            except Exception as exc:  # noqa: BLE001 — retry on rate limit, raise the rest
-                if "429" not in str(exc) or attempt == 5:
-                    raise
-                # 2, 4, 8, 16, 32 seconds plus jitter, so the retries of a whole
-                # chunk do not line up and hit the same window together.
-                await asyncio.sleep(2 ** (attempt + 1) + random.random() * 2)
-        chunks = []
-        for output in response.outputs:
-            content = getattr(output, "content", None)
-            if isinstance(content, str):
-                chunks.append(content)
-            elif isinstance(content, list):
-                chunks.extend(x.text for x in content if isinstance(x, m.TextChunk))
-        return entry, parse("\n".join(chunks))
-
-
-async def run(entries: list[LedgerEntry], on_chunk) -> list[tuple[LedgerEntry, object]]:
-    """Ask in chunks, handing each finished chunk to ``on_chunk`` immediately.
-
-    Writing after every chunk rather than at the end: the first full run died
-    on a rate limit after 23 of 649 and threw all 23 away. An interruption now
-    costs at most one chunk, and the next run picks up where this one stopped
-    because only uncategorised bookings are asked.
-    """
-    from mistralai.client import Mistral
-
-    agent_id = c.AGENTS["finance_categorise_agent_id"]
-    if not agent_id:
-        raise RuntimeError(
-            "shared/finance.json: agent.finance_categorise_agent_id fehlt — "
-            "agents/build_finance_agents.py laufen lassen und make sync-agents."
-        )
-    client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
-    limit = asyncio.Semaphore(c.LIMITS["concurrency"])
-    size = c.LIMITS["chunk"]
-    done = 0
-    results: list[tuple[LedgerEntry, object]] = []
-    for start in range(0, len(entries), size):
-        chunk = entries[start : start + size]
-        got = await asyncio.gather(*(_ask(client, agent_id, e, limit) for e in chunk))
-        results += got
-        done += len(chunk)
-        on_chunk(got)
-        print(f"  … {done}/{len(entries)}", file=sys.stderr)
-        if start + size < len(entries):
-            await asyncio.sleep(c.LIMITS["pause_seconds"])
-    return results
+    client = get_mistral_client(
+        api_key=os.environ["MISTRAL_API_KEY"],
+        server_url=os.environ.get("SERVER_URL", "https://api.mistral.ai"),
+    )
+    await configure_workflow_encoding(WorkflowEncodingConfig(), client=client)
+    result = await client.workflows.execute_workflow_and_wait_async(
+        workflow_identifier="finance-categorise",
+        input={"prompts": prompts},
+        deployment_name=os.environ.get("DEPLOYMENT_NAME", "default"),
+    )
+    payload = result if isinstance(result, dict) else result.model_dump()
+    return payload.get("answers", payload.get("result", {}).get("answers", []))
 
 
 def report(results, before: dict[str, str]) -> None:
@@ -154,28 +117,32 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     before = {e.fp: e.category for e in todo if e.category}
-    by_id = {id(e): e for e in entries}
     today = date.today()  # noqa: DTZ011 — local CLI, local clock
+    size = c.LIMITS["chunk"]
+    results: list[tuple[LedgerEntry, FinanceCategory]] = []
 
-    def persist(got) -> None:
-        for entry, answer in got:
-            target = by_id.get(id(entry)) or entry
-            if target.confirmed and target.category != answer.category:
+    # One workflow execution per chunk rather than one for all 669: each shows
+    # up separately in the Studio timeline, and an interruption costs a chunk
+    # instead of the run. The ledger is written after every chunk for the same
+    # reason — the first full run died on a rate limit and lost everything.
+    for start in range(0, len(todo), size):
+        chunk = todo[start : start + size]
+        answers = asyncio.run(run([prompt_for(e) for e in chunk]))
+        for entry, raw in zip(chunk, answers, strict=False):
+            answer = FinanceCategory.model_validate(raw)
+            results.append((entry, answer))
+            if entry.confirmed and entry.category != answer.category:
                 continue  # his decision stands; the contradiction is in the report
-            target.category = answer.category
-            target.subcategory = answer.subcategory
-            target.merchant = answer.merchant
-            target.recurring = answer.recurring
-            target.confidence = answer.confidence
-            target.reasoning = answer.reasoning
-            target.categorised_on = today
+            entry.category = answer.category
+            entry.subcategory = answer.subcategory
+            entry.merchant = answer.merchant
+            entry.recurring = answer.recurring
+            entry.confidence = answer.confidence
+            entry.reasoning = answer.reasoning
+            entry.categorised_on = today
         ledger.write_all(DATA, entries)
+        print(f"  … {min(start + size, len(todo))}/{len(todo)}", file=sys.stderr)
 
-    try:
-        results = asyncio.run(run(todo, persist))
-    except KeyboardInterrupt:
-        print("\nAbgebrochen — das Bisherige steht im Ledger.", file=sys.stderr)
-        return 1
     report(results, before)
     print(f"\nLedger aktualisiert: {len(results)} Buchungen.")
     return 0

@@ -163,3 +163,20 @@ class PlanningContext(BaseModel):
     def subscriptions_monthly_cents(self) -> int:
         """Summed from the items — compare against his own total, never replace it."""
         return sum(s.monthly_cents for s in self.subscriptions)
+
+
+class CategoriseInput(BaseModel):
+    """A batch of bookings, already rendered as prompts.
+
+    Prompts rather than bookings: the workflow does no file I/O and needs
+    nothing of the ledger but the text the agent reads. Keeping the ledger out
+    of the workflow's event history also keeps it out of Studio.
+    """
+
+    prompts: list[str] = Field(default_factory=list)
+
+
+class CategoriseResult(BaseModel):
+    """The agent's answers, in the order the prompts went in."""
+
+    answers: list[FinanceCategory] = Field(default_factory=list)

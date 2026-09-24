@@ -328,6 +328,20 @@ in the examples.
     `import workflows.inbox.config as config`). That second one cost the extra
     hour: the fix looked applied and was not.
 
+22. **`execute_activities_in_parallel` passes each item as THE argument, not as
+    kwargs.** An activity with a single parameter receives the item directly, so
+    `items` has to be the list of arguments:
+
+    ```python
+    items=list(prompts)                  # activity(prompt: str)
+    items=[{"a": 1, "b": 2}, …]          # activity(a: int, b: int)
+    ```
+
+    Handing a one-element dict to a one-parameter activity fails with
+    `Item at index 0 is not compatible with activity 'x' parameter type
+    <class 'str'>`, which reads like a schema problem and is a calling
+    convention. Measured 2026-09-24.
+
 ---
 
 ## 6. Connector & agent patterns
