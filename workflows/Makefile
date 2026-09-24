@@ -77,13 +77,16 @@ crm-ingest:
 # ============================================================================
 # FINANCE — private finances, LOCAL ONLY (no Cloudflare, no schedule)
 # ============================================================================
-.PHONY: finance-tidy finance-tidy-undo
+.PHONY: finance-tidy finance-tidy-undo finance-overview
 
 finance-tidy:  ## Collect everything private-financial into one place — preview; apply=1 for real
 	uv run python -m financecli.tidy $(if $(apply),--apply)
 
 finance-tidy-undo:  ## Take the last tidy run back
 	uv run python -m financecli.tidy --undo
+
+finance-overview:  ## Plan, subscriptions, goals and depot — show; upload=1 puts it in the library
+	uv run python -m financecli.overview $(if $(upload),--upload)
 
 .PHONY: inbox-scan inbox-daily inbox-senders inbox-review inbox-eval inbox-eval-cascade
 

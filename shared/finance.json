@@ -24,8 +24,9 @@
   "library": {
     "_comment": "The summaries are a goal of this domain, not a by-product: without them Vibe has no context and the conversation is worthless. Three documents, no more. finance-overview.md carries NO transaction at all — it is pure planning context out of Project 55 and therefore the harmless one that makes Vibe useful first. Set enabled to false and everything stays on the machine; the local conversational workflow and the generated workbook keep working.",
     "enabled": true,
-    "name": "Finanzen",
-    "id": null,
+    "name": "Portfolio Strategie Bibliothek",
+    "id": "019f8ea9-afad-7441-91c8-9e25c836f18f",
+    "_id_comment": "His existing library, not a new one. It already holds anlagestrategie.md (23.07.2026, 30k characters: target figure, crash rules, regime-change signals, override protocol). Putting the summaries next to the rulebook is what makes Vibe able to answer a question about a booking AND about what the rules say to do. A second library would have split the context in half.",
     "documents": {
       "overview": "finance-overview.md",
       "month": "finance-{month}.md",

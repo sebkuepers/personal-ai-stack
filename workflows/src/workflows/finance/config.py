@@ -95,9 +95,13 @@ def root() -> Path:
     return expand(paths()["root"])
 
 
-def folder(name: str) -> Path:
-    """A folder under the root, e.g. ``folder("Konten")``."""
+def folder_of(name: str) -> Path:
+    """A folder under the root, e.g. ``folder_of("Konten")``."""
     return root() / name
+
+
+# Kept as the shorter name the rest of the code already uses.
+folder = folder_of
 
 
 def planning_workbook() -> Path:
@@ -126,6 +130,19 @@ def read_only_paths() -> list[Path]:
         if entry:
             out.append(expand(entry["path"]))
     return out
+
+
+def latest_depot() -> Path | None:
+    """The most recent depot export.
+
+    By modification time, not by name: the broker calls every download
+    ``investments.csv`` and macOS appends " (1)", which sorts BEFORE the
+    original — picking the alphabetically last one served a two-month-old
+    portfolio while the fresh one lay next to it.
+    """
+    folder = folder_of("Depot")
+    files = [f for f in folder.glob("*.csv")] if folder.is_dir() else []
+    return max(files, key=lambda f: f.stat().st_mtime) if files else None
 
 
 def accounts() -> list[dict[str, str]]:

@@ -5,6 +5,7 @@ description = "A Mistral Workflows project"
 requires-python = ">=3.12"
 dependencies = [
     "mistralai-workflows[mistralai]>=3.0.0,<4",
+    "openpyxl>=3.1.5",
     "pydantic",
     "python-dotenv",
 ]

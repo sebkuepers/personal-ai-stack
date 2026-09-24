@@ -112,24 +112,50 @@ class Position(BaseModel):
         return self.value_cents - round(self.units * self.buy_price_cents)
 
 
-class PortfolioTarget(BaseModel):
-    """One line of his target portfolio — read from Project 55, never written."""
+class PlanItem(BaseModel):
+    """One line of his plan: what he intends to spend on this, per month."""
 
-    name: str
-    share: float | None = None  # percent, when the sheet states one
+    label: str
+    monthly_cents: int
+    rollup: bool = False  # not an expense — the total of another block
+
+    @property
+    def yearly_cents(self) -> int:
+        return self.monthly_cents * 12
+
+
+class PlanSection(BaseModel):
+    """A heading in his workbook and the items under it — Haus, Autos, Kredite …"""
+
+    title: str
+    items: list[PlanItem] = Field(default_factory=list)
+
+    @property
+    def monthly_cents(self) -> int:
+        return sum(i.monthly_cents for i in self.items)
 
 
 class PlanningContext(BaseModel):
     """What his planning workbook says. Read only, always.
 
     This is the context that makes Vibe useful before a single booking has been
-    read: goals, subscriptions, strategy — and not one transaction.
+    read: what he plans to spend, what he subscribes to, what he wants to save —
+    and not one transaction. It is therefore also the harmless half of the
+    library, the part that carries no bank data at all.
     """
 
-    categories: list[str] = Field(default_factory=list)
-    subscriptions: list[str] = Field(default_factory=list)
-    portfolio: list[PortfolioTarget] = Field(default_factory=list)
-    savings_rate: str = ""
-    emergency_fund: str = ""
+    sections: list[PlanSection] = Field(default_factory=list)
+    subscriptions: list[PlanItem] = Field(default_factory=list)
+    monthly_total_cents: int = 0  # HIS "Summe", not my sum
+    subscriptions_total_cents: int = 0
+    savings_potential_cents: int = 0
+    savings_rate_cents: int = 0
+    emergency_fund_cents: int = 0
+    cuttable_cents: int = 0  # what he himself marked as "Kürzen"
     source: str = ""
     read_on: date | None = None
+
+    @property
+    def subscriptions_monthly_cents(self) -> int:
+        """Summed from the items — compare against his own total, never replace it."""
+        return sum(s.monthly_cents for s in self.subscriptions)
