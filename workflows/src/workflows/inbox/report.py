@@ -8,6 +8,8 @@ no reminder.
 
 from __future__ import annotations
 
+from datetime import date
+
 from workflows.inbox.envelope import replied_recipients
 from workflows.inbox.escalation import matters_for_vibe
 from workflows.inbox.models import (
@@ -36,6 +38,8 @@ def build_report(
     own_replies: int,
     second_review_indices: set[int] | None = None,
     second_review_changed: int = 0,
+    window: tuple[date, date] | None = None,
+    truncated: bool = False,
 ) -> InboxScanReport:
     """Condense (envelope, review) pairs, the sent window and the unsubscribe links.
 
@@ -67,6 +71,7 @@ def build_report(
                 ReplyItem(
                     sender=mail.sender,
                     subject=mail.subject,
+                    received_on=mail.received_on,
                     urgency=review.urgency,
                     reasoning=review.reasoning,
                     answered=mail.sender.strip().lower() in answered_addresses,
@@ -109,6 +114,9 @@ def build_report(
 
     return InboxScanReport(
         window_days=window_days,
+        window_start=window[0] if window else None,
+        window_end=window[1] if window else None,
+        truncated=truncated,
         inbox_found=len(envelopes),
         skipped_no_messages=skipped_no_messages,
         own_replies=own_replies,

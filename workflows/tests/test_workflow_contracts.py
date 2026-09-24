@@ -168,3 +168,33 @@ def test_child_workflow_params_are_a_model(path: Path):
                     f"{path.name}:{node.lineno}: execute_workflow(params=…) got a dict — "
                     "the SDK calls .model_dump_json() on it."
                 )
+
+
+@pytest.mark.parametrize("path", _workflow_modules(), ids=lambda p: p.stem)
+def test_a_scheduled_workflow_does_not_act_on_behalf_of_a_user(path: Path):
+    """``schedules=[…]`` and ``on_behalf_of=True`` cannot both be true.
+
+    A scheduled execution carries no user identity, so the connector has
+    nothing to act as — measured live, the run dies with
+    ``400 Execution is missing user_id or organization_id``. The SDK refuses
+    the combination at class definition, but only when the decorator is
+    evaluated, i.e. at worker start; this catches it in the test suite, and it
+    catches the reverse mistake too — adding a schedule to a workflow that is
+    still declared on_behalf_of. See workflows/CLAUDE.md gotcha 19.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for deco in node.decorator_list:
+            if not isinstance(deco, ast.Call):
+                continue
+            kwargs = {kw.arg: kw.value for kw in deco.keywords if kw.arg}
+            if "schedules" not in kwargs:
+                continue
+            obo = kwargs.get("on_behalf_of")
+            is_true = isinstance(obo, ast.Constant) and obo.value is True
+            assert not is_true, (
+                f"{path.name}: {node.name} has schedules AND on_behalf_of=True — "
+                "a scheduled run has no user identity and the connector call fails."
+            )

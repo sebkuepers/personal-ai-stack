@@ -28,7 +28,7 @@ from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 with workflow.unsafe.imports_passed_through():
     from workflows.inbox.gmail import gmail_search_threads
 
-from workflows.crm.connectors import gmail_connector  # noqa: E402 — reuses the slot
+from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox.models import (  # noqa: E402
     SenderItem,
     SenderStats,
@@ -39,7 +39,7 @@ from workflows.inbox.envelope import thread_to_envelope  # noqa: E402
 
 @workflows.workflow.define(
     name="inbox-senders",
-    on_behalf_of=True,  # required: acts with your Gmail OAuth credentials
+    on_behalf_of=False,  # the deployment's identity — see inbox/connectors.py
     workflow_display_name="Inbox · Sender Stats",
     workflow_description=(
         "Zählt Mails und ungelesene Mails pro Absender im Fenster — reine "

@@ -60,9 +60,22 @@ class InboxScanInput(BaseModel):
     """Input of the triage workflow. The window is in days — Gmail search knows no hours."""
 
     window_days: int = Field(
-        default=1, description="Time window in days, for both passes (inbox and sent)."
+        default=1, description="Window in CALENDAR days, for both passes (inbox and sent)."
     )
-    max_threads: int = Field(default=50, description="Triage at most this many inbox threads.")
+    include_today: bool = Field(
+        default=True,
+        description=(
+            "End the window after today. False = the calendar days BEFORE today, "
+            "which is what the daily job wants: yesterday, complete, never again."
+        ),
+    )
+    max_threads: int = Field(
+        default=50,
+        description=(
+            "Emergency brake, not a filter: at most this many inbox threads are "
+            "triaged. When it bites, the report says so (truncated)."
+        ),
+    )
     max_unsub: int = Field(
         default=15, description="Fetch at most this many bodies for unsubscribe links."
     )
@@ -144,6 +157,7 @@ class ReplyItem(BaseModel):
 
     sender: str
     subject: str
+    received_on: date | None = None  # absolute; "today" rots in a stored dossier
     urgency: str
     reasoning: str
     answered: bool  # the recipient is in the sent window — probably already answered
@@ -183,6 +197,9 @@ class InboxScanReport(BaseModel):
     """Result of a triage run — pure data, nothing was changed."""
 
     window_days: int
+    window_start: date | None = None  # the half-open window [start, end) that was read
+    window_end: date | None = None
+    truncated: bool = False  # max_threads cut the result — the window is too big
     inbox_found: int
     skipped_no_messages: int  # threads that came without an envelope — varies per run (26–57)
     own_replies: int  # threads in the inbox where he had the last word

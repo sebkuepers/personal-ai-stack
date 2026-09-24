@@ -129,7 +129,7 @@ def test_the_parsers_match_the_options():
     """Every offered value has to survive its parser — otherwise the run dies on a choice."""
     from workflows.inbox.review import LIMITS, WINDOWS, _count, _days
 
-    assert [_days(v) for v, _ in WINDOWS] == [1, 3, 7]
+    assert [_days(v) for v, _ in WINDOWS] == [1, 2, 7]
     assert [_count(v) for v, _ in LIMITS] == [25, 50, 100]
 
 

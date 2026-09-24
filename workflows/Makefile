@@ -74,7 +74,7 @@ crm-ingest:
 # Inbox / triage  (domain "inbox" — the daily round over the mailbox)
 # ===========================================================================
 
-.PHONY: inbox-scan inbox-senders inbox-review inbox-eval inbox-eval-cascade
+.PHONY: inbox-scan inbox-daily inbox-senders inbox-review inbox-eval inbox-eval-cascade
 
 ## SCAN — triage inbox + sent: newsletters, finance, replies owed (dry run, Gmail; OAuth)
 ## Phase 1: changes nothing — no label, no draft. The report appears in the Studio timeline.
@@ -89,6 +89,9 @@ inbox-senders:  ## Sender statistic over the window (window=90, query= overrides
 	uv run python -m entrypoints.start --workflow inbox-senders $(if $(input),--input '$(input)',--input '{"window_days":$(or $(window),90)}')
 
 ## CONSULTATION — the triage run as a conversation (config in the chat, canvas, library dossier)
+inbox-daily:  ## The nightly round by hand — yesterday, complete, dossier into the library
+	uv run python -m entrypoints.start --workflow inbox-daily --input '{}'
+
 inbox-review:  ## Conversational run as in Le Chat, but in the terminal
 	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli inbox-review \
 		--base-url $${SERVER_URL:-https://api.mistral.ai} --deployment $${DEPLOYMENT_NAME:-default} --input '{}'

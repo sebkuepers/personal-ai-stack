@@ -268,3 +268,40 @@ def test_sent_and_unsub_links_are_passed_through() -> None:
     assert report.own_replies == 2
     assert len(report.reviews) == 1
     assert report.reviews[0].review.type == "newsletter"
+
+
+# ---------------------------------------------------------------------------
+# The window and the emergency brake travel with the report
+# ---------------------------------------------------------------------------
+
+
+def test_the_window_and_the_truncation_flag_reach_the_report() -> None:
+    """Both exist so the reader can see what was NOT looked at.
+
+    Before this the report said "50 mails in 1 day" whether 50 or 322 threads
+    had been found — the cap sliced and said nothing.
+    """
+    r = build_report(
+        window_days=1,
+        envelopes=[], reviews=[], sent=[], unsub_links=[],
+        pages=1, skipped_no_messages=0, own_replies=0,
+        window=(date(2026, 9, 22), date(2026, 9, 23)),
+        truncated=True,
+    )
+    assert (r.window_start, r.window_end) == (date(2026, 9, 22), date(2026, 9, 23))
+    assert r.truncated is True
+
+
+def test_a_reply_carries_the_date_it_arrived() -> None:
+    envelope_with_date = InboxEnvelope(
+        thread_id="t1", sender="a@example.com", subject="Offen",
+        received_on=date(2026, 9, 22),
+    )
+    r = build_report(
+        window_days=1,
+        envelopes=[envelope_with_date],
+        reviews=[review(type="correspondence", needs_reply=True, urgency="today")],
+        sent=[], unsub_links=[],
+        pages=1, skipped_no_messages=0, own_replies=0,
+    )
+    assert r.needs_reply[0].received_on == date(2026, 9, 22)

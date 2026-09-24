@@ -10,7 +10,32 @@ works with him.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from workflows.inbox.models import InboxScanReport
+
+# The dossier is read again in three weeks. "today" is then a lie, and the
+# whole point of keeping one document per day is a history that still reads
+# correctly. So urgency is rendered WITH the date it referred to — measured
+# against the first real run, where every owed reply said "today".
+URGENCY_WORDS = {"today": "heute fällig", "this_week": "diese Woche", "whenever": "ohne Frist"}
+
+
+def _when(urgency: str, received_on: date | None) -> str:
+    """The urgency in words, anchored to the date the mail arrived."""
+    word = URGENCY_WORDS.get(urgency, urgency)
+    return f"{word}, eingegangen {received_on:%d.%m.%Y}" if received_on else word
+
+
+def _window(r: InboxScanReport) -> str:
+    """The window as calendar dates — "Fenster" in the reader's terms."""
+    if not (r.window_start and r.window_end):
+        return f"{r.window_days} Tag(e)"
+    last = r.window_end - timedelta(days=1)
+    if r.window_start == last:
+        return f"{r.window_start:%d.%m.%Y}"
+    return f"{r.window_start:%d.%m.%Y} bis {last:%d.%m.%Y}"
+
 
 
 def _table(rows: list[list[str]]) -> str:
@@ -25,7 +50,10 @@ def _table(rows: list[list[str]]) -> str:
 
 def headline(r: InboxScanReport) -> str:
     """The summary for the chat — short; the detail is in the canvas."""
-    parts = [f"**{r.inbox_found} Mails** in {r.window_days} Tag(en) gesichtet"]
+    parts = [f"**{r.inbox_found} Mails** vom {_window(r)} gesichtet"]
+    if r.truncated:
+        # A cap that cannot say it bit is a lie — see gmail.gmail_search_threads.
+        parts.append(f"**abgeschnitten bei {r.inbox_found} — das Fenster trägt mehr**")
     if r.skipped_no_messages:
         parts.append(f"{r.skipped_no_messages} ohne Umschlag übersprungen")
     if r.own_replies:
@@ -40,14 +68,16 @@ def headline(r: InboxScanReport) -> str:
 
 def report_as_markdown(r: InboxScanReport) -> str:
     """The full report as a Markdown document — canvas and dossier."""
-    lines: list[str] = [f"# Inbox · Sichtung ({r.window_days} Tage)"]
+    lines: list[str] = [f"# Inbox · Sichtung {_window(r)}"]
     lines += ["", headline(r), ""]
 
     lines += ["## Dringend — Antwort erwartet", ""]
     if r.needs_reply:
         for a in r.needs_reply:
             check = " ✓ beantwortet" if a.answered else ""
-            lines.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*{check}")
+            lines.append(
+                f"- **{_when(a.urgency, a.received_on)}** · {a.sender} — *{a.subject}*{check}"
+            )
     else:
         lines.append("_(keine)_")
     lines.append("")
@@ -117,13 +147,13 @@ def dossier(r: InboxScanReport, as_of: str) -> str:
     replies owed, deadlines, context, things promised. The noise statistic is
     in the canvas, not in the dossier.
     """
-    lines: list[str] = [f"# Inbox · Kontext — Stand {as_of}", ""]
+    lines: list[str] = [f"# Inbox · Kontext — Stand {as_of} (Fenster {_window(r)})", ""]
     lines += [headline(r), ""]
 
     lines += ["## Antworten, die du schuldest", ""]
     open_replies = [a for a in r.needs_reply if not a.answered]
     for a in open_replies:
-        lines.append(f"- **{a.urgency}** · {a.sender} — *{a.subject}*")
+        lines.append(f"- **{_when(a.urgency, a.received_on)}** · {a.sender} — *{a.subject}*")
     if not open_replies:
         lines.append("_(keine offenen Antworten)_")
     lines.append("")

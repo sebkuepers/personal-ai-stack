@@ -1,6 +1,6 @@
 """INBOX workflow — the daily triage run over the inbox AND the sent folder.
 
-Category: inbox (Gmail connector → on_behalf_of + OAuth).
+Category: inbox (Gmail connector → the deployment's identity, see connectors.py).
 
 Three steps, both passes read deterministically (pattern A — no reading agent):
 
@@ -39,7 +39,7 @@ with workflow.unsafe.imports_passed_through():
     from workflows.inbox.classify import review_email, second_review_email
     from workflows.inbox.gmail import gmail_search_threads, gmail_thread_body
 
-from workflows.crm.connectors import gmail_connector  # noqa: E402 — reuses the slot
+from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox.envelope import (  # noqa: E402
     own_address,
     thread_to_envelope,
@@ -54,6 +54,7 @@ from workflows.inbox.models import (  # noqa: E402
     UnsubCandidate,
 )
 from workflows.inbox.report import build_report  # noqa: E402
+from workflows.inbox.window import calendar_window, gmail_query  # noqa: E402
 from workflows.inbox.unsubscribe import extract_unsub_link  # noqa: E402
 
 # How many triage calls may run at once — 10 sits comfortably under the
@@ -76,7 +77,9 @@ def _input_for(envelope: InboxEnvelope, today: date) -> dict:
 
 @workflows.workflow.define(
     name="inbox-scan",
-    on_behalf_of=True,  # required: acts with your Gmail OAuth credentials
+    # The DEPLOYMENT's identity, not a user session — see inbox/connectors.py.
+    # That is what makes this workflow schedulable at all (gotcha 19).
+    on_behalf_of=False,
     workflow_display_name="Inbox · Scan (dry run)",
     workflow_description=(
         "Täglicher Sichtungs-Lauf: liest Posteingang und Postausgang des Fensters "
@@ -90,13 +93,16 @@ def _input_for(envelope: InboxEnvelope, today: date) -> dict:
 class InboxScanWorkflow:
     @workflows.workflow.entrypoint
     async def run(self, params: InboxScanInput) -> InboxScanReport:
-        # Step 1 — read both passes (deterministic, null-guard in the parser).
+        # Step 1 — read both passes over CALENDAR days. today comes through an
+        # activity: the workflow body must not read a clock.
+        today = date.fromisoformat(await get_today())
+        window = calendar_window(today, params.window_days, params.include_today)
         inbox_raw = await gmail_search_threads(
-            query=f"in:inbox newer_than:{params.window_days}d",
+            query=gmail_query("in:inbox", window),
             max_threads=params.max_threads,
         )
         sent_raw = await gmail_search_threads(
-            query=f"in:sent newer_than:{params.window_days}d",
+            query=gmail_query("in:sent", window),
             max_threads=params.max_threads,
         )
 
@@ -134,11 +140,11 @@ class InboxScanWorkflow:
                 own_replies=own_replies,
                 second_review_indices=set(),
                 second_review_changed=0,
+                window=window,
+                truncated=inbox_raw["has_more"],
             )
 
-        # Step 2 — the first stage triages everything, in parallel. today comes
-        # through the activity: the workflow body must not read a clock.
-        today = date.fromisoformat(await get_today())
+        # Step 2 — the first stage triages everything, in parallel.
         inputs = [_input_for(e, today) for e in candidates]
         raw = await execute_activities_in_parallel(
             review_email, items=inputs, max_concurrent_scheduled_tasks=_CONCURRENT
@@ -202,4 +208,6 @@ class InboxScanWorkflow:
             own_replies=own_replies,
             second_review_indices=set(indices),
             second_review_changed=changed,
+            window=window,
+            truncated=inbox_raw["has_more"],
         )

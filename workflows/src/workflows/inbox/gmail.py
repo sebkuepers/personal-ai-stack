@@ -32,9 +32,8 @@ import mistralai.workflows as workflows
 from mistralai.workflows import Depends
 from mistralai.workflows.plugins.mistralai.connectors import ToolCallClient
 
-from workflows.crm.connectors import gmail_connector
-
 from . import config
+from .connectors import gmail_connector
 
 class GmailToolError(RuntimeError):
     """The connector refused a tool call — it answers as plain text, not as an error field.
@@ -106,10 +105,15 @@ async def gmail_search_threads(
     max_threads: int,
     gmail: ToolCallClient = Depends(gmail_connector),
 ) -> dict:
-    """Paginated ``search_threads`` search → ``{"threads": [...], "pages": n}``.
+    """Paginated ``search_threads`` → ``{"threads": [...], "pages": n, "has_more": bool}``.
 
     Spam and trash are excluded by Gmail by default; whoever wants them says so
     in the query (``in:anywhere``).
+
+    ``has_more`` says whether ``max_threads`` CUT the result. It used to not:
+    the function fetched, sliced to the limit and said nothing, so "7 days, 50
+    mails" silently threw away 272 of 322 threads. A cap that cannot report
+    that it bit is not a limit, it is a lie.
     """
     threads: list[dict] = []
     token: str | None = None
@@ -129,7 +133,10 @@ async def gmail_search_threads(
         if not token:
             break
         await asyncio.sleep(_PAUSE_SECONDS)
-    return {"threads": threads[:max_threads], "pages": pages}
+    # Either a page token is still open (the cap stopped us) or we fetched more
+    # than the cap on the last page and are about to slice it away.
+    has_more = bool(token) or len(threads) > max_threads
+    return {"threads": threads[:max_threads], "pages": pages, "has_more": has_more}
 
 
 @workflows.activity(

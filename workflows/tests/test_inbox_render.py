@@ -1,12 +1,13 @@
-"""Das Rendern des Reports ist reines Markdown — dieselbe Instanz geht an
-canvas, chat and library. A rendering mistake here distorts all three.
+"""Rendering the report is pure Markdown — the same instance goes to canvas,
+chat and library. A rendering mistake here distorts all three.
 
-Der Langweilfall ist dabei: Ein leerer Report darf keine leeren
-Markdown sections with broken tables — "_(nichts)_" is the
-ehrliche Form.
+The boring case is included: an empty report must not produce empty Markdown
+sections with broken tables — "_(nichts)_" is the honest form.
 """
 
 from __future__ import annotations
+
+from datetime import date
 
 from workflows.inbox.render import dossier, headline, report_as_markdown
 from workflows.inbox.models import (
@@ -130,3 +131,72 @@ def test_dossier_does_not_list_answered_ones_as_open() -> None:
     r.needs_reply[0].answered = True
     d = dossier(r, "2026-09-24")
     assert "_(keine offenen Antworten)_" in d
+
+
+# ---------------------------------------------------------------------------
+# Absolute dates — the dossier is read again weeks later
+# ---------------------------------------------------------------------------
+
+
+def _dated_report() -> InboxScanReport:
+    """A report with a real window and a dated reply."""
+    return InboxScanReport(
+        window_days=1,
+        window_start=date(2026, 9, 22),
+        window_end=date(2026, 9, 23),
+        inbox_found=1,
+        skipped_no_messages=0,
+        own_replies=0,
+        pages=1,
+        needs_reply=[
+            ReplyItem(
+                sender="a@example.com",
+                subject="Rechnung offen",
+                received_on=date(2026, 9, 22),
+                urgency="today",
+                reasoning="",
+                answered=False,
+            )
+        ],
+    )
+
+
+class TestAbsoluteDates:
+    """"heute" is a lie the moment the document is a day old.
+
+    The first real run stored a dossier in which every owed reply said
+    "**today**". Read three weeks later through retrieval it claims a deadline
+    that passed — and nothing in the text says otherwise.
+    """
+
+    def test_an_urgency_is_rendered_with_the_date_it_referred_to(self) -> None:
+        text = dossier(_dated_report(), "2026-09-23")
+        assert "eingegangen 22.09.2026" in text
+        assert "**today**" not in text
+
+    def test_the_window_appears_as_calendar_dates(self) -> None:
+        # window_end is exclusive, so a one-day window names ONE day.
+        assert "22.09.2026" in report_as_markdown(_dated_report())
+        assert "bis" not in report_as_markdown(_dated_report()).splitlines()[0]
+
+    def test_a_multi_day_window_names_both_ends(self) -> None:
+        r = _dated_report()
+        r.window_days = 3
+        r.window_start = date(2026, 9, 20)
+        assert "20.09.2026 bis 22.09.2026" in report_as_markdown(r)
+
+    def test_a_report_without_a_window_still_renders(self) -> None:
+        # Older stored reports have no window — they must not crash the render.
+        assert "1 Tag(e)" in report_as_markdown(_report())
+
+
+class TestTruncation:
+    """A cap that cannot say it bit is a lie — see gmail.gmail_search_threads."""
+
+    def test_a_truncated_run_says_so_in_the_headline(self) -> None:
+        r = _dated_report()
+        r.truncated = True
+        assert "abgeschnitten" in headline(r)
+
+    def test_an_untruncated_run_stays_quiet(self) -> None:
+        assert "abgeschnitten" not in headline(_dated_report())

@@ -1,0 +1,100 @@
+"""INBOX workflow — the nightly round, unattended.
+
+Category: inbox (Gmail connector → the deployment's identity, see connectors.py).
+
+The conversational sibling (``inbox-review``) is the workplace: it asks, it
+shows, it waits for an approval before it touches anything. This one is the
+opposite — it runs while nobody is there, and therefore it does exactly two
+things and nothing else:
+
+  1. triage YESTERDAY, the complete calendar day (``include_today=False``), and
+  2. write the dossier into the library.
+
+**It changes nothing in the mailbox.** No label, no draft, no archive. Level 2
+of the safety ladder needs an approval per session, and a scheduled run has
+nobody to ask — so it stays on level 1 permanently. That is not a limitation
+to be lifted later; it is the reason this is allowed to run unattended.
+
+Why the window is a calendar day and not ``newer_than:1d``: consecutive runs
+have to tile the calendar without gap or overlap, or a daily job cannot be
+reasoned about at all. See ``window.calendar_window``.
+
+Why ``on_behalf_of=False``: a scheduled execution carries no user identity, so
+the connector runs as the deployment. This is the whole reason the inbox domain
+has its own connector slot — workflows/CLAUDE.md gotcha 19.
+
+The schedule lives HERE, in the code, not in a cron somewhere else: the worker
+registers it with Studio at startup and refreshes it, so the repo stays the
+single source of truth for when this runs.
+
+Trigger by hand (the worker has to run):
+  make inbox-daily
+"""
+
+from __future__ import annotations
+
+from datetime import date
+
+import mistralai.workflows as workflows
+from mistralai.workflows import workflow
+from mistralai.workflows.models import ScheduleDefinition
+from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
+
+with workflow.unsafe.imports_passed_through():
+    from workflows.crm.agent_tools import get_today
+    from workflows.inbox.library import store_dossier
+
+from workflows.inbox.connectors import gmail_connector  # noqa: E402
+from workflows.inbox.models import (  # noqa: E402
+    InboxScanInput,
+    InboxScanReport,
+)
+from workflows.inbox.render import dossier  # noqa: E402
+from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
+
+# 06:00 Europe/Berlin — before the working day, after the night's mail has
+# landed. The window is the day BEFORE that, complete.
+DAILY_SCHEDULE = ScheduleDefinition(
+    input={},
+    cron_expressions=["0 6 * * *"],
+    time_zone_name="Europe/Berlin",
+)
+
+# The brake, not a filter: a quiet day brings ~46 threads. If a day ever exceeds
+# this the report says so (``truncated``) instead of silently dropping the rest.
+_MAX_THREADS = 200
+
+
+@workflows.workflow.define(
+    name="inbox-daily",
+    on_behalf_of=False,  # the deployment's identity — see inbox/connectors.py
+    schedules=[DAILY_SCHEDULE],
+    workflow_display_name="Inbox · Täglich (unbeaufsichtigt)",
+    workflow_description=(
+        "Der Nachtlauf: sichtet den kompletten Vortag und legt das Dossier in "
+        "der Library ab. Verändert nichts im Postfach — kein Label, kein "
+        "Entwurf, kein Archivieren. Läuft ohne Rückfrage, weil er nichts zu "
+        "fragen hat."
+    ),
+)
+@uses_connectors(gmail_connector)
+class InboxDailyWorkflow:
+    @workflows.workflow.entrypoint
+    async def run(self) -> InboxScanReport:
+        report: InboxScanReport = await workflows.execute_workflow(
+            InboxScanWorkflow,
+            params=InboxScanInput(
+                window_days=1,
+                include_today=False,  # yesterday, complete — never today's half day
+                max_threads=_MAX_THREADS,
+            ),
+        )
+        # The dossier is named after the day it describes, not after the day it
+        # was written: a re-run replaces its predecessor instead of doubling it,
+        # and the library reads as a history rather than as a pile.
+        day = report.window_start or date.fromisoformat(await get_today())
+        await store_dossier(
+            name=f"inbox-context-{day.isoformat()}.md",
+            text=dossier(report, day.isoformat()),
+        )
+        return report

@@ -43,6 +43,46 @@ envelopes — is gitignored. The repo is public; correspondents' addresses are n
 
 ---
 
+## The daily round, and why it can run unattended
+
+`inbox-daily` triages **yesterday, the complete calendar day**, and writes the
+dossier into the library. It changes nothing in the mailbox — no label, no draft,
+no archive. Level 2 of the safety ladder needs an approval per session, and a
+scheduled run has nobody to ask, so it stays on level 1 permanently. That is not
+a gap to be closed later; it is the reason it is allowed to run at all.
+
+Three things had to be right before it could exist:
+
+**The identity.** A scheduled execution carries no user, so `on_behalf_of=True`
+cannot work — the run dies with `400 Execution is missing user_id or
+organization_id`. The inbox domain therefore has its own connector slot,
+`connector("gmail", run_as="deployment")`, and every inbox workflow is declared
+`on_behalf_of=False`. Measured end to end: a schedule-fired run completed with
+`user_id = None` and read the real mailbox. The schedule lives in the code
+(`daily.DAILY_SCHEDULE`, 06:00 Europe/Berlin); the worker registers it with
+Studio at startup, so the repo stays the source of truth for when this runs.
+
+**The window.** `newer_than:1d` is relative to the moment of the call — a run at
+09:00 covers yesterday 09:00 to today 09:00. Two runs overlap, a late run loses
+the start of its day, and no run covers exactly one day. `window.calendar_window`
+builds a half-open `[start, end)` of calendar days and `gmail_query` renders it
+as `after:2026/09/22 before:2026/09/23`. Consecutive days then tile without gap
+or overlap, which is what makes a daily job something one can reason about —
+and it is the property the tests pin.
+
+**The brake.** `max_threads` used to be a silent cut: fetch, slice, say nothing.
+On a seven-day window that threw away 272 of 322 threads without a word.
+`gmail_search_threads` now returns `has_more`, the report carries `truncated`,
+and the headline says *"abgeschnitten bei N — das Fenster trägt mehr"*. A cap
+that cannot report that it bit is not a limit.
+
+**The backlog stays out of it.** 2,094 machine mails from 334 senders will not be
+worked off one mail at a time by a model — 61 % of the volume comes from twenty
+senders at four opens in total. That is `inbox-senders` and an unsubscribe, not a
+triage run.
+
+---
+
 ## The safety ladder
 
 Three levels, and nothing skips one:
@@ -204,6 +244,7 @@ Side note, contradicting the book domain's finding: reasoning *helped* here (med
 
 ```bash
 make start-worker                     # in its own terminal; first run prompts Gmail OAuth
+make inbox-daily                      # the nightly round by hand — yesterday, complete
 make inbox-scan                       # dry run over the last day
 make inbox-review                     # the same as a conversation, with the cleanup step
 make inbox-senders window=90          # the 90-day sender statistic, pure arithmetic
@@ -237,7 +278,14 @@ data it keeps five of fourteen, and the five are the two failed payments, the CI
 two dated offers.
 
 Earlier versions of the same day are replaced, so the library never holds two states — the same
-rule as `bookcli.sync`. The history is in the Studio executions.
+rule as `bookcli.sync`. The document is named after the day it **describes**, not the day it was
+written, so a re-run replaces its predecessor and the library reads as a history rather than a pile.
+
+That history is the reason every date in it is absolute. The first stored dossier said
+`**today**` next to every owed reply — the agent's urgency enum, rendered raw. Read three weeks
+later through retrieval it claims a deadline that has long passed, and nothing in the text says
+otherwise. Urgency is now rendered as *"heute fällig, eingegangen 22.09.2026"*, and the header
+names the window in calendar dates.
 
 ---
 

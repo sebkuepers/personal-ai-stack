@@ -50,7 +50,7 @@ with workflow.unsafe.imports_passed_through():
 
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # noqa: E402
 
-from workflows.crm.connectors import gmail_connector  # noqa: E402
+from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox import config  # noqa: E402
 from workflows.inbox.cleanup import (  # noqa: E402
     FINANCE,
@@ -75,9 +75,12 @@ from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 # the values are written to be readable on their own ("3 Tage", not "3") and
 # parsed back below. The label carries the explanation, the value carries the
 # answer — otherwise the card reads "Kaskade? on".
+# The window is counted in CALENDAR days ending today — so "Nur heute" really
+# means today, and two runs on the same choice cover the same ground. The
+# labels say days, because that is what the window is.
 WINDOWS = [
-    ("Seit gestern", "Seit gestern"),
-    ("Letzte 3 Tage", "Letzte 3 Tage"),
+    ("Nur heute", "Nur heute"),
+    ("Letzte 2 Tage", "Letzte 2 Tage — heute und gestern"),
     ("Letzte 7 Tage", "Letzte 7 Tage"),
 ]
 SECOND_REVIEW = [
@@ -114,7 +117,7 @@ def _root_reason(exc: BaseException) -> str:
 
 
 def _days(choice: str) -> int:
-    """'Seit gestern' → 1, 'Letzte 3 Tage' → 3."""
+    """'Nur heute' → 1, 'Letzte 7 Tage' → 7."""
     found = re.search(r"\d+", choice)
     return int(found.group()) if found else 1
 
@@ -128,7 +131,7 @@ def _count(choice: str) -> int:
 def _configuration() -> type[wf_chat.FormInput]:
     class Configuration(wf_chat.FormInput):
         window: str = wf_chat.SingleChoice(
-            options=WINDOWS, description="Welcher Zeitraum?", prefilled_value="Seit gestern"
+            options=WINDOWS, description="Welcher Zeitraum?", prefilled_value="Nur heute"
         )
         second_review: str = wf_chat.SingleChoice(
             options=SECOND_REVIEW, description="Wie genau?", prefilled_value="Gründlich — zweite Prüfung"
@@ -181,7 +184,7 @@ def _markdown_message(content: str) -> list:
 
 @workflows.workflow.define(
     name="inbox-review",
-    on_behalf_of=True,  # the child workflow (inbox-scan) needs the Gmail OAuth
+    on_behalf_of=False,  # the deployment's identity — see inbox/connectors.py
     workflow_display_name="Inbox · Review (conversational)",
     workflow_description=(
         "Der Sichtungs-Lauf als Gespräch: Konfiguration im Chat wählen, "
