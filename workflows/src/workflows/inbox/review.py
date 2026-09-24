@@ -39,6 +39,29 @@ from mistralai.workflows.plugins.mistralai.conversational_ui_components import (
 )
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.inbox.connectors import gmail_connector
+    from workflows.inbox.cleanup import (
+        cleanup_plan,
+        cleanup_summary,
+    )
+    from workflows.inbox.models import (
+        CleanupResult,
+        InboxScanInput,
+        InboxScanReport,
+        SenderStats,
+        SenderStatsInput,
+    )
+    from workflows.inbox.render import dossier, headline, report_as_markdown
+    from workflows.inbox.scan import InboxScanWorkflow
+    from workflows.inbox.senders import InboxSendersWorkflow
+    from workflows.inbox.unsubscribe import is_mailto
+    # Config modules read a JSON file at import. Inside the Temporal sandbox that
+    # is a restricted call (pathlib.Path.read_text) and the WORKER REFUSES TO
+    # START — 'Failed validating workflow …'. Whether it trips depends on import
+    # order, so it can pass locally and kill the container. Passthrough, always —
+# and as `import a.b.c as x`, never `from a.b import c`: the second form is an
+# ATTRIBUTE access on the package and the sandbox bites anyway (gotcha 10).
+    import workflows.inbox.config as config
     import mistralai.workflows.conversational as wf_chat
     from workflows.crm.agent_tools import get_today
     from workflows.inbox.apply import FULL, LABEL_ONLY, apply_cleanup
@@ -46,23 +69,6 @@ with workflow.unsafe.imports_passed_through():
 
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # noqa: E402
 
-from workflows.inbox.connectors import gmail_connector  # noqa: E402
-from workflows.inbox import config  # noqa: E402
-from workflows.inbox.cleanup import (  # noqa: E402
-    cleanup_plan,
-    cleanup_summary,
-)
-from workflows.inbox.models import (  # noqa: E402
-    CleanupResult,
-    InboxScanInput,
-    InboxScanReport,
-    SenderStats,
-    SenderStatsInput,
-)
-from workflows.inbox.render import dossier, headline, report_as_markdown  # noqa: E402
-from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
-from workflows.inbox.senders import InboxSendersWorkflow  # noqa: E402
-from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 
 # Vibe renders the chosen VALUE in its summary card, not the option label. So
 # the values are written to be readable on their own ("3 Tage", not "3") and

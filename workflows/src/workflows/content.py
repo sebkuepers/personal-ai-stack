@@ -34,10 +34,9 @@ from mistralai.workflows import workflow
 from pydantic import BaseModel, Field
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.book.models import ContentReview
     from workflows.book.agents import review_content
     from workflows.book.local import load_context, read_chapter
-
-from workflows.book.models import ContentReview  # noqa: E402
 
 
 class ContentInput(BaseModel):
@@ -67,7 +66,7 @@ class ContentResult(BaseModel):
 )
 async def read_rubric(work: str, chapter: str) -> tuple[dict, dict]:
     """The chapter's rubric and the work's touchstones from ``shared/book/<slug>.json``."""
-    from workflows.book import config
+    import workflows.book.config as config
 
     w = config.load_work(work)
     rubric = config.chapter_by_title(work, chapter) or {}

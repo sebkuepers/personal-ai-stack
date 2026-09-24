@@ -31,22 +31,22 @@ import mistralai.workflows as workflows
 from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
-    from workflows.book import config
+    from workflows.book.checks import (
+        drop_duplicates,
+        drop_without_rule,
+        fix_paragraph_index,
+        split_blocked,
+    )
+    from workflows.book.models import (
+        EditingInput,
+        EditingResult,
+        JudgedFinding,
+        StyleSecondRead,
+        StyleSuggestions,
+    )
+    import workflows.book.config as config
     from workflows.book.agents import check_style, second_read_style
 
-from workflows.book.checks import (  # noqa: E402
-    drop_duplicates,
-    drop_without_rule,
-    fix_paragraph_index,
-    split_blocked,
-)
-from workflows.book.models import (  # noqa: E402
-    EditingInput,
-    EditingResult,
-    JudgedFinding,
-    StyleSecondRead,
-    StyleSuggestions,
-)
 
 # Rule IDs in the rendered profile sit as "[R-...]" at the start of a line.
 _RULE_ID = re.compile(r"^\[(R-[a-zA-Z0-9-]+)\]", re.M)

@@ -41,25 +41,24 @@ import mistralai.workflows as workflows
 from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
-    from workflows.book import config
+    from workflows.book.checks import (
+        drop_duplicates,
+        drop_edits_in_speech,
+        drop_intentional_colloquialisms,
+        drop_non_findings,
+        fix_paragraph_index,
+        split_blocked,
+        work_context,
+    )
+    from workflows.book.models import (
+        Corrections,
+        EditingInput,
+        EditingResult,
+        JudgedFinding,
+        SecondRead,
+    )
+    import workflows.book.config as config
     from workflows.book.agents import copyedit, second_read
-
-from workflows.book.checks import (  # noqa: E402
-    drop_duplicates,
-    drop_edits_in_speech,
-    drop_intentional_colloquialisms,
-    drop_non_findings,
-    fix_paragraph_index,
-    split_blocked,
-    work_context,
-)
-from workflows.book.models import (  # noqa: E402
-    Corrections,
-    EditingInput,
-    EditingResult,
-    JudgedFinding,
-    SecondRead,
-)
 
 
 def _to_findings(raw: dict, limit: int) -> list[JudgedFinding]:

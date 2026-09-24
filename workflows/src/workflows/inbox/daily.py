@@ -51,21 +51,27 @@ from mistralai.workflows.models import ScheduleDefinition
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.inbox.connectors import gmail_connector
+    from workflows.inbox.models import (
+        DailyResult,
+        InboxScanInput,
+        InboxScanReport,
+    )
+    from workflows.inbox.cleanup import cleanup_plan
+    from workflows.inbox.render import dossier
+    from workflows.inbox.scan import InboxScanWorkflow
+    from workflows.inbox.unsubscribe import is_mailto
+    # Config modules read a JSON file at import. Inside the Temporal sandbox that
+    # is a restricted call (pathlib.Path.read_text) and the WORKER REFUSES TO
+    # START — 'Failed validating workflow …'. Whether it trips depends on import
+    # order, so it can pass locally and kill the container. Passthrough, always —
+# and as `import a.b.c as x`, never `from a.b import c`: the second form is an
+# ATTRIBUTE access on the package and the sandbox bites anyway (gotcha 10).
+    import workflows.inbox.config as config
     from workflows.crm.agent_tools import get_today
     from workflows.inbox.apply import apply_cleanup
     from workflows.inbox.library import store_dossier
 
-from workflows.inbox import config  # noqa: E402
-from workflows.inbox.connectors import gmail_connector  # noqa: E402
-from workflows.inbox.models import (  # noqa: E402
-    DailyResult,
-    InboxScanInput,
-    InboxScanReport,
-)
-from workflows.inbox.cleanup import cleanup_plan  # noqa: E402
-from workflows.inbox.render import dossier  # noqa: E402
-from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
-from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 
 # 06:00 Europe/Berlin — before the working day, after the night's mail has
 # landed. The window is the day BEFORE that, complete. Time and zone come from

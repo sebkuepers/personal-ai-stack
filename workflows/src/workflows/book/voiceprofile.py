@@ -38,7 +38,15 @@ from mistralai.workflows import workflow
 # it, which the Temporal sandbox forbids. The access is deterministic (once at
 # import, only constants afterwards), so passthrough is exactly right here.
 with workflow.unsafe.imports_passed_through():
-    from workflows.book import config
+    from workflows.book.models import (
+        Corpus,
+        ProfileCheck,
+        RawVoiceProfile,
+        VoiceProfile,
+        VoiceProfileInput,
+    )
+    from workflows.book.voice import build_profile
+    import workflows.book.config as config
     from workflows.book.agents import (
         check_profile,
         distil_voice,
@@ -47,14 +55,6 @@ with workflow.unsafe.imports_passed_through():
     )
 
 # Pure modules (models, checking logic) are imported normally.
-from workflows.book.models import (  # noqa: E402
-    Corpus,
-    ProfileCheck,
-    RawVoiceProfile,
-    VoiceProfile,
-    VoiceProfileInput,
-)
-from workflows.book.voice import build_profile  # noqa: E402
 
 
 @workflows.workflow.define(

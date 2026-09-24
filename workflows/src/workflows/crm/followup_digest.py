@@ -27,11 +27,16 @@ from mistralai.workflows import workflow
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.crm.connectors import gmail_connector, notion_connector
+    from workflows.crm.models import FollowUpDigestInput
+    # Config modules read a JSON file at import. Inside the Temporal sandbox that
+    # is a restricted call (pathlib.Path.read_text) and the WORKER REFUSES TO
+    # START — 'Failed validating workflow …'. Whether it trips depends on import
+    # order, so it can pass locally and kill the container. Passthrough, always —
+# and as `import a.b.c as x`, never `from a.b import c`: the second form is an
+# ATTRIBUTE access on the package and the sandbox bites anyway (gotcha 10).
+    import workflows.crm.config as config
     from workflows.crm.agent_tools import get_today, extract_agent_text
-
-from workflows.crm import config  # noqa: E402
-from workflows.crm.connectors import gmail_connector, notion_connector  # noqa: E402
-from workflows.crm.models import FollowUpDigestInput  # noqa: E402
 
 
 def _make_digest_agent() -> wf_mistral.Agent:

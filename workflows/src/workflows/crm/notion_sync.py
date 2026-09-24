@@ -28,14 +28,14 @@ from mistralai.workflows import workflow
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.crm.agent_tools import classification_to_triage
+    from workflows.crm.connectors import notion_connector
+    from workflows.crm.models import CRMClassification, InteractionInput
     from workflows.crm.classify import classify_interaction
     from workflows.crm.agent_tools import get_today, extract_agent_text
     from workflows.crm.notion import make_notion_writer_agent, render_triage_for_agent
 
 # Pure imports (safe in workflow thread).
-from workflows.crm.agent_tools import classification_to_triage  # noqa: E402
-from workflows.crm.connectors import notion_connector  # noqa: E402
-from workflows.crm.models import CRMClassification, InteractionInput  # noqa: E402
 
 
 @workflows.workflow.define(

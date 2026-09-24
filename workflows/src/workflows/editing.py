@@ -49,6 +49,16 @@ import mistralai.workflows as workflows
 from mistralai.workflows import workflow
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.book.models import (
+        Decision,
+        EditingInput,
+        EditingResult,
+        EditingSession,
+        SectionInput,
+    )
+    from workflows.book.copyedit import BookCopyeditWorkflow
+    from workflows.book.style import BookStyleWorkflow
+    from workflows.overview import button_label, outliner
     import mistralai.workflows.plugins.mistralai as wf_mistral
     from workflows.book.local import (
         claim_section,
@@ -66,20 +76,10 @@ from mistralai.workflows.plugins.mistralai.conversational_ui_components import (
     Markdown,
 )
 
-from workflows.book.models import (  # noqa: E402
-    Decision,
-    EditingInput,
-    EditingResult,
-    EditingSession,
-    SectionInput,
-)
-from workflows.book.copyedit import BookCopyeditWorkflow  # noqa: E402
-from workflows.book.style import BookStyleWorkflow  # noqa: E402
 
 # The same display as in ``book-overview`` — imported, not rebuilt. One does not
 # pick a section from a list of 48 titles but because one knows where the book
 # is thin.
-from workflows.overview import button_label, outliner  # noqa: E402
 
 # Suggested rejection reasons. Deliberately short and in his words — a
 # suggestion you tap gets used; an empty text field does not.

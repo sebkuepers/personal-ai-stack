@@ -32,21 +32,24 @@ from mistralai.workflows import workflow
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.crm.agent_tools import classification_to_triage
+    from workflows.crm.connectors import gmail_connector, notion_connector
+    from workflows.crm.models import (
+        CRMClassification,
+        EmailItem,
+        IngestItem,
+        IngestRecentInput,
+        IngestRecentReport,
+        InteractionInput,
+    )
+    # Config modules read a JSON file at import. Inside the Temporal sandbox that
+    # is a restricted call (pathlib.Path.read_text) and the WORKER REFUSES TO
+    # START — 'Failed validating workflow …'. Whether it trips depends on import
+    # order, so it can pass locally and kill the container. Passthrough, always.
+    from workflows.crm.config import AGENT_MODEL
     from workflows.crm.classify import classify_interaction
     from workflows.crm.agent_tools import get_today, extract_agent_text, parse_email_array
     from workflows.crm.notion import make_notion_writer_agent, render_triage_for_agent
-
-from workflows.crm.agent_tools import classification_to_triage  # noqa: E402
-from workflows.crm.config import AGENT_MODEL  # noqa: E402
-from workflows.crm.connectors import gmail_connector, notion_connector  # noqa: E402
-from workflows.crm.models import (  # noqa: E402
-    CRMClassification,
-    EmailItem,
-    IngestItem,
-    IngestRecentInput,
-    IngestRecentReport,
-    InteractionInput,
-)
 
 
 def _make_gmail_reader() -> wf_mistral.Agent:

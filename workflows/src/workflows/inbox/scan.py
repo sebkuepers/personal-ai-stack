@@ -35,27 +35,27 @@ from mistralai.workflows import execute_activities_in_parallel, workflow
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.inbox.connectors import gmail_connector
+    from workflows.inbox.envelope import (
+        own_address,
+        thread_to_envelope,
+        thread_to_sent,
+    )
+    from workflows.inbox.escalation import needs_second_review
+    from workflows.inbox.models import (
+        InboxEnvelope,
+        InboxReview,
+        InboxScanInput,
+        InboxScanReport,
+        UnsubCandidate,
+    )
+    from workflows.inbox.report import build_report
+    from workflows.inbox.window import calendar_window, gmail_query
+    from workflows.inbox.unsubscribe import extract_unsub_link
     from workflows.crm.agent_tools import get_today
     from workflows.inbox.classify import review_email, second_review_email
     from workflows.inbox.gmail import gmail_search_threads, gmail_thread_body
 
-from workflows.inbox.connectors import gmail_connector  # noqa: E402
-from workflows.inbox.envelope import (  # noqa: E402
-    own_address,
-    thread_to_envelope,
-    thread_to_sent,
-)
-from workflows.inbox.escalation import needs_second_review  # noqa: E402
-from workflows.inbox.models import (  # noqa: E402
-    InboxEnvelope,
-    InboxReview,
-    InboxScanInput,
-    InboxScanReport,
-    UnsubCandidate,
-)
-from workflows.inbox.report import build_report  # noqa: E402
-from workflows.inbox.window import calendar_window, gmail_query  # noqa: E402
-from workflows.inbox.unsubscribe import extract_unsub_link  # noqa: E402
 
 # How many triage calls may run at once — 10 sits comfortably under the
 # conversations API limit.

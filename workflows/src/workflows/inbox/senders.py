@@ -26,15 +26,14 @@ from mistralai.workflows import workflow
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
+    from workflows.inbox.connectors import gmail_connector
+    from workflows.inbox.models import (
+        SenderItem,
+        SenderStats,
+        SenderStatsInput,
+    )
+    from workflows.inbox.envelope import thread_to_envelope
     from workflows.inbox.gmail import gmail_search_threads
-
-from workflows.inbox.connectors import gmail_connector  # noqa: E402
-from workflows.inbox.models import (  # noqa: E402
-    SenderItem,
-    SenderStats,
-    SenderStatsInput,
-)
-from workflows.inbox.envelope import thread_to_envelope  # noqa: E402
 
 
 @workflows.workflow.define(

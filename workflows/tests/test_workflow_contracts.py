@@ -25,6 +25,16 @@ def _workflow_modules() -> list[Path]:
     return sorted(p for p in SRC.rglob("*.py") if p.name != "__init__.py")
 
 
+def _defining_modules() -> list[Path]:
+    """Only the modules that DEFINE a workflow — those are sandbox-validated.
+
+    A helper module is imported through the workflow module and inherits its
+    passthrough; it is the defining module whose import list decides whether
+    the worker starts.
+    """
+    return [p for p in _workflow_modules() if "workflow.define" in p.read_text(encoding="utf-8")]
+
+
 def _classes_calling(tree: ast.Module, method: str) -> list[ast.ClassDef]:
     """Classes whose body contains a ``self.<method>(...)`` call."""
     found = []
@@ -197,4 +207,64 @@ def test_a_scheduled_workflow_does_not_act_on_behalf_of_a_user(path: Path):
             assert not is_true, (
                 f"{path.name}: {node.name} has schedules AND on_behalf_of=True — "
                 "a scheduled run has no user identity and the connector call fails."
+            )
+
+
+@pytest.mark.parametrize("path", _defining_modules(), ids=lambda p: p.stem)
+def test_repo_imports_in_workflow_modules_are_passed_through(path: Path):
+    """Every ``workflows.*`` import in a workflow module needs the sandbox bypass.
+
+    Our own modules read files at import — a config module does
+    ``Path(...).read_text()`` — and inside the Temporal sandbox that is a
+    restricted call. The worker then does not start at all:
+    ``Failed validating workflow crm-followup-digest``. It is not caught by the
+    discovery check (that only imports), it depends on import order, and it can
+    therefore pass on the laptop and kill the container — which is exactly what
+    it did on 2026-09-24.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    passed = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.With) and any(
+            "imports_passed_through" in ast.dump(item.context_expr) for item in node.items
+        ):
+            for inner in ast.walk(node):
+                if isinstance(inner, (ast.Import, ast.ImportFrom)):
+                    passed.add(inner.lineno)
+    for node in tree.body:  # module level only — inside a function it is fine
+        if node.lineno in passed:
+            continue
+        name = None
+        if isinstance(node, ast.ImportFrom) and node.module:
+            name = node.module
+        elif isinstance(node, ast.Import):
+            name = next((a.name for a in node.names if a.name.startswith("workflows")), None)
+        if name and name.startswith("workflows"):
+            raise AssertionError(
+                f"{path.name}:{node.lineno}: '{name}' is imported outside "
+                "imports_passed_through() — the worker may refuse to start."
+            )
+
+
+@pytest.mark.parametrize("path", _defining_modules(), ids=lambda p: p.stem)
+def test_a_config_module_is_imported_by_its_full_name(path: Path):
+    """``from package import module`` does not survive the sandbox (gotcha 10).
+
+    Passthrough applies to module NAMES. ``from workflows.inbox import config``
+    is an attribute access on the package, so the sandbox still bites — even
+    inside ``imports_passed_through()``. Only ``import workflows.inbox.config
+    as config`` (or importing the names directly) works. This cost an hour on
+    2026-09-24 because the fix looked applied and was not.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            continue
+        if not node.module.startswith("workflows"):
+            continue
+        for alias in node.names:
+            assert alias.name != "config", (
+                f"{path.name}:{node.lineno}: 'from {node.module} import config' is an "
+                "attribute access the sandbox still blocks — use "
+                f"'import {node.module}.config as config'."
             )

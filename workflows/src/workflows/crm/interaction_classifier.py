@@ -25,17 +25,17 @@ from mistralai.workflows import workflow
 # Activities touch the network / mistral client → import them through the
 # Temporal sandbox boundary (the decorator dispatches the real call to a worker).
 with workflow.unsafe.imports_passed_through():
+    from workflows.crm.agent_tools import classification_to_triage
+    from workflows.crm.models import (
+        CRMClassification,
+        InteractionInput,
+        InteractionTriage,
+    )
     from workflows.crm.classify import classify_interaction
     from workflows.crm.agent_tools import get_today
 
 # Pure code (models + the deterministic mapping) is safe to import normally and
 # to run inside the workflow thread.
-from workflows.crm.agent_tools import classification_to_triage  # noqa: E402
-from workflows.crm.models import (  # noqa: E402
-    CRMClassification,
-    InteractionInput,
-    InteractionTriage,
-)
 
 
 @workflows.workflow.define(

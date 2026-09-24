@@ -297,6 +297,37 @@ in the examples.
     instances: `Outer.model_validate({"inner": inner.model_dump(mode="json")})`.
     Measured 2026-09-24.
 
+21. **The container is the only place that proves the worker starts.** All five
+    `workflows.*` config imports in workflow modules were plain imports, and the
+    laptop had run that way for weeks. The first container start died instantly:
+
+    ```
+    Cannot access pathlib.Path.read_text.__call__ from inside a workflow
+      → crm/config.py:38
+    RuntimeError: Failed validating workflow crm-email-triage
+    ```
+
+    A config module reads its JSON at import; inside the sandbox that is a
+    restricted call, and sandbox *validation* runs at worker start, so the
+    worker does not come up at all. Whether it trips depends on import order —
+    and on `CRM_CONFIG_PATH`: with the variable set (as in the image) the
+    lookup returns early and the read happens under the sandbox, without it the
+    order differs and it passes. That is why the laptop was green.
+
+    To reproduce it locally, run the worker the way the image does:
+
+    ```bash
+    CRM_CONFIG_PATH=…/shared/crm.json SHARED_CONFIG_DIR=…/shared \
+      uv run python -m entrypoints.worker
+    ```
+
+    Every `workflows.*` import in a workflow module now sits inside
+    `imports_passed_through()`, and two contract tests hold it there — one for
+    the passthrough, one for gotcha 10's shape (`from workflows.inbox import
+    config` is an attribute access and stays blocked; it has to be
+    `import workflows.inbox.config as config`). That second one cost the extra
+    hour: the fix looked applied and was not.
+
 ---
 
 ## 6. Connector & agent patterns
