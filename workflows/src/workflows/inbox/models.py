@@ -204,6 +204,8 @@ class InboxScanReport(BaseModel):
     skipped_no_messages: int  # threads that came without an envelope — varies per run (26–57)
     own_replies: int  # threads in the inbox where he had the last word
     pages: int
+    newsletters: int = 0  # how many newsletters the window held
+    unsub_checked: int = 0  # how many of their bodies were fetched (max_unsub caps this)
     second_review_count: int = 0  # how many reviews the second stage checked
     second_review_changed: int = 0  # how often it ACTUALLY changed the result (kill switch)
     type_counts: dict[str, int] = Field(default_factory=dict)

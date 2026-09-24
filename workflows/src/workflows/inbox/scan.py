@@ -181,9 +181,11 @@ class InboxScanWorkflow:
         # Step 3 — pull the unsubscribe link for newsletters out of the body
         # (pure Python).
         unsub_links: list[UnsubCandidate] = []
+        unsub_checked = 0
         for envelope, review in zip(candidates, reviews, strict=True):
-            if review.type != "newsletter" or len(unsub_links) >= params.max_unsub:
+            if review.type != "newsletter" or unsub_checked >= params.max_unsub:
                 continue
+            unsub_checked += 1
             body = await gmail_thread_body(envelope.thread_id)
             url = extract_unsub_link(body)
             if url:
@@ -210,4 +212,5 @@ class InboxScanWorkflow:
             second_review_changed=changed,
             window=window,
             truncated=inbox_raw["has_more"],
+            unsub_checked=unsub_checked,
         )

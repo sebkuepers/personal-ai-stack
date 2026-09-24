@@ -30,9 +30,8 @@
     "_comment": "All twelve tools verified live on 2026-09-24, reading and writing. One thing cost an hour: every label tool failed with a plain-text 'Error calling tool ...' while the credential reported status: valid. It was not a missing scope in the connector — it asks for gmail.modify — but an OLDER grant that predated it. Re-authorising fixed it. If a write tool ever refuses again, check the grant before suspecting the code: beta.connectors.get_auth_url(connector_id_or_name='gmail') prints the requested scopes."
   },
   "labels": {
-    "_comment": "The namespace was 'inbox/' until 2026-09-24 and Gmail rejected EVERY create_label with HTTP 400 'Invalid label name' — verified live for 'inbox', 'inbox/processed' and 'Inbox/processed'. Gmail reserves its system label names (INBOX, SENT, DRAFT, SPAM, TRASH, STARRED, IMPORTANT, UNREAD, CHAT, CATEGORY_*) and refuses a user label whose first path segment collides with one, whatever the case. 'Triage/processed' was created on the first try. workflows/tests/test_inbox_gmail.py guards the whole map against the reserved set.",
+    "_comment": "The namespace was 'inbox/' until 2026-09-24 and Gmail rejected EVERY create_label with HTTP 400 'Invalid label name' — verified live for 'inbox', 'inbox/processed' and 'Inbox/processed'. Gmail reserves its system label names (INBOX, SENT, DRAFT, SPAM, TRASH, STARRED, IMPORTANT, UNREAD, CHAT, CATEGORY_*) and refuses a user label whose first path segment collides with one, whatever the case. 'Triage/processed' was created on the first try. workflows/tests/test_inbox_gmail.py guards the whole map against the reserved set. There was a fourth label here, 'unsub-candidate', that no code ever applied — the unsubscribe links go into the dossier as clickable links instead, which is one place to look rather than two. Removed on 2026-09-24 rather than left standing as a promise the code does not keep.",
     "processed": "Triage/processed",
-    "unsub_candidate": "Triage/unsub-candidate",
     "finance": "Triage/finance",
     "needs_reply": "Triage/needs-reply"
   },

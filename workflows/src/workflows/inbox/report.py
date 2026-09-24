@@ -40,6 +40,7 @@ def build_report(
     second_review_changed: int = 0,
     window: tuple[date, date] | None = None,
     truncated: bool = False,
+    unsub_checked: int = 0,
 ) -> InboxScanReport:
     """Condense (envelope, review) pairs, the sent window and the unsubscribe links.
 
@@ -117,6 +118,8 @@ def build_report(
         window_start=window[0] if window else None,
         window_end=window[1] if window else None,
         truncated=truncated,
+        newsletters=sum(1 for r in reviews if r.type == "newsletter"),
+        unsub_checked=unsub_checked,
         inbox_found=len(envelopes),
         skipped_no_messages=skipped_no_messages,
         own_replies=own_replies,

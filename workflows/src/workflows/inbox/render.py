@@ -198,6 +198,27 @@ def dossier(r: InboxScanReport, as_of: str, cleaned: CleanupResult | None = None
     if not r.sent:
         lines.append("_(nichts gesendet)_")
 
+    # The unsubscribe links used to live ONLY in the report, and the nightly
+    # round does not store the report — so it fetched the bodies, pulled the
+    # links out and threw them into the execution history where nobody looks.
+    # They belong where the one stored document is.
+    lines += ["", "## Abbestellen", ""]
+    links = [u for u in r.unsub_links if not u.url.lower().startswith("mailto:")]
+    mailto = [u for u in r.unsub_links if u.url.lower().startswith("mailto:")]
+    for u in links:
+        lines.append(f"- [{u.sender}]({u.url}) — *{u.subject}*")
+    for u in mailto:
+        lines.append(f"- {u.sender} — Entwurf liegt bereit, nur noch absenden")
+    if not r.unsub_links:
+        lines.append("_(kein Abmeldelink gefunden)_")
+    if r.newsletters and r.unsub_checked < r.newsletters:
+        # Same class of silent cut as max_threads: say when the limit bit.
+        lines.append(
+            f"\n_{r.unsub_checked} von {r.newsletters} Newslettern durchsucht — "
+            "max_unsub begrenzt das._"
+        )
+    lines.append("")
+
     if cleaned is not None:
         # The morning after, "what did it touch" is the first question — and the
         # answer must not live only in the execution history.

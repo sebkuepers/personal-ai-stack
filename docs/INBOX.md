@@ -157,6 +157,17 @@ answer. So the link is pulled out of the HTML deterministically: the `<a>` ancho
 contains "unsubscribe", "abmelden", "abbestellen" or "opt-out". Measured: 6 of 8 promotional
 mails. The remaining two are reported by sender, for manual handling.
 
+**What that leaves for you to do**, because the last step cannot be automated:
+an `https` link lands in the dossier as a clickable link — one click, and it is done. A `mailto`
+link becomes a **draft** in Gmail, and the connector cannot send, so you press send. Nothing else
+is required; the run has already archived the newsletter either way.
+
+The links used to live only in the report, and the nightly round stores only the dossier — so it
+fetched the bodies, pulled the links out and dropped them into the execution history where nobody
+looks. They are in the dossier now, with a line saying how many newsletters were searched when
+`max_unsub` cut the search short. There was also a fourth label in the config, `unsub-candidate`,
+that no code ever applied; it is gone rather than left standing as a promise the code does not keep.
+
 **Non-ASCII characters do not survive the connector.** Every umlaut, every `ß`, every emoji comes
 back as one `U+FFFD` per byte — `Grüße` arrives as `Gr����e`, `können` as `k��nnen`. Measured on
 2026-09-24 in the *raw* tool answer, before any of this repo's code touches it: 37 of 50 snippets

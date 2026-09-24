@@ -200,3 +200,45 @@ class TestTruncation:
 
     def test_an_untruncated_run_stays_quiet(self) -> None:
         assert "abgeschnitten" not in headline(_dated_report())
+
+
+class TestUnsubscribeInTheDossier:
+    """The nightly round stores only the dossier — so the links have to be in it.
+
+    They used to live only in the report: the run fetched the bodies, pulled the
+    links out and dropped them into the execution history, where nobody looks.
+    """
+
+    def _with_links(self, checked: int = 2, newsletters: int = 2) -> InboxScanReport:
+        return InboxScanReport(
+            window_days=1, inbox_found=2, skipped_no_messages=0, own_replies=0, pages=1,
+            newsletters=newsletters, unsub_checked=checked,
+            unsub_links=[
+                UnsubCandidate(sender="a@example.com", subject="Rundbrief",
+                               thread_id="t1", url="https://example.com/unsubscribe?x=1"),
+                UnsubCandidate(sender="b@example.com", subject="Angebot",
+                               thread_id="t2", url="mailto:leave@example.com"),
+            ],
+        )
+
+    def test_an_http_link_is_clickable_in_the_dossier(self) -> None:
+        text = dossier(self._with_links(), "2026-09-23")
+        assert "[a@example.com](https://example.com/unsubscribe?x=1)" in text
+
+    def test_a_mailto_says_the_draft_is_waiting(self) -> None:
+        # The connector cannot send — the last step is always his.
+        assert "Entwurf liegt bereit" in dossier(self._with_links(), "2026-09-23")
+
+    def test_an_empty_section_says_so_instead_of_staying_blank(self) -> None:
+        empty = InboxScanReport(
+            window_days=1, inbox_found=0, skipped_no_messages=0, own_replies=0, pages=1,
+        )
+        assert "_(kein Abmeldelink gefunden)_" in dossier(empty, "2026-09-23")
+
+    def test_a_capped_search_says_how_far_it_got(self) -> None:
+        # Same class of silent cut as max_threads — a limit that bit must say so.
+        text = dossier(self._with_links(checked=15, newsletters=42), "2026-09-23")
+        assert "15 von 42 Newslettern durchsucht" in text
+
+    def test_an_uncapped_search_stays_quiet(self) -> None:
+        assert "durchsucht" not in dossier(self._with_links(), "2026-09-23")
