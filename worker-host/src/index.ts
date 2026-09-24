@@ -53,8 +53,11 @@ async function runningRuns(env: Env): Promise<number> {
     console.error(`[metronom] runs query failed: HTTP ${res.status}`);
     return 0;
   }
-  const body = (await res.json()) as { runs?: unknown[] };
-  return body.runs?.length ?? 0;
+  // The list is called "executions", NOT "runs" — verified live on 2026-09-24
+  // against GET /v1/workflows/runs?status=RUNNING. Reading body.runs returned
+  // undefined on every tick, so this counted zero and never woke the container.
+  const body = (await res.json()) as { executions?: unknown[] };
+  return body.executions?.length ?? 0;
 }
 
 /** Wake the (singleton) worker container so it is polling when the execution lands. */
