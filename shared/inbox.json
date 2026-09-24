@@ -117,6 +117,14 @@
         "small_none": "98%/0"
       }
     ],
-    "decision": "First stage small/none triages everything — 98% hits, 0 traps, 1.0s. The cascade with the medium second stage stays in the path AS INSURANCE (constructed cases only prove what one already thought of; real data is missing), but it is on probation: the report counts second_review_changed. After a week of real runs that number decides — ~0 changes means: remove the second stage. Reasoning helped here, by the way (medium/high 100%), unlike the earlier finding in the book domain."
+    "decision": "First stage small/none triages everything. The medium second stage STAYS: on the first real run it removed a systematic first-stage error (threaded 'Re:' read as correspondence, 5 of 50) that no constructed case had predicted. The constructed-case verdict ('the cascade scores below its own first stage') did not survive contact with real mail. The kill switch second_review_changed keeps counting, but it now compares InboxReview.verdict() instead of the whole answer — comparing everything counted a reworded 'reasoning' as a change and could never read zero. Reasoning helped here (medium/high 100%), unlike the earlier finding in the book domain.",
+    "first_real_run": {
+      "date": "2026-09-24",
+      "window": "1 day, 47-50 threads",
+      "finding": "The first stage alone classified 5 of 50 mails as 'correspondence' — all five machine mail (4 GitHub 'Re:' threads, 1 automated waitlist invite). It reads a threaded 'Re:' subject as a conversation. With the second stage: 0. Since 'correspondence' routes to NEEDS_REPLY in the cleanup plan, those five would have been labelled 'reply owed' instead of archived as noise.",
+      "second_review_count": 9,
+      "second_review_changed": "9/9 verdicts, of which 5 substantive on inspection",
+      "verdict": "The second stage EARNS its place — the opposite of what the constructed cases suggested (cascade 95% vs first stage 98%). Nobody constructed a GitHub 'Re:' thread. Keep it; revisit after a week."
+    }
   }
 }

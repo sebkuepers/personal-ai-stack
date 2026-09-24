@@ -110,7 +110,7 @@ creation failed schema validation — the entire cleanup step was dead, silently
 
 ---
 
-## The cascade, and why it is on probation
+## The cascade, and what the first real run said about it
 
 `inbox-review` (small) triages everything; `inbox-second-review` (medium) re-checks only what
 `escalation.needs_second_review` selects: a needed reply, any money, a deadline today, and the two
@@ -129,11 +129,27 @@ Measured with `evalkit` and the cascade eval, 8 constructed cases, 2026-09-24:
 | second stage medium/high | 23/23 (100 %) | 0/13 | 5.3 | 7,182 |
 | cascade (final) | 40/42 (95 %) | 0/30 | 1.6 | 3,169 |
 
-**The cascade scores *below* the first stage alone** — because the second stage re-rolls correct
-first-stage answers too. It stays in the path as insurance (constructed cases only prove what one
-already thought of; real data is missing), but it is on probation: the report counts
-`second_review_changed`. After a week of real runs that number decides. Around zero changes means:
-remove the second stage.
+On the constructed cases the cascade scored *below* the first stage alone, and the second stage
+looked like a re-roller on probation.
+
+**The first real run reversed that**, 2026-09-24, one day, 47–50 threads:
+
+| | first stage alone | with the second stage |
+|---|---|---|
+| classified `correspondence` | **5 of 50** | **0** |
+
+All five were machine mail — four GitHub threads with `Re:` in the subject and one automated
+waitlist invite. The first stage reads a threaded `Re:` as a conversation. And `correspondence`
+routes to `NEEDS_REPLY` in the cleanup plan, so those five would have been labelled "reply owed"
+instead of archived as noise. The second stage caught every one.
+
+So it stays. Nobody had constructed a GitHub `Re:` thread — which is the same lesson the book
+domain paid for: constructed cases only prove what one already thought of.
+
+The kill switch keeps counting, but it now compares `InboxReview.verdict()` rather than the whole
+answer. Comparing everything counted a reworded `reasoning` as a change, and two models never word
+it identically: the first run reported 5 of 5 "changed", a number that can never read zero and
+therefore decides nothing.
 
 Side note, contradicting the book domain's finding: reasoning *helped* here (medium/high reached
 100 %). Which is the argument for measuring per agent rather than adopting a rule.

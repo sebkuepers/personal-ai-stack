@@ -64,3 +64,43 @@ def test_other_escalates() -> None:
 def test_this_week_alone_does_not_escalate() -> None:
     # this_week allein (ohne Antwortbedarf/Finanzen) ist keine Kritikalität.
     assert needs_second_review(sicht(type="notification", urgency="this_week")) is False
+
+
+# ---------------------------------------------------------------------------
+# The cascade's kill switch
+# ---------------------------------------------------------------------------
+
+
+def _review(**kwargs: object) -> InboxReview:
+    base = {
+        "type": "notification", "needs_reply": False, "urgency": "whenever",
+        "subscription_group": "", "finance_type": "none", "amount": "",
+        "due_date": "", "context_for_vibe": "", "reasoning": "",
+    }
+    base.update(kwargs)
+    return InboxReview(**base)  # type: ignore[arg-type]
+
+
+def test_reworded_reasoning_is_not_a_change():
+    """The kill switch must not count prose.
+
+    The first real run reported 5 of 5 reviews "changed" because the whole
+    answer was compared and two models never word `reasoning` identically. A
+    number that can never read zero decides nothing.
+    """
+    first = _review(reasoning="Automatische Benachrichtigung.")
+    second = _review(reasoning="Eine automatische Dienst-Mail ohne Frist.")
+    assert first.verdict() == second.verdict()
+
+
+def test_context_for_vibe_is_not_a_change():
+    first = _review(context_for_vibe="Kein Handlungsbedarf.")
+    second = _review(context_for_vibe="Nichts zu tun hier.")
+    assert first.verdict() == second.verdict()
+
+
+def test_a_different_classification_is_a_change():
+    assert _review(needs_reply=True).verdict() != _review(needs_reply=False).verdict()
+    assert _review(urgency="today").verdict() != _review(urgency="whenever").verdict()
+    assert _review(finance_type="invoice").verdict() != _review(finance_type="none").verdict()
+    assert _review(type="correspondence").verdict() != _review(type="notification").verdict()

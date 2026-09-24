@@ -164,9 +164,13 @@ class InboxScanWorkflow:
                 max_concurrent_scheduled_tasks=_CONCURRENT,
             )
             for i, r in zip(indices, second_raw, strict=True):
-                if r != raw[i]:
+                second = InboxReview.model_validate(r)
+                # Compare the VERDICT, not the whole answer: reasoning is free
+                # text and always differs between two models. See
+                # InboxReview.verdict().
+                if second.verdict() != reviews[i].verdict():
                     changed += 1
-                reviews[i] = InboxReview.model_validate(r)
+                reviews[i] = second
 
         # Step 3 — pull the unsubscribe link for newsletters out of the body
         # (pure Python).

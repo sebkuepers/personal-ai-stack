@@ -110,6 +110,29 @@ class InboxReview(BaseModel):
     context_for_vibe: str = ""
     reasoning: str = ""
 
+    def verdict(self) -> tuple:
+        """The fields that change what happens downstream — free text excluded.
+
+        This is what the cascade's kill switch counts. Comparing the whole
+        answer counts a differently worded ``reasoning`` as a change, and two
+        models never word it identically: the first real run reported 5 of 5
+        reviews "changed", which is the number that can never read zero and
+        therefore decides nothing.
+
+        ``reasoning`` and ``context_for_vibe`` are left out on purpose. They are
+        prose; the first shows up nowhere downstream, and the second only as a
+        bullet in the dossier. A rewording of either changes no decision.
+        """
+        return (
+            self.type,
+            self.needs_reply,
+            self.urgency,
+            self.finance_type,
+            self.subscription_group,
+            self.amount,
+            self.due_date,
+        )
+
 
 # --------------------------------------------------------------------------- #
 # Report building blocks
