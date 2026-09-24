@@ -11,8 +11,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from workflows.finance import ledger
 from workflows.finance.models import Transaction
+
+REPO = Path(__file__).resolve().parents[2]
 
 
 def booking(day: int, cents: int, text: str = "Beispielhändler", account: str = "giro") -> Transaction:
@@ -91,3 +95,50 @@ class TestFiles:
 
     def test_an_empty_ledger_reads_as_empty_not_as_an_error(self, tmp_path: Path) -> None:
         assert ledger.read_all(tmp_path) == []
+
+
+class TestCategorisePrompt:
+    """What the agent is shown, and what it may answer.
+
+    The prompt is the interface to the one part of this domain that leaves the
+    machine, so its shape is pinned here rather than trusted.
+    """
+
+    def test_the_bank_text_goes_in_unabridged(self) -> None:
+        from workflows.finance.categorise import prompt_for
+        from workflows.finance.models import LedgerEntry
+
+        long_text = "ZAHLUNGSVERKEHR " + "X" * 200 + " VERWENDUNGSZWECK AM ENDE"
+        entry = LedgerEntry(
+            account="giro", booked_on=date(2026, 3, 1), text=long_text,
+            amount_cents=-1000, fp="x",
+        )
+        # Shortening here is invisible and costs accuracy on exactly the long
+        # Girokonto lines where the purpose sits at the end.
+        assert "VERWENDUNGSZWECK AM ENDE" in prompt_for(entry)
+
+    def test_the_answer_survives_a_fenced_code_block(self) -> None:
+        from workflows.finance.categorise import parse
+
+        fenced = '```json\n{"category":"boat","merchant":"im-jaich","recurring":false,' \
+                 '"confidence":0.9,"reasoning":"Hafen"}\n```'
+        assert parse(fenced).category == "boat"
+
+    def test_an_answer_without_json_is_named_not_swallowed(self) -> None:
+        from workflows.finance.categorise import parse
+
+        with pytest.raises(ValueError, match="Keine JSON-Antwort"):
+            parse("Tut mir leid, das kann ich nicht.")
+
+    def test_reasoning_is_required_by_the_schema(self) -> None:
+        # A field with a default drops out of the schema's "required" list and
+        # the model then omits it — repo rule 6. The reasoning is the audit
+        # trail; without it a wrong category cannot be argued with.
+        import json as _json
+
+        schema = _json.loads(
+            (REPO / "agents" / "finance-categorise.json").read_text(encoding="utf-8")
+        )["completion_args"]["response_format"]["json_schema"]
+        assert schema["strict"] is True
+        assert "reasoning" in schema["schema"]["required"]
+        assert "confidence" in schema["schema"]["required"]

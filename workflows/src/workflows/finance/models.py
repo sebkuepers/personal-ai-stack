@@ -75,11 +75,15 @@ class FinanceCategory(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     category: str
-    subcategory: str = ""
+    subcategory: str = ""  # optional on purpose: often there is nothing finer to say
     merchant: str = Field(description="The counterparty in plain words, e.g. 'Lotto24'")
     recurring: bool
     confidence: float
-    reasoning: str = ""
+    # No default. A field with one drops out of the schema's "required" list and
+    # the model then simply omits it — repo rule 6, paid for in the book domain.
+    # The reasoning is the audit trail; without it a wrong category cannot be
+    # argued with.
+    reasoning: str = Field(description="One sentence naming the part of the text it was read from")
 
 
 class Position(BaseModel):

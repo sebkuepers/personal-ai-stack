@@ -59,14 +59,16 @@
 
   "agent": {
     "_comment": "IDs are written back by agents/sync.py. Do not edit by hand.",
-    "finance_categorise_agent_id": null,
+    "finance_categorise_agent_id": "ag_01a0d3355cd6744b9689c25203edc766",
     "finance_briefing_agent_id": null
   },
 
   "limits": {
-    "_comment": "max_batch is how many bookings go into one categorisation run; concurrency mirrors the inbox domain's figure of 10, which sat comfortably under the rate limit there.",
+    "_comment": "The first full run over 649 bookings died on HTTP 429 (token rate limit) after 23, at concurrency 10 with no pause. The limit counts TOKENS per minute, not requests, so more waiting is the only remedy: 6 at a time, 40 per chunk, 8 seconds between chunks, plus exponential backoff per booking. Slower than the inbox domain because a booking prompt is longer than an email envelope.",
     "max_batch": 500,
-    "concurrency": 10
+    "concurrency": 6,
+    "chunk": 40,
+    "pause_seconds": 8
   },
 
   "measurement": {
