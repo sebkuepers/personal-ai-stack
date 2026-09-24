@@ -104,3 +104,30 @@ def test_a_different_classification_is_a_change():
     assert _review(urgency="today").verdict() != _review(urgency="whenever").verdict()
     assert _review(finance_type="invoice").verdict() != _review(finance_type="none").verdict()
     assert _review(type="correspondence").verdict() != _review(type="notification").verdict()
+
+
+# ---------------------------------------------------------------------------
+# The conversational form: Vibe shows the VALUE, not the label
+# ---------------------------------------------------------------------------
+
+
+def test_form_values_are_readable_on_their_own():
+    """Vibe's summary card renders the chosen value, so "on" and "1" read as noise.
+
+    The values therefore carry words, and the parsers below turn them back into
+    numbers. If a value ever becomes a bare key again, this fails.
+    """
+    from workflows.inbox.review import LIMITS, SECOND_REVIEW, WINDOWS
+
+    for options in (WINDOWS, SECOND_REVIEW, LIMITS):
+        for value, _label in options:
+            assert not value.isdigit(), f"{value!r} shows as a bare number in the summary"
+            assert value not in ("on", "off"), f"{value!r} says nothing on its own"
+
+
+def test_the_parsers_match_the_options():
+    """Every offered value has to survive its parser — otherwise the run dies on a choice."""
+    from workflows.inbox.review import LIMITS, WINDOWS, _count, _days
+
+    assert [_days(v) for v, _ in WINDOWS] == [1, 3, 7]
+    assert [_count(v) for v, _ in LIMITS] == [25, 50, 100]

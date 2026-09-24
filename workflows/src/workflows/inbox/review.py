@@ -70,31 +70,42 @@ from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
 from workflows.inbox.senders import InboxSendersWorkflow  # noqa: E402
 from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 
-# The window as a choice — the explanation belongs in the workflow description,
-# not in the option line (in a dropdown it gets truncated).
-WINDOWS = [("1", "Heute (1 Tag)"), ("3", "3 Tage"), ("7", "7 Tage")]
-SECOND_REVIEW = [
-    ("on", "Zweitblick an (medium prüft kritische Fälle nach)"),
-    ("off", "Zweitblick aus (nur Erstblick — schneller, ungeprüft)"),
+# Vibe renders the chosen VALUE in its summary card, not the option label. So
+# the values are written to be readable on their own ("3 Tage", not "3") and
+# parsed back below. The label carries the explanation, the value carries the
+# answer — otherwise the card reads "Kaskade? on".
+WINDOWS = [
+    ("Heute", "Heute — was seit gestern kam"),
+    ("3 Tage", "3 Tage"),
+    ("7 Tage", "7 Tage"),
 ]
+SECOND_REVIEW = [
+    ("genau", "Genau — ein zweites Modell prüft Antworten und Geld nach"),
+    ("schnell", "Schnell — nur ein Durchgang, ungeprüft"),
+]
+LIMITS = [("25 Mails", "25"), ("50 Mails", "50"), ("100 Mails", "100")]
 
-# Triage ceiling per run — the window can hold considerably more threads than
-# anyone wants to go through.
-LIMITS = [("25", "25 Mails"), ("50", "50 Mails"), ("100", "100 Mails")]
+
+def _days(choice: str) -> int:
+    """'Heute' → 1, '3 Tage' → 3."""
+    return 1 if choice.startswith("Heute") else int(choice.split()[0])
+
+
+def _count(choice: str) -> int:
+    """'50 Mails' → 50."""
+    return int(choice.split()[0])
 
 
 def _configuration() -> type[wf_chat.FormInput]:
     class Configuration(wf_chat.FormInput):
         window: str = wf_chat.SingleChoice(
-            options=WINDOWS, description="Welches Fenster?", prefilled_value="1"
+            options=WINDOWS, description="Zeitraum", prefilled_value="Heute"
         )
         second_review: str = wf_chat.SingleChoice(
-            options=SECOND_REVIEW, description="Kaskade?", prefilled_value="on"
+            options=SECOND_REVIEW, description="Gründlichkeit", prefilled_value="genau"
         )
         limit: str = wf_chat.SingleChoice(
-            options=LIMITS,
-            description="Höchstens so viele Mails sichten?",
-            prefilled_value="50",
+            options=LIMITS, description="Höchstens", prefilled_value="50 Mails"
         )
 
     return Configuration
@@ -106,12 +117,12 @@ def _next_view() -> type[wf_chat.FormInput]:
     class NextView(wf_chat.FormInput):
         choice: str = wf_chat.SingleChoice(
             options=[
-                ("unsub", "Abbestell-Kandidaten ansehen"),
-                ("stats", "Absender-Statistik über 90 Tage"),
-                ("done", "Fertig — Dossier ablegen"),
+                ("Abbestell-Kandidaten", "Abbestell-Kandidaten ansehen"),
+                ("Absender-Statistik", "Absender-Statistik über 90 Tage"),
+                ("Fertig", "Fertig — Dossier ablegen"),
             ],
-            description="Weiter?",
-            prefilled_value="done",
+            description="Was als Nächstes?",
+            prefilled_value="Fertig",
         )
 
     return NextView
@@ -123,7 +134,7 @@ def _group_choice(report: InboxScanReport) -> type[wf_chat.FormInput]:
     class GroupChoice(wf_chat.FormInput):
         group: str = wf_chat.SingleChoice(
             options=[(g, f"{g} ({report.subscription_groups[g]})") for g in groups],
-            description="Welche Gruppe?",
+            description="Absender-Gruppe",
             prefilled_value=groups[0] if groups else "",
         )
 
@@ -191,11 +202,11 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
                 "ohne ihn sichtet nur der Erstblick (small)."
             )
             chosen = await self.wait_for_input(
-                _configuration(), label="Fenster und Kaskade", timeout=timedelta(hours=8)
+                _configuration(), label="Konfiguration", timeout=timedelta(hours=8)
             )
-            window = int(chosen.window)
-            limit = int(chosen.limit)
-            second_review = chosen.second_review == "on"
+            window = _days(chosen.window)
+            limit = _count(chosen.limit)
+            second_review = chosen.second_review == "genau"
 
         # --- scan as a child workflow -------------------------------------
         async with step["scan"]:
@@ -217,9 +228,9 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
                 view = await self.wait_for_input(
                     _next_view(), label="Ansicht", timeout=timedelta(hours=8)
                 )
-                if view.choice == "unsub":
+                if view.choice == "Abbestell-Kandidaten":
                     await self._unsub_view(report)
-                elif view.choice == "stats":
+                elif view.choice == "Absender-Statistik":
                     await self._sender_stats_view()
                 else:
                     break
