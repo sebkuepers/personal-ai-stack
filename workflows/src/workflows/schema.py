@@ -1,5 +1,9 @@
 """Generate JSON schemas for Studio agents from the Pydantic models.
 
+Lives at the top of ``workflows/`` because it is not domain-specific: the book
+domain wrote it, the finance domain uses the same thing, and a copy per domain
+is how two schemas drift apart.
+
 An agent enforces its answer shape through ``response_format.json_schema``; the
 rest of the system works with the Pydantic model from ``models.py``. Both have
 to say the same thing — maintained by hand they are guaranteed to drift apart.

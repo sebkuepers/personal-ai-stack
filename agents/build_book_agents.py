@@ -40,7 +40,7 @@ from workflows.book.models import (  # noqa: E402
     StyleSuggestions,
     VoiceSample,
 )
-from workflows.book.schema import response_format  # noqa: E402
+from workflows.schema import response_format  # noqa: E402
 
 # ===========================================================================
 # Instruktionen — die Fachlichkeit
