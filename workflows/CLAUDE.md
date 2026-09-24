@@ -233,6 +233,10 @@ in the examples.
     happens at all — the Send button simply does nothing, with no error. The
     session is unrecoverable; start a new one. During a test run, stop editing.
 
+18. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
+   which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
+   `uv.lock`.
+
 19. **A Studio schedule cannot run an `on_behalf_of` workflow either.** The SDK
     refuses `schedules=[...]` together with `on_behalf_of=True` (gotcha 5), and
     the obvious escape — create the schedule server-side via
@@ -255,10 +259,6 @@ in the examples.
     scheduled `inbox-scan` would produce nothing durable anyway: the dossier and
     the labels live in `inbox-review`, the conversational workflow, which cannot
     be scheduled at all.
-
-18. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
-   which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
-   `uv.lock`.
 
 ---
 
