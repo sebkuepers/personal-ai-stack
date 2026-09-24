@@ -4,7 +4,12 @@
 #
 # Runtime env (injected by the host — Cloudflare Container / Fly / VM):
 #   MISTRAL_API_KEY   required
-#   DEPLOYMENT_NAME   worker/deployment identity (e.g. "cloudflare")
+#   DEPLOYMENT_NAME   worker/deployment identity. This machine is "cloudflare";
+#                     the laptop runs as "macbook-pro" (workflows/.env). The name
+#                     is not cosmetic: a worker registers a workflow's schedules
+#                     under ITS OWN deployment, and shared/inbox.json names which
+#                     deployment owns the nightly round. Change it here and the
+#                     schedule silently moves with it.
 #   HEALTH_SERVER_PORT / HEALTH_SERVER_HOST are baked below so the platform can
 #   health-check / wake the container (the worker is otherwise an outbound poller).
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
@@ -22,6 +27,7 @@ COPY shared ./shared
 RUN uv sync --frozen --no-dev
 
 ENV CRM_CONFIG_PATH=/app/shared/crm.json \
+    SHARED_CONFIG_DIR=/app/shared \
     HEALTH_SERVER_HOST=0.0.0.0 \
     HEALTH_SERVER_PORT=8080 \
     PYTHONUNBUFFERED=1

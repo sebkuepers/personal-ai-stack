@@ -47,6 +47,28 @@ CONNECTOR_GMAIL: str = _CFG["connectors"]["gmail"]["name"]
 GMAIL_TOOLS: dict[str, str] = _entries(_CFG["connector_tools"]["gmail"])
 
 # --------------------------------------------------------------------------- #
+# The nightly schedule — and WHERE it is allowed to register itself.
+#
+# A worker registers a workflow's schedules under its own deployment name. Two
+# workers (the laptop and the Cloudflare container) would therefore register two
+# schedules for the same workflow, and the round would run twice a day. Worse,
+# on the laptop alone it would run only while the laptop happens to be awake.
+# So only the named deployment carries the schedule; everywhere else the
+# workflow is trigger-only.
+# --------------------------------------------------------------------------- #
+SCHEDULE_DEPLOYMENT: str = _CFG["schedule"]["deployment"]
+DAILY_CRON: str = _CFG["schedule"]["daily_cron"]
+SCHEDULE_TIME_ZONE: str = _CFG["schedule"]["time_zone"]
+
+
+def schedules_here() -> bool:
+    """True when THIS worker is the deployment that owns the schedules."""
+    import os
+
+    return os.environ.get("DEPLOYMENT_NAME", "") == SCHEDULE_DEPLOYMENT
+
+
+# --------------------------------------------------------------------------- #
 # Label vocabulary — the cleanup step applies exactly these labels, no others.
 # --------------------------------------------------------------------------- #
 LABELS: dict[str, str] = _entries(_CFG["labels"])

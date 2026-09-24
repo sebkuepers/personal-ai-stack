@@ -8,9 +8,11 @@ Calendar days tile — that property is what these tests pin.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
+from workflows.inbox import config
 from workflows.inbox.window import calendar_window, gmail_query
 
 MONDAY = date(2026, 9, 21)
@@ -58,3 +60,45 @@ class TestGmailQuery:
         assert gmail_query("in:sent", window) == (
             "in:sent after:2026/09/21 before:2026/09/24"
         )
+
+
+# ---------------------------------------------------------------------------
+# Which deployment owns the schedule
+# ---------------------------------------------------------------------------
+
+
+class TestScheduleOwnership:
+    """A worker registers schedules under ITS OWN deployment name.
+
+    With two workers — the laptop and the Cloudflare container — that means two
+    schedules for one workflow and a round that runs twice a day. And a
+    schedule owned by the laptop fires only while the laptop is awake, which is
+    the one thing a nightly job must not depend on.
+    """
+
+    def test_the_named_deployment_carries_the_schedule(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DEPLOYMENT_NAME", config.SCHEDULE_DEPLOYMENT)
+        assert config.schedules_here()
+
+    def test_every_other_deployment_is_trigger_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DEPLOYMENT_NAME", "macbook-pro")
+        assert not config.schedules_here()
+
+    def test_an_unnamed_worker_never_schedules(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A worker without DEPLOYMENT_NAME must not quietly claim the schedule.
+        monkeypatch.delenv("DEPLOYMENT_NAME", raising=False)
+        assert not config.schedules_here()
+
+    def test_the_configured_deployment_is_the_container_one(self) -> None:
+        # Guards the pair: shared/inbox.json and worker-host/wrangler.jsonc have
+        # to name the same deployment, or the schedule lands nowhere.
+        wrangler = (
+            Path(__file__).parents[2] / "worker-host" / "wrangler.jsonc"
+        ).read_text(encoding="utf-8")
+        assert f'"DEPLOYMENT_NAME": "{config.SCHEDULE_DEPLOYMENT}"' in wrangler

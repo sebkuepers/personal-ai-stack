@@ -36,6 +36,12 @@
     "finance": "Triage/finance",
     "needs_reply": "Triage/needs-reply"
   },
+  "schedule": {
+    "_comment": "Which deployment owns the nightly schedule. A worker registers a workflow's schedules under ITS OWN deployment name, so without this the laptop and the Cloudflare container would each register one and the job would run twice — or, worse, only the laptop would, and only while it happens to be awake. The name has to match DEPLOYMENT_NAME of the container (worker-host/wrangler.jsonc).",
+    "deployment": "cloudflare",
+    "daily_cron": "0 6 * * *",
+    "time_zone": "Europe/Berlin"
+  },
   "mistral": {
     "library_name": "Inbox",
     "library_id": "01a0d1b7-be8f-74e5-9ac3-bb21a9b1b157"

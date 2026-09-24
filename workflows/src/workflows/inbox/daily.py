@@ -44,6 +44,7 @@ with workflow.unsafe.imports_passed_through():
     from workflows.crm.agent_tools import get_today
     from workflows.inbox.library import store_dossier
 
+from workflows.inbox import config  # noqa: E402
 from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox.models import (  # noqa: E402
     InboxScanInput,
@@ -53,12 +54,21 @@ from workflows.inbox.render import dossier  # noqa: E402
 from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
 
 # 06:00 Europe/Berlin — before the working day, after the night's mail has
-# landed. The window is the day BEFORE that, complete.
+# landed. The window is the day BEFORE that, complete. Time and zone come from
+# shared/inbox.json, not from here (golden rule 2).
 DAILY_SCHEDULE = ScheduleDefinition(
     input={},
-    cron_expressions=["0 6 * * *"],
-    time_zone_name="Europe/Berlin",
+    cron_expressions=[config.DAILY_CRON],
+    time_zone_name=config.SCHEDULE_TIME_ZONE,
 )
+
+# ONLY the deployment named in shared/inbox.json carries the schedule. A worker
+# registers schedules under its own deployment name, so with two workers — the
+# laptop and the Cloudflare container — the round would run twice a day. And a
+# schedule owned by the laptop fires only while the laptop is awake, which is
+# the one thing a nightly job must not depend on. Everywhere else this workflow
+# is trigger-only (`make inbox-daily`).
+SCHEDULES = [DAILY_SCHEDULE] if config.schedules_here() else []
 
 # The brake, not a filter: a quiet day brings ~46 threads. If a day ever exceeds
 # this the report says so (``truncated``) instead of silently dropping the rest.
@@ -68,7 +78,7 @@ _MAX_THREADS = 200
 @workflows.workflow.define(
     name="inbox-daily",
     on_behalf_of=False,  # the deployment's identity — see inbox/connectors.py
-    schedules=[DAILY_SCHEDULE],
+    schedules=SCHEDULES,
     workflow_display_name="Inbox · Täglich (unbeaufsichtigt)",
     workflow_description=(
         "Der Nachtlauf: sichtet den kompletten Vortag und legt das Dossier in "

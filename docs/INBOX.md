@@ -62,6 +62,15 @@ organization_id`. The inbox domain therefore has its own connector slot,
 (`daily.DAILY_SCHEDULE`, 06:00 Europe/Berlin); the worker registers it with
 Studio at startup, so the repo stays the source of truth for when this runs.
 
+**Where it runs.** A worker registers a workflow's schedules under **its own**
+deployment name, so the laptop (`macbook-pro`) and the Cloudflare container
+(`cloudflare`) would each register one and the round would run twice a day — or,
+on the laptop alone, only while the laptop happens to be awake.
+`shared/inbox.json` → `schedule.deployment` names the owner; `config.schedules_here()`
+gates the `schedules=[…]` list, and everywhere else the workflow is trigger-only
+(`make inbox-daily`). A test pins that this name and `worker-host/wrangler.jsonc`
+agree.
+
 **The window.** `newer_than:1d` is relative to the moment of the call — a run at
 09:00 covers yesterday 09:00 to today 09:00. Two runs overlap, a late run loses
 the start of its day, and no run covers exactly one day. `window.calendar_window`
