@@ -247,7 +247,9 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
             today = date.fromisoformat(await get_today())
             stored = await store_dossier(
                 name=f"inbox-context-{today.isoformat()}.md",
-                text=dossier(report, today.isoformat()),
+                # The receipt goes in here too — the conversation and the
+                # nightly round must leave the same kind of document behind.
+                text=dossier(report, today.isoformat(), cleaned=cleaned),
             )
 
         content: list = [
