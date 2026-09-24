@@ -12,8 +12,9 @@ export interface Env {
  *
  * The container runs the Python poller (CMD in the repo-root Dockerfile) and
  * serves the SDK health server on port 8080 so this Worker can wake / keep it
- * alive. ``sleepAfter`` gives a batch run time to finish before the container
- * sleeps; if it sleeps mid-run the execution simply resumes (durable in Mistral).
+ * alive. ``sleepAfter`` gives a run time to finish before the container
+ * sleeps; if it sleeps mid-run the execution simply resumes (durable in
+ * Mistral) — and the metronom re-wakes it on the next tick anyway.
  */
 export class WorkflowsWorker extends Container<Env> {
   defaultPort = 8080; // HEALTH_SERVER_PORT in the Dockerfile
@@ -23,22 +24,37 @@ export class WorkflowsWorker extends Container<Env> {
   // Durable Object env, populated by the base constructor before this runs).
   envVars = {
     MISTRAL_API_KEY: this.env.MISTRAL_API_KEY,
-    DEPLOYMENT_NAME: this.env.DEPLOYMENT_NAME ?? "personal-ai-stack",
+    DEPLOYMENT_NAME: this.env.DEPLOYMENT_NAME ?? "cloudflare",
   };
 }
 
-const BATCH_INPUT = { window_hours: 13, max_emails: 50, dry_run: false };
-
-/** Start the batch ingest workflow (fire-and-forget) via the Mistral execute API. */
-async function triggerIngest(env: Env): Promise<Response> {
-  return fetch(`${env.SERVER_URL}/v1/workflows/crm-ingest-recent/execute`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.MISTRAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ input: BATCH_INPUT, deployment_name: env.DEPLOYMENT_NAME }),
+/**
+ * The metronom asks Mistral exactly one question: are there executions waiting
+ * for THIS deployment? Schedules live in Studio (account-level, server-side)
+ * and fire whether or not this container is awake — the durable execution
+ * waits for a worker, and this Worker bridges the gap by waking the container.
+ *
+ * Deliberately schedule-agnostic: no workflow names, no inputs, no times.
+ * Adding, changing, pausing or deleting a schedule happens in Studio and
+ * requires NO change here. New workers (more containers) would add one entry
+ * to a deployment→container mapping — nothing else.
+ */
+async function runningRuns(env: Env): Promise<number> {
+  const url =
+    `${env.SERVER_URL}/v1/workflows/runs?status=RUNNING` +
+    `&deployment_name=${encodeURIComponent(env.DEPLOYMENT_NAME)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${env.MISTRAL_API_KEY}` },
   });
+  if (!res.ok) {
+    // Fail-quiet: a transient API error must not wake the container 288×/day
+    // (that would quietly become an always-on container). The next tick
+    // retries; a persistent error surfaces in the logs.
+    console.error(`[metronom] runs query failed: HTTP ${res.status}`);
+    return 0;
+  }
+  const body = (await res.json()) as { runs?: unknown[] };
+  return body.runs?.length ?? 0;
 }
 
 /** Wake the (singleton) worker container so it is polling when the execution lands. */
@@ -51,21 +67,48 @@ async function wakeContainer(env: Env): Promise<void> {
   }
 }
 
+async function metronom(env: Env): Promise<void> {
+  const anzahl = await runningRuns(env);
+  if (anzahl > 0) {
+    await wakeContainer(env);
+    console.log(
+      `[metronom] ${anzahl} execution(s) running for deployment ` +
+        `"${env.DEPLOYMENT_NAME}" — container woken.`,
+    );
+  } else {
+    console.log(`[metronom] nothing running for "${env.DEPLOYMENT_NAME}" — staying asleep.`);
+  }
+}
+
 export default {
-  // Cron (08:00 & 18:00): make sure the worker is awake, then kick off the batch.
+  // Every 5 minutes: ask Mistral if work is waiting for this deployment,
+  // wake the container only if it is. The schedule itself lives in Studio.
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(wakeContainer(env));
-    ctx.waitUntil(triggerIngest(env).then(() => undefined));
+    ctx.waitUntil(metronom(env));
   },
 
-  // Manual: GET /trigger runs the batch now; any other path wakes/proxies the container.
+  // GET /  → metronom logic on demand (manual check without waiting for a tick).
+  // POST /wake → force-wake the container (bootstrap: first registration of the
+  //              deployment, or ops). Guarded by the Mistral API key.
+  // Anything else → proxied to the container.
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
-    if (pathname === "/trigger") {
+    const authorized = request.headers.get("Authorization") === `Bearer ${env.MISTRAL_API_KEY}`;
+
+    if (pathname === "/wake") {
+      if (!authorized) return new Response("unauthorized\n", { status: 401 });
       ctx.waitUntil(wakeContainer(env));
-      const res = await triggerIngest(env);
-      return new Response(`triggered crm-ingest-recent (HTTP ${res.status})\n`);
+      return new Response(`waking container for deployment "${env.DEPLOYMENT_NAME}"\n`);
     }
+
+    if (pathname === "/") {
+      const anzahl = await runningRuns(env);
+      return new Response(
+        `deployment "${env.DEPLOYMENT_NAME}": ${anzahl} execution(s) running` +
+          (anzahl > 0 ? " — container woken.\n" : " — nothing to do.\n"),
+      );
+    }
+
     return getContainer(env.WORKFLOWS_WORKER).fetch(request);
   },
-};
+}

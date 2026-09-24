@@ -4,7 +4,7 @@
 #
 # Runtime env (injected by the host — Cloudflare Container / Fly / VM):
 #   MISTRAL_API_KEY   required
-#   DEPLOYMENT_NAME   worker/deployment identity (e.g. "personal-ai-stack")
+#   DEPLOYMENT_NAME   worker/deployment identity (e.g. "cloudflare")
 #   HEALTH_SERVER_PORT / HEALTH_SERVER_HOST are baked below so the platform can
 #   health-check / wake the container (the worker is otherwise an outbound poller).
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim

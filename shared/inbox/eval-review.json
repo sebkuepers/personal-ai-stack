@@ -1,0 +1,259 @@
+[
+  {
+    "id": "A-newsletter-with-generic-greeting",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Personalisierte Anrede macht keinen Menschen aus Massenversand. Die häufigste Verwechslung: Newsletter vs. Korrespondenz.",
+    "eingabe": "From: newsletter@beispiel-rundbrief.example\nSubject: Hi Sebastian, dein Wochenrückblick ist da!\nSnippet: Diese Woche in der Community: 5 neue Artikel, 2 neue Kommentare zu deinen Beiträgen. Viel Spaß beim Lesen — Abmelden unten im Footer.\nGmail category: PROMOTIONS\nUnread: yes\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "newsletter"
+      },
+      {
+        "pfad": "subscription_group",
+        "operator": "existiert"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "correspondence"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": true
+      }
+    ]
+  },
+  {
+    "id": "B-notification-requiring-action",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Die Falle aus dem echten Posteingang: automatisch erzeugte Mail mit Zahlungsfrist ist invoice_payment und will eine Reaktion — nicht notification. Zur Dringlichkeit: heute-oder-diese-Woche ist beides vertretbar (Schadens-Klausel vs. Kalender), whenever waere der echte Fehler — deshalb nur das verboten. Alle Konfigurationen antworteten sonst 'today'; die exakte Schublade misst Pedanterie, nicht Guete.",
+    "eingabe": "From: kundenservice@strombieter.example\nSubject: Ihre Lastschrift konnte nicht abgebucht werden\nSnippet: Die Lastschrift über 89,00 EUR vom 22.09. konnte nicht abgebucht werden. Bitte begleichen Sie den Betrag bis 26.09.2026, um eine Unterbrechung zu vermeiden.\nGmail category: UPDATES\nUnread: yes\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "invoice_payment"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": true
+      },
+      {
+        "pfad": "finance_type",
+        "operator": "gleich",
+        "wert": "reminder"
+      },
+      {
+        "pfad": "amount",
+        "operator": "enthaelt",
+        "wert": "89,00"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "notification"
+      },
+      {
+        "pfad": "urgency",
+        "operator": "gleich",
+        "wert": "whenever"
+      },
+      {
+        "pfad": "urgency",
+        "operator": "gleich",
+        "wert": "whenever"
+      }
+    ]
+  },
+  {
+    "id": "C-order-confirmation-not-invoice",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Bestätigt wird die Bestellung, nicht die Zahlung: transaction, nicht invoice_payment. Ohne Geldfluss-Behauptung bleibt finanzen_art leer.",
+    "eingabe": "From: versand@beispiel-shop.example\nSubject: Deine Bestellung #48211 ist unterwegs\nSnippet: Guten Tag, deine Bestellung mit 3 Artikeln wurde heute versandt. Die Sendung erreicht dich voraussichtlich am 27.09.\nGmail category: UPDATES\nUnread: no\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "transaction"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": false
+      },
+      {
+        "pfad": "finance_type",
+        "operator": "gleich",
+        "wert": "none"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "invoice_payment"
+      }
+    ]
+  },
+  {
+    "id": "D-invoice-with-due-date",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Fälligkeit steht im Betreff — sie muss ins Feld, und morgen fällig heißt dringlichkeit today. Rechnet gegen das Today des Umschlags.",
+    "eingabe": "From: rechnung@beispiel-versorger.example\nSubject: Rechnung 2026-118: Zahlbar bis 25.09.2026\nSnippet: Sehr geehrter Kunde, für Ihren Auftrag stellen wir Ihnen 149,50 EUR in Rechnung. Bitte begleichen Sie den Betrag bis 25.09.2026.\nGmail category: UPDATES\nUnread: yes\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "invoice_payment"
+      },
+      {
+        "pfad": "finance_type",
+        "operator": "gleich",
+        "wert": "invoice"
+      },
+      {
+        "pfad": "due_date",
+        "operator": "gleich",
+        "wert": "2026-09-25"
+      },
+      {
+        "pfad": "urgency",
+        "operator": "gleich",
+        "wert": "today"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "transaction"
+      }
+    ]
+  },
+  {
+    "id": "E-correspondence-with-deadline",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Ein echter Mensch, kurz und leger — correspondence mit Antwortbedarf. Zur Dringlichkeit: 'bis Freitag' verlangt Wochentags-Arithmetik, die alle Konfigurationen um einen Tag danebenlegen (Freitag=26.09. statt 25.09.). today und this_week sind beide 'balde antworten' — nur whenever waere der echte Fehler. Die exakte Schublade misst Kalenderpädanterie, nicht Guete.",
+    "eingabe": "From: anna@beispiel-agentur.example\nSubject: Folien bis Freitag?\nSnippet: Hallo Sebastian, magst du mir die Folien bis Freitag schicken? Würde sie Montag drucken lassen. Danke dir!\nGmail category: PERSONAL\nUnread: yes\nReceived: 2026-09-23\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "correspondence"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": true
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "newsletter"
+      },
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "notification"
+      },
+      {
+        "pfad": "urgency",
+        "operator": "gleich",
+        "wert": "whenever"
+      }
+    ]
+  },
+  {
+    "id": "F-github-review-request",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "UPDATES heißt nicht antwortfrei: Ein Kollege will ein Review — der Generator ist eine Maschine, die Erwartung kommt von einem Menschen.",
+    "eingabe": "From: notifications@github.com\nSubject: [beispiel-org/beispiel-app] Review requested on PR #412: Fix login flow\nSnippet: anna-beispiel requested your review on this pull request. 1 file changed, 42 insertions.\nGmail category: UPDATES\nUnread: yes\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "notification"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": true
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": false
+      }
+    ]
+  },
+  {
+    "id": "G-boring-case-nothing-to-say",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "Der Langweilfall: Routinenotification ohne Information, die Vibe wissen müsste. Ein leeres kontext_fuer_vibe ist hier RICHTIG — der häufigste Bonus, den Modelle sich selbst geben.",
+    "eingabe": "From: noreply@beispiel-backup.example\nSubject: Dein Backup ist fertig\nSnippet: Das Backup vom 24.09. wurde erfolgreich erstellt. Es ist keine Aktion erforderlich.\nGmail category: UPDATES\nUnread: no\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "notification"
+      },
+      {
+        "pfad": "needs_reply",
+        "operator": "gleich",
+        "wert": false
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "context_for_vibe",
+        "operator": "existiert"
+      },
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "correspondence"
+      },
+      {
+        "pfad": "urgency",
+        "operator": "gleich",
+        "wert": "today"
+      }
+    ]
+  },
+  {
+    "id": "H-appointment-belongs-in-context",
+    "quelle": "konstruiert nach gemessenen Mustern (2026-09-23)",
+    "notiz": "System-Mail, aber ihr Termin ist genau das, was Vibe wissen sollte: kontext_fuer_vibe muss gefüllt sein.",
+    "eingabe": "From: kalender@beispiel-intern.example\nSubject: Einladung: Jour Fixe, 26.09.2026 09:00\nSnippet: Du wurdest zu Jour Fixe am 26.09.2026, 09:00–10:00 im Raum Nord eingeladen.\nGmail category: UPDATES\nUnread: yes\nReceived: 2026-09-24\nToday: 2026-09-24\n\n--- This is the full envelope. No body is available. ---",
+    "erwartet": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "notification"
+      },
+      {
+        "pfad": "context_for_vibe",
+        "operator": "existiert"
+      }
+    ],
+    "verboten": [
+      {
+        "pfad": "type",
+        "operator": "gleich",
+        "wert": "correspondence"
+      }
+    ]
+  }
+]

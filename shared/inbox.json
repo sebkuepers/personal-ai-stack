@@ -1,0 +1,122 @@
+{
+  "_comment": "Single source of truth der inbox-Domäne: Agent-ID, Modelle, Connector, Tool-Namen (live verifiziert 2026-09-23 via connectors.list_tools), Label-Vokabular und Grenzen. Python (workflows/src/workflows/inbox/config.py) liest hieraus; zukünftige MCP-Tools ebenfalls. Werkzeuge der gmail-Connector-Tools sind die LIVE-Namen (search_threads, create_draft, label_*), NICHT die älteren Namen aus crm.json.",
+  "agent": {
+    "inbox_review_agent_id": "ag_01a0cfec1f6375dbbaf50c0ec60f9997",
+    "inbox_second_review_agent_id": "ag_01a0d1bf2a6e75f7864942200055bc01"
+  },
+  "models": {
+    "review": "mistral-small-latest",
+    "second_review": "mistral-medium-latest"
+  },
+  "connectors": {
+    "gmail": {
+      "name": "gmail",
+      "id": "019df75b-9673-72be-ba4f-033723c972ea"
+    }
+  },
+  "connector_tools": {
+    "gmail": {
+      "search": "search_threads",
+      "get": "get_thread",
+      "draft": "create_draft",
+      "list_drafts": "list_drafts",
+      "label_thread": "label_thread",
+      "unlabel_thread": "unlabel_thread",
+      "label_message": "label_message",
+      "unlabel_message": "unlabel_message",
+      "list_labels": "list_labels",
+      "create_label": "create_label"
+    }
+  },
+  "labels": {
+    "processed": "inbox/processed",
+    "unsub_candidate": "inbox/unsub-candidate",
+    "finance": "inbox/finance",
+    "needs_reply": "inbox/needs-reply"
+  },
+  "mistral": {
+    "library_name": "Inbox",
+    "library_id": "01a0d1b7-be8f-74e5-9ac3-bb21a9b1b157"
+  },
+  "vocab": {
+    "type": [
+      "newsletter",
+      "notification",
+      "transaction",
+      "invoice_payment",
+      "correspondence",
+      "other"
+    ],
+    "urgency": [
+      "today",
+      "this_week",
+      "whenever"
+    ],
+    "finance_type": [
+      "invoice",
+      "reminder",
+      "direct_debit",
+      "confirmation",
+      "none"
+    ]
+  },
+  "limits": {
+    "max_emails": 50,
+    "window_hours": 26,
+    "max_body_zeichen": 2000
+  },
+  "measurement": {
+    "_comment": "Zahlen neben der Einstellung, die sie rechtfertigen (Goldregel 6). evalkit + Kaskaden-Eval, 8 konstruierte Faelle, 2026-09-24. Rubrik-Revision: B und E verlangen 'zeitkritisch erkannt' (verboten: whenever), nicht die exakte Schublade — today vs this_week ist Sortierung, kein Fehler.",
+    "first_small_none": {
+      "treffer": "41/42 (98%)",
+      "fallen": "0/30",
+      "s": 1.0,
+      "tokens": 2092
+    },
+    "first_small_high": {
+      "treffer": "22/23 (96%)",
+      "fallen": "1/13",
+      "s": 4.1,
+      "tokens": 5551
+    },
+    "second_medium_none": {
+      "treffer": "41/42 (98%)",
+      "fallen": "0/30",
+      "s": 1.0,
+      "tokens": 1870
+    },
+    "second_medium_high": {
+      "treffer": "23/23 (100%)",
+      "fallen": "0/13",
+      "s": 5.3,
+      "tokens": 7182
+    },
+    "cascade_final": {
+      "treffer": "40/42 (95%)",
+      "fallen": "0/30",
+      "s": 1.6,
+      "tokens": 3169,
+      "befund": "Der Zweitblick re-rollt auch korrekte Erstblick-Antworten (Fall F)."
+    },
+    "history": [
+      {
+        "schritt": "Erstmessung",
+        "small_none": "87%/1 Falle",
+        "medium_none": "91%/0",
+        "medium_high": "100%/0"
+      },
+      {
+        "schritt": "Dringlichkeits-Regel kalenderisch geschaerft",
+        "small_none": "87%/1",
+        "small_high": "96%/1",
+        "medium_none": "91%/0",
+        "medium_high": "100%/0"
+      },
+      {
+        "schritt": "Rubrik ehrlich (B/E: Schublade -> zeitkritisch) + kontext-Bonus verboten",
+        "small_none": "98%/0"
+      }
+    ],
+    "decision": "Erstblick small/none sichtet alles — 98% Treffer, 0 Fallen, 1.0s. Die Kaskade mit Zweitblick medium bleibt ALS VERSICHERUNG im Pfad (konstruierte Faelle beweisen nur, was man sich dachte; echte Daten fehlen), steht aber unter Beweis: Der Report zaehlt zweitblick_geaendert. Nach einer Woche echter Laeufe entscheidet diese Zahl — ~0 Geaenderungen heisst: zweite Stufe entfernen. Reasoning half hier uebrigens (medium/high 100%), im Gegensatz zum frueheren Lektorats-Befund."
+  }
+}

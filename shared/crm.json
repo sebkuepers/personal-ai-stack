@@ -32,9 +32,10 @@
       "update_page": "notion-update-page"
     },
     "gmail": {
-      "search": "search_gmail",
-      "open": "open_gmail_email",
-      "draft": "draft_gmail_email"
+      "search": "search_threads",
+      "get": "get_thread",
+      "draft": "create_draft",
+      "list_drafts": "list_drafts"
     }
   },
   "vocab": {

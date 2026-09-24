@@ -6,7 +6,7 @@ A durable agent with both connectors:
   1. Searches the Notion Interactions/Contacts for items where a follow-up is
      due (Follow-up Needed = true and Follow-up Date <= today + horizon).
   2. For each, drafts a short, friendly reminder email in Gmail
-     (draft_gmail_email — it DRAFTS only, never sends).
+     (create_draft — it DRAFTS only, never sends).
   3. Returns a digest of what it found and drafted.
 
 SCHEDULING NOTE: this workflow uses on_behalf_of, and the SDK forbids combining
@@ -45,7 +45,7 @@ def _make_digest_agent() -> wf_mistral.Agent:
             "Use notion-search / notion-fetch to find Interactions where "
             "'Follow-up Needed' is true and 'Follow-up Date' is due. For each due "
             "item, look up the related Contact's email. If asked to draft reminders, "
-            "use draft_gmail_email to create a short, warm reminder draft (NEVER "
+            "use create_draft to create a short, warm reminder draft (NEVER "
             "send — drafts only). Then return a concise digest: who, why, due date, "
             "and whether a draft was created."
         ),

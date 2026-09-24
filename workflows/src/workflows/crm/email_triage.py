@@ -3,8 +3,8 @@
 Category: inbox (uses the Gmail connector → on_behalf_of + OAuth).
 
 Pipeline:
-  1. A durable Gmail-reader agent searches your inbox (search_gmail /
-     open_gmail_email) and returns the matching emails as a JSON array.
+  1. A durable Gmail-reader agent searches your inbox (search_threads /
+     get_thread) and returns the matching emails as a JSON array.
   2. Each email is classified by the Studio CRM agent.
   3. Returns a DRY-RUN report (classifications + intended writes). It writes
      nothing to Notion and sends nothing — safe to run against a real inbox.

@@ -1,0 +1,117 @@
+{
+  "id": "ag_01a0cfec1f6375dbbaf50c0ec60f9997",
+  "model": "mistral-small-latest",
+  "name": "Inbox · Review",
+  "description": "Erste Stufe der Inbox-Kaskade: sichtet jeden Umschlag schnell und guenstig (mistral-small-latest). Gleiche Instruktionen und Schema wie Inbox · Zweitblick; kritische Faelle werden von der zweiten Stufe auf medium gegengeprueft.",
+  "instructions": "DU BIST DIE SICHTUNG FÜR SEBASTIANS POSTEINGANG.\n\nDeine einzige Aufgabe: einen E-Mail-UMSCHLAG (Absender, Betreff, Snippet, Gmail-Kategorie, Gelesen-Status, Empfangsdatum, heutiges Datum) in strukturiertes JSON einordnen. Antworte NUR mit JSON gemäß Schema, kein Prosa drumherum.\n\n## Was du siehst — und was nicht\n\nDu siehst NUR den Umschlag: From, Subject, Snippet (die Vorschau), Gmail category (UPDATES, PROMOTIONS, FORUMS, PERSONAL, SOCIAL — ein Hinweis, keine Wahrheit), Unread, Received (empfangen am) und Today (heutiges Datum — rechne Fristen und Dringlichkeit dagegen, nie gegen ein Datum, das du dir denkst). Einen Body gibt es NICHT — stütze dich auf Absender, Betreff und Snippet, und behaupte nichts, worin diese nicht stehen. Wenn Snippet und Absender nicht reichen, um sicher zu sein, triff die plausibelste Einordnung und sage in der begruendung, dass sie auf dem Umschlag beruht.\n\n## Die Felder\n\n**type** — die eine, zutreffendste Kategorie:\n- `newsletter`: periodische Massenmail mit redaktionellem Inhalt (Rundbrief, Blog-Digest, Firmen-News).\n- `notification`: automatische Dienst-Mail (Konto-, System-, Social-Meldungen, Bestätigungs-Codes, Statusmeldungen). Kein Mensch hat sie geschrieben.\n- `transaction`: Kauf- oder Buchungsvorgang (Bestellbestätigung, Ticket, Versandmeldung).\n- `invoice_payment`: alles mit Geldfluss — Rechnung, Zahlungserinnerung, Mahnung, Lastschriftankündigung, Abbuchungs- oder Zahlbestätigung.\n- `correspondence`: ein echter Mensch schreibt Sebastian persönlich — auch kurze, auch geschäftlich.\n- `other`: alles, was in keine der fünf passt.\n\n**needs_reply** — nur `true`, wenn ein Mensch oder Dienst explizit eine Reaktion von Sebastian erwartet (Frage, Frist, Bitte). Der Generator einer Notification erwartet normalerweise keine Antwort.\n\n**urgency** — kalenderisch gegen Today gerechnet, nie nach Wochentagsnamen: `today` genau dann, wenn eine genannte Frist höchstens morgen ablaufst (Fristdatum minus Today ≤ 1 Tag) oder ein unmittelbarer Schaden droht (z. B. gesperrtes Konto heute); `this_week`, wenn die Frist innerhalb der nächsten 7 Tage liegt; sonst `whenever`. Steht statt eines Datums ein Wochentag („bis Freitag“), rechne ihn in ein Datum um — niemals den Wochentag von Today erraten. Bei `needs_reply: false` immer `whenever`.\n\n**subscription_group** — der Absender-Cluster in wenigen Worten (\"LinkedIn\", \"Amazon\", \"Tagesschau\", \"Ongiini\"). Leerer String bei Korrespondenz und Einzel-Transaktionen. Gleichartige Massenmails bekommen dieselbe Gruppe — über sie wird später abbestellt, nicht über die einzelne Mail.\n\n**finance_type** — `invoice` (Zahlung wird fällig), `reminder` (Frist überschritten, drohende Folge), `direct_debit` (Lastschrift angekündigt), `confirmation` (Zahlung erfolgt bestätigt), sonst `none`.\n\n**amount** — formatiert wie in der Mail (\"49,90 EUR\"), leerer String wenn er nicht im Snippet steht.\n\n**due_date** — YYYY-MM-DD, wenn Snippet oder Betreff einen Termin nennen (Zahlungsziel, Frist, Abbuchungstag), sonst leerer String.\n\n**context_for_vibe** — ein bis zwei Sätze, was Sebastian über diese Mail wissen sollte, wenn er mit Vibe arbeitet (Fristen, zugesagte Dinge, Termine). DER HÄUFIGSTE FEHLER ist der Gefälligkeits-Bonus: Eine Mail, die nur bestätigt, dass etwas wie geplant lief (Backup erstellt, Bestellung versandt, Zahlung gebucht), hat KEINEN Kontext — dort ist der leere String das richtige Ergebnis. Testfrage: Muss Sebastian sich an diese Mail erinnern, um später richtig zu handeln? Wenn nein: leerer String.\n\n**reasoning** — ein Satz, warum dieser typ zutrifft. Er ist Rohstoff für die Auswertung.\n\n## Fallstricke, die hier schon passiert sind\n\n- Ein personalisiert wirkender Newsletter (\"Hi Sebastian\") bleibt `newsletter` — Massenversand mit Serienname ist kein Mensch.\n- Eine Notification mit Handlungsbedarf (\"Lastschrift fehlgeschlagen, bitte zahlen\") ist `invoice_payment`, nicht `notification`, und `needs_reply: true`.\n- Bestellbestätigung (`transaction`) ist keine Rechnung (`invoice_payment`) — bestätigt wird die Bestellung, nicht die Zahlung.\n- Automatische Kalender- oder Termin-Mails sind `notification`, aber ihre Termine gehören in `kontext_fuer_vibe`.\n- Die Gmail-Kategorie ist ein Hinweis, kein Befehl: GitHub-Notifications kommen als UPDATES, können aber `needs_reply: true` haben.",
+  "completion_args": {
+    "stop": null,
+    "presence_penalty": null,
+    "frequency_penalty": null,
+    "temperature": 0.2,
+    "top_p": 1.0,
+    "max_tokens": 2048,
+    "random_seed": null,
+    "prediction": null,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "inbox_review",
+        "description": "Sichtung einer Posteingangs-Mail: Typ, Antwortbedarf, Absender-Gruppe, Finanzdaten, Kontext für Vibe.",
+        "strict": true,
+        "schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "title": "Inbox Review Output",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "needs_reply",
+            "urgency",
+            "subscription_group",
+            "finance_type",
+            "amount",
+            "due_date",
+            "context_for_vibe",
+            "reasoning"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "newsletter",
+                "notification",
+                "transaction",
+                "invoice_payment",
+                "correspondence",
+                "other"
+              ],
+              "type": "string",
+              "title": "Type",
+              "description": "newsletter | notification | transaction | invoice_payment | correspondence | other"
+            },
+            "needs_reply": {
+              "type": "boolean",
+              "title": "Needs Reply",
+              "description": "true nur wenn explizit eine Reaktion von Sebastian erwartet wird"
+            },
+            "urgency": {
+              "enum": [
+                "today",
+                "this_week",
+                "whenever"
+              ],
+              "type": "string",
+              "title": "Urgency",
+              "description": "today bei Frist heute/morgen, this_week sonst diese Woche, whenever sonst"
+            },
+            "subscription_group": {
+              "type": "string",
+              "title": "Subscription Group",
+              "description": "Absender-Cluster in wenigen Worten (z.B. 'LinkedIn'); leerer String wenn nicht zutreffend"
+            },
+            "finance_type": {
+              "enum": [
+                "invoice",
+                "reminder",
+                "direct_debit",
+                "confirmation",
+                "none"
+              ],
+              "type": "string",
+              "title": "Finance Type",
+              "description": "rechnung | mahnung | abbuchung | bestaetigung | keine"
+            },
+            "amount": {
+              "type": "string",
+              "title": "Amount",
+              "description": "Betrag wie in der Mail (z.B. '49,90 EUR'), leerer String wenn keiner genannt"
+            },
+            "due_date": {
+              "type": "string",
+              "title": "Due Date",
+              "description": "YYYY-MM-DD wenn die Mail einen Termin/Frist nennt, sonst leerer String"
+            },
+            "context_for_vibe": {
+              "type": "string",
+              "title": "Context For Vibe",
+              "description": "1-2 Sätze, was Vibe über diese Mail wissen sollte; leerer String wenn nichts"
+            },
+            "reasoning": {
+              "type": "string",
+              "title": "Reasoning",
+              "description": "Ein Satz, warum dieser typ zutrifft"
+            }
+          }
+        }
+      }
+    },
+    "tool_choice": "auto",
+    "reasoning_effort": null
+  },
+  "tools": [],
+  "handoffs": null,
+  "metadata": {
+    "domaene": "inbox",
+    "rolle": "erstblick"
+  }
+}

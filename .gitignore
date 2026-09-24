@@ -38,6 +38,13 @@ shared/book/*.md
 !shared/book/eval-copyedit.json
 !shared/book/eval-style.json
 
+# Same guard for the inbox domain: anything derived from the real mailbox —
+# sender statistics, dossiers, eval cases built from real envelopes — carries
+# correspondents' addresses. Only the constructed cases are released.
+shared/inbox/*.json
+shared/inbox/*.md
+!shared/inbox/eval-review.json
+
 # Tooling caches
 .mypy_cache/
 .ruff_cache/
