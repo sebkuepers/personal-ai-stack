@@ -14,6 +14,8 @@ which is the property that makes an unattended run acceptable at all.
 
 from __future__ import annotations
 
+from mistralai.workflows import execute_activities_in_parallel
+
 from workflows.inbox import config
 from workflows.inbox.cleanup import FINANCE, KEEP, NOISE
 from workflows.inbox.gmail import gmail_draft, gmail_ensure_label, gmail_process_thread
@@ -24,6 +26,9 @@ from workflows.inbox.models import CleanupAction, CleanupResult, UnsubCandidate
 FULL = "full"  # archive noise, label the rest, draft mailto unsubscribes
 LABEL_ONLY = "label_only"  # label everything, archive nothing
 NOTHING = "nothing"
+
+# How many label calls may run at once — the same figure the triage uses.
+_CONCURRENT = 10
 
 
 def root_reason(exc: BaseException) -> str:
@@ -74,31 +79,39 @@ async def apply_cleanup(
 
     archive = mode == FULL
     result = CleanupResult()
+    items: list[dict] = []
     for action in plan:
         if action.action == KEEP or not action.thread_id:
             result.skipped += 1
             continue
         if action.action == NOISE:
-            await gmail_process_thread(
-                thread_id=action.thread_id,
-                label_id=label_processed,
-                archive=archive,
-                mark_read=archive,
-            )
+            items.append({
+                "thread_id": action.thread_id, "label_id": label_processed,
+                "archive": archive, "mark_read": archive,
+            })
             result.archived += 1 if archive else 0
             result.marked_read += 1 if archive else 0
         elif action.action == FINANCE:
-            await gmail_process_thread(
-                thread_id=action.thread_id, label_id=label_finance,
-                archive=False, mark_read=False,
-            )
+            items.append({
+                "thread_id": action.thread_id, "label_id": label_finance,
+                "archive": False, "mark_read": False,
+            })
             result.labelled_finance += 1
         else:  # NEEDS_REPLY
-            await gmail_process_thread(
-                thread_id=action.thread_id, label_id=label_reply,
-                archive=False, mark_read=False,
-            )
+            items.append({
+                "thread_id": action.thread_id, "label_id": label_reply,
+                "archive": False, "mark_read": False,
+            })
             result.labelled_reply += 1
+
+    # In parallel, like the triage. Sequentially this took ten minutes for one
+    # day: two connector calls per thread, sixty threads, one after the other.
+    # The concurrency is the same 10 the triage uses — comfortably under the
+    # rate limit, measured.
+    if items:
+        await execute_activities_in_parallel(
+            gmail_process_thread, items=items, max_concurrent_scheduled_tasks=_CONCURRENT
+        )
 
     if archive:
         for u in mailto:
