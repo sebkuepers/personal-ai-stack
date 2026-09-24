@@ -61,12 +61,19 @@ async function runningRuns(env: Env): Promise<number> {
 }
 
 /** Wake the (singleton) worker container so it is polling when the execution lands. */
-async function wakeContainer(env: Env): Promise<void> {
+async function wakeContainer(env: Env): Promise<string> {
   const container = getContainer(env.WORKFLOWS_WORKER);
   try {
-    await container.fetch(new Request("http://container/healthz"));
-  } catch {
-    // The first request after sleep is what wakes it; errors here are fine.
+    // The SDK's health server answers on /health; any other path is a 404.
+    const res = await container.fetch(new Request("http://container/health"));
+    return `container answered ${res.status}`;
+  } catch (err) {
+    // The first request after sleep is what wakes it, so an error here is not
+    // automatically a failure — but swallowing it silently cost an afternoon
+    // when the container was starting and dying. The reason goes on the wire.
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[metronom] wake failed: ${reason}`);
+    return `wake failed: ${reason}`;
   }
 }
 
@@ -100,8 +107,11 @@ export default {
 
     if (pathname === "/wake") {
       if (!authorized) return new Response("unauthorized\n", { status: 401 });
-      ctx.waitUntil(wakeContainer(env));
-      return new Response(`waking container for deployment "${env.DEPLOYMENT_NAME}"\n`);
+      const outcome = await wakeContainer(env);
+      return new Response(
+        `deployment "${env.DEPLOYMENT_NAME}": ${outcome}\n`,
+        { status: outcome.startsWith("wake failed") ? 502 : 200 },
+      );
     }
 
     if (pathname === "/") {
