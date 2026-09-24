@@ -28,6 +28,7 @@ Start it by choosing the workflow in Le Chat / Vibe Work, or
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 import mistralai.workflows as workflows
@@ -75,37 +76,56 @@ from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 # parsed back below. The label carries the explanation, the value carries the
 # answer — otherwise the card reads "Kaskade? on".
 WINDOWS = [
-    ("Heute", "Heute — was seit gestern kam"),
-    ("3 Tage", "3 Tage"),
-    ("7 Tage", "7 Tage"),
+    ("Seit gestern", "Seit gestern"),
+    ("Letzte 3 Tage", "Letzte 3 Tage"),
+    ("Letzte 7 Tage", "Letzte 7 Tage"),
 ]
 SECOND_REVIEW = [
-    ("genau", "Genau — ein zweites Modell prüft Antworten und Geld nach"),
-    ("schnell", "Schnell — nur ein Durchgang, ungeprüft"),
+    (
+        "Gründlich — zweite Prüfung",
+        "Gründlich — wo eine Antwort oder eine Rechnung im Spiel ist, sieht ein "
+        "zweites Modell noch mal hin",
+    ),
+    ("Schnell — ein Durchgang", "Schnell — ein Durchgang, ungeprüft"),
 ]
-LIMITS = [("25 Mails", "25"), ("50 Mails", "50"), ("100 Mails", "100")]
+LIMITS = [("25 Mails", "25 Mails"), ("50 Mails", "50 Mails"), ("100 Mails", "100 Mails")]
+
+
+def _root_reason(exc: BaseException) -> str:
+    """The innermost message of an exception chain, shortened.
+
+    Temporal wraps an activity failure in ActivityError, whose str() is the
+    useless "Activity task failed". The cause carries what actually happened.
+    """
+    current: BaseException = exc
+    while current.__cause__ is not None:
+        current = current.__cause__
+    text = str(current).strip() or type(current).__name__
+    return text[:200]
 
 
 def _days(choice: str) -> int:
-    """'Heute' → 1, '3 Tage' → 3."""
-    return 1 if choice.startswith("Heute") else int(choice.split()[0])
+    """'Seit gestern' → 1, 'Letzte 3 Tage' → 3."""
+    found = re.search(r"\d+", choice)
+    return int(found.group()) if found else 1
 
 
 def _count(choice: str) -> int:
     """'50 Mails' → 50."""
-    return int(choice.split()[0])
+    found = re.search(r"\d+", choice)
+    return int(found.group()) if found else 50
 
 
 def _configuration() -> type[wf_chat.FormInput]:
     class Configuration(wf_chat.FormInput):
         window: str = wf_chat.SingleChoice(
-            options=WINDOWS, description="Zeitraum", prefilled_value="Heute"
+            options=WINDOWS, description="Welcher Zeitraum?", prefilled_value="Seit gestern"
         )
         second_review: str = wf_chat.SingleChoice(
-            options=SECOND_REVIEW, description="Gründlichkeit", prefilled_value="genau"
+            options=SECOND_REVIEW, description="Wie genau?", prefilled_value="Gründlich — zweite Prüfung"
         )
         limit: str = wf_chat.SingleChoice(
-            options=LIMITS, description="Höchstens", prefilled_value="50 Mails"
+            options=LIMITS, description="Wie viele Mails höchstens?", prefilled_value="50 Mails"
         )
 
     return Configuration
@@ -206,7 +226,7 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
             )
             window = _days(chosen.window)
             limit = _count(chosen.limit)
-            second_review = chosen.second_review == "genau"
+            second_review = chosen.second_review.startswith("Gründlich")
 
         # --- scan as a child workflow -------------------------------------
         async with step["scan"]:
@@ -323,22 +343,23 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
         # The names come from shared/inbox.json, not from here (golden rule 2) —
         # otherwise the plan runs against different labels than the report claims.
         #
-        # This is also where the connector's limit shows: as of 2026-09-24 the
-        # Gmail connector holds no label scope, so every label tool fails. That
-        # must not kill the session — the report and the dossier are the
-        # valuable part and they are already done.
+        # If labelling fails the session must not die — the report and the
+        # dossier are the valuable part and they are already done. What goes on
+        # screen is the ACTUAL message, never a guessed cause: the last time this
+        # failed the screen said "missing permission" and it was a stale OAuth
+        # grant. Temporal wraps the real error, so unwrap the cause chain.
         try:
             label_processed = await gmail_ensure_label(name=config.LABELS["processed"])
             label_finance = await gmail_ensure_label(name=config.LABELS["finance"])
             label_reply = await gmail_ensure_label(name=config.LABELS["needs_reply"])
         except Exception as exc:  # noqa: BLE001 — the reason belongs on screen, not in a trace
+            reason = _root_reason(exc)
             await wf_mistral.send_assistant_message(
-                "Labeln geht nicht: der Gmail-Connector lehnt die Label-Werkzeuge ab "
-                f"({str(exc)[:120]}). Gemessen am 24.09.2026: Lesen und Entwürfe gehen, "
-                "Labels nicht — dem Connector fehlt die Berechtigung. Der Report und das "
-                "Dossier sind davon unberührt."
+                f"Labeln ist fehlgeschlagen: {reason} — nichts wurde verändert. "
+                "Der Report und das Dossier stehen davon unberührt. Wenn das bleibt: "
+                "prüfen, ob die Gmail-Freigabe aktuell ist (neu autorisieren)."
             )
-            return CleanupResult(skipped=len(plan), errors=[str(exc)[:200]])
+            return CleanupResult(skipped=len(plan), errors=[reason])
 
         result = CleanupResult()
         for action in plan:
