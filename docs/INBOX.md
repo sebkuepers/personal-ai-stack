@@ -108,6 +108,25 @@ mails. The remaining two are reported by sender, for manual handling.
 The last two cost a day: with the expected names the lookup never found an existing label and the
 creation failed schema validation — the entire cleanup step was dead, silently.
 
+**And then the connector turned out not to allow labelling at all.** Measured on 2026-09-24
+against the live account:
+
+| | |
+|---|---|
+| `search_threads`, `get_thread`, `list_labels`, `list_drafts` | work |
+| `create_draft` | works |
+| `create_label`, `label_thread`, `unlabel_thread` | **fail for any input** |
+
+The credential reports `status: valid`, so this is not an expired token — Mistral's Gmail
+connector does not hold the label scope. **Level 2 of the safety ladder is therefore unavailable**
+until it does. Reading, the report, the dossier and drafts are unaffected, and those carry most of
+the value.
+
+One thing this cost: the connector reports a failed tool as *plain text*
+(`Error calling tool 'create_label'`), not as an error field. `json.loads` then raised, the
+activity failed, and all Le Chat showed was "Activity task failed" — no tool name, no reason.
+`_tool_json` now recognises that text and raises `GmailToolError` with the tool named.
+
 ---
 
 ## The cascade, and what the first real run said about it

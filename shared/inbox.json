@@ -26,7 +26,8 @@
       "unlabel_message": "unlabel_message",
       "list_labels": "list_labels",
       "create_label": "create_label"
-    }
+    },
+    "_comment": "MEASURED LIMIT, 2026-09-24: on this account the Gmail connector answers reading tools and create_draft, but EVERY label tool (create_label, label_thread, unlabel_thread) fails for any input with a plain-text 'Error calling tool ...'. The credential reports status: valid, so it is not an expired token — the connector does not hold the label scope. Level 2 of the safety ladder (label, mark read, archive) is therefore unavailable until Mistral's connector requests it. Reading, the report, the dossier and drafts are unaffected."
   },
   "labels": {
     "processed": "inbox/processed",

@@ -33,6 +33,16 @@ from workflows.crm.connectors import gmail_connector
 
 from . import config
 
+class GmailToolError(RuntimeError):
+    """The connector refused a tool call.
+
+    Measured on 2026-09-24: reading works, ``create_draft`` works, but every
+    label tool (``create_label``, ``label_thread``, ``unlabel_thread``) fails
+    for any input. The credential reports ``status: valid``, so this is not an
+    expired token — Mistral's Gmail connector does not hold the label scope.
+    """
+
+
 _PAUSE_SECONDS = 1.2  # without it: empty pages (rate limit) — verified live
 _MAX_PAGES = 200  # 200 × 50 = 10,000 threads, a cap against endless loops
 
@@ -52,6 +62,12 @@ def _tool_json(result: Any) -> dict:
     text = first.get("text") if isinstance(first, dict) else getattr(first, "text", None)
     if not text:
         raise RuntimeError("Tool answer without text in content[0]")
+    # The connector reports a failed tool as PLAIN TEXT, not as an error field:
+    # "Error calling tool 'create_label'". Without this check json.loads raises a
+    # JSONDecodeError, the activity fails, and all Le Chat shows is "Activity
+    # task failed" — with no hint which tool and why.
+    if text.startswith("Error calling tool"):
+        raise GmailToolError(text.strip())
     return json.loads(text)
 
 

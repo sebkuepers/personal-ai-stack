@@ -311,9 +311,23 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
         archive = mode == "clean"
         # The names come from shared/inbox.json, not from here (golden rule 2) —
         # otherwise the plan runs against different labels than the report claims.
-        label_processed = await gmail_ensure_label(name=config.LABELS["processed"])
-        label_finance = await gmail_ensure_label(name=config.LABELS["finance"])
-        label_reply = await gmail_ensure_label(name=config.LABELS["needs_reply"])
+        #
+        # This is also where the connector's limit shows: as of 2026-09-24 the
+        # Gmail connector holds no label scope, so every label tool fails. That
+        # must not kill the session — the report and the dossier are the
+        # valuable part and they are already done.
+        try:
+            label_processed = await gmail_ensure_label(name=config.LABELS["processed"])
+            label_finance = await gmail_ensure_label(name=config.LABELS["finance"])
+            label_reply = await gmail_ensure_label(name=config.LABELS["needs_reply"])
+        except Exception as exc:  # noqa: BLE001 — the reason belongs on screen, not in a trace
+            await wf_mistral.send_assistant_message(
+                "Labeln geht nicht: der Gmail-Connector lehnt die Label-Werkzeuge ab "
+                f"({str(exc)[:120]}). Gemessen am 24.09.2026: Lesen und Entwürfe gehen, "
+                "Labels nicht — dem Connector fehlt die Berechtigung. Der Report und das "
+                "Dossier sind davon unberührt."
+            )
+            return CleanupResult(skipped=len(plan), errors=[str(exc)[:200]])
 
         result = CleanupResult()
         for action in plan:
