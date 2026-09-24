@@ -274,6 +274,29 @@ in the examples.
     its list is called **`executions`**, not `runs` — `worker-host` read
     `body.runs`, counted zero on every tick and never woke the container.
 
+20. **A Pydantic model that crosses the sandbox boundary twice is two classes.**
+    `inbox/daily.py` imports `apply_cleanup` inside `imports_passed_through()`
+    and `DailyResult` normally. Both end up using `models.CleanupResult` — but
+    the passed-through import and the sandboxed import produce **different class
+    objects with the same name**, and nesting one inside the other fails with
+
+    ```
+    1 validation error for DailyResult
+    cleaned
+      Input should be a valid dictionary or instance of CleanupResult
+      [type=model_type, input_value=CleanupResult(archived=57…), input_type=CleanupResult]
+    ```
+
+    — a message that reads like nonsense until you know why. Worse, the failure
+    is a **workflow task** failure, not an activity failure: Temporal retries the
+    task forever, so the execution sits at RUNNING until it hits the one-hour
+    timeout. All the real work (57 threads archived, dossier written) was
+    already done; only the return value could not be built.
+
+    The fix is to construct across the boundary from dumps, never from
+    instances: `Outer.model_validate({"inner": inner.model_dump(mode="json")})`.
+    Measured 2026-09-24.
+
 ---
 
 ## 6. Connector & agent patterns

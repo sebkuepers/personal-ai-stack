@@ -141,4 +141,14 @@ class InboxDailyWorkflow:
                 "Ein zweiter Lauf desselben Tages sieht nur noch, was nach dem "
                 "Aufräumen im Posteingang übrig war."
             )
-        return DailyResult(report=report, cleaned=cleaned)
+        # Built from dumps, not from the instances. ``CleanupResult`` reaches
+        # here from ``apply.py``, which is imported through
+        # ``imports_passed_through()``; ``DailyResult`` is imported normally and
+        # therefore refers to the SANDBOXED copy of the same module. Two import
+        # paths, two distinct classes, same name — and Pydantic rejects the
+        # instance with "Input should be a valid dictionary or instance of
+        # CleanupResult [input_type=CleanupResult]", which reads like nonsense
+        # until you know that. Measured 2026-09-24; see CLAUDE.md gotcha 20.
+        return DailyResult.model_validate(
+            {"report": report.model_dump(mode="json"), "cleaned": cleaned.model_dump(mode="json")}
+        )
