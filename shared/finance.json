@@ -52,8 +52,9 @@
   },
 
   "models": {
-    "_comment": "Not yet measured for this domain — these are the starting points, and make finance-eval replaces them with numbers. 190 bookings a month make small the obvious first try: the cost question does not exist at that volume, so what gets measured is accuracy and consistency, not price.",
-    "categorise": "mistral-small-latest",
+    "_comment": "MEASURED, make finance-eval, 12 constructed cases, 3 runs each, 2026-09-24. medium/none wins on every column at once — same hit rate as small, ZERO traps against small's 3 of 39, same speed, and fewer tokens (2747 vs 2982): the small model needs more words to give a worse answer. Reasoning hurts here for the third time in this repo: small/high is worse on hits (87%), worse on traps (5 of 39) and costs five times the tokens. Hit rate alone would have hidden all of it — it sat at 93% for small/none and medium/none alike, and only the traps separated them.",
+    "_measured": { "small/none": "93% hits, 3/39 traps, 2982T", "small/high": "87% hits, 5/39 traps, 14088T", "medium/none": "93% hits, 0/39 traps, 2747T" },
+    "categorise": "mistral-medium-latest",
     "briefing": "mistral-medium-latest"
   },
 

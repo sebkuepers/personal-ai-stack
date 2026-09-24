@@ -9,7 +9,7 @@ A personal AI system with three composable pillars on Mistral + Cloudflare:
 
 | Pillar | Stack | Deep doc |
 |---|---|---|
-| `workflows/` — durable Mistral Workflows (domains: `crm/`, `book/`, `inbox/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
+| `workflows/` — durable Mistral Workflows (domains: `crm/`, `book/`, `inbox/`, `finance/`) | Python | [`workflows/CLAUDE.md`](workflows/CLAUDE.md) ← **the verified SDK conventions + gotchas** |
 | `mcp-server/` — personal MCP server (a Mistral custom connector) | TypeScript · Cloudflare Worker | `mcp-server/README.md` |
 | `skills/` — Agent Skills for Vibe Work | Markdown (`SKILL.md`) | `skills/README.md` |
 
@@ -30,8 +30,8 @@ for the infra rationale.
    **Domain vs. work.** A domain is a *capability*, so its agents, workflows and skills are named
    `<domain>-*` and never carry the name of a concrete subject. What they operate on comes in as a
    parameter — e.g. `make book-sync work=immer-wieder-ruegen`. Per-subject config lives in
-   `shared/<domain>/<slug>.json`. See [`docs/BOOK.md`](docs/BOOK.md) and
-   [`docs/INBOX.md`](docs/INBOX.md).
+   `shared/<domain>/<slug>.json`. See [`docs/BOOK.md`](docs/BOOK.md),
+   [`docs/INBOX.md`](docs/INBOX.md) and [`docs/FINANCE.md`](docs/FINANCE.md).
 3. **This is a Mistral *Pro* account.** Judges, Datasets and Traces (`/v1/observability/*`) answer
    with HTTP 404 — they are Enterprise-only. Don't build against them; the repo has its own
    substitutes (`evalkit/` for measurement, judge *agents* for scoring). Skills and Prompts *are*
@@ -48,7 +48,8 @@ for the infra rationale.
 6. **Measure before you tune.** Every agent's model and setting is decided by `evalkit`, and the
    numbers plus the reasoning sit in `shared/<domain>.json` next to the setting they justify.
    Two results worth knowing before repeating the work: reasoning effort never won on
-   price-performance (it helped no editing agent at all, and for the inbox review it raised
+   price-performance — a third measurement, the finance categoriser, made it worse on
+   both hits and traps while costing five times the tokens (it helped no editing agent at all, and for the inbox review it raised
    quality but at 5–7× tokens — measure it, then decide), and a model with strong public
    benchmarks (GLM 5.3) lost on both editing tasks.
 
