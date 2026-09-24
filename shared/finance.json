@@ -44,7 +44,10 @@
     "scatter_target": "Unsortiert",
     "_scatter_comment": "A holding pen, deliberately not Belege/. The patterns match a FILE NAME and nothing has looked inside — and the first real preview (2026-09-24) showed why that matters: 54 of 57 hits were work material (vendor invoices, company-card summaries), not private. Collecting them into one place is still worth it, because that is what the author asked for; pretending they are private bookkeeping is not. Nothing ever reads the ledger from here.",
     "scatter_sources": ["~/Downloads", "~/Desktop"],
-    "scatter_patterns": ["rechnung", "beleg", "invoice", "kontoauszug", "abrechnung", "depot", "wertpapier"]
+    "scatter_patterns": ["rechnung", "beleg", "invoice", "kontoauszug", "abrechnung"],
+    "_depot_comment": "Depot exports get their own target — they are holdings, not receipts, and the briefing reads them. The broker calls the file 'investments.csv', which no receipt pattern would ever have caught; it would have ended up in the holding pen and nothing would have said so.",
+    "depot_patterns": ["investments", "depot", "wertpapier", "portfolio"],
+    "depot_target": "Depot"
   },
 
   "models": {

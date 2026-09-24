@@ -249,6 +249,7 @@ def _scattered(root: Path) -> list[Move]:
     belongs to whatever put it there, not to this domain.
     """
     patterns = [p.lower() for p in c.TIDY["scatter_patterns"]]
+    depot = [p.lower() for p in c.TIDY["depot_patterns"]]
     out: list[Move] = []
     for source_str in c.TIDY["scatter_sources"]:
         folder = expand(source_str)
@@ -258,6 +259,13 @@ def _scattered(root: Path) -> list[Move]:
             if source.is_dir() or source.name in IGNORED_NAMES or source.name.startswith("~$"):
                 continue
             name = source.name.lower()
+            # Depot first: holdings have a home, receipts only have a holding pen.
+            hit = next((p for p in depot if p in name), None)
+            if hit and source.suffix.lower() in {".csv", ".pdf", ".xlsx"}:
+                out.append(
+                    _plan_move(source, root / c.TIDY["depot_target"] / source.name, "Depotauszug")
+                )
+                continue
             hit = next((p for p in patterns if p in name), None)
             if hit:
                 out.append(
