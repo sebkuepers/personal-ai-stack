@@ -1,0 +1,140 @@
+[
+  {
+    "id": "A-kreditkarten-sammelbelastung",
+    "source": "konstruiert nach der Form der echten Girokonto-Zeilen (2026-09-24)",
+    "note": "Die teuerste Verwechslung im ganzen Lauf: die Sammelbelastung der Kreditkarte auf dem Girokonto ist dasselbe Geld wie die Einzelposten im Kartenauszug. Als Ausgabe gezählt verdoppelt sie rund ein Fünftel aller Ausgaben.",
+    "input": "Buchungstext: Beispielbank AG Karte Nr. 0000 00XX XXXX 0000 MAX MUSTERMANN Abrechnung 15.03.2026\nBetrag: -1842.17 EUR\nDatum: 19.03.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "transfer" }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "misc" },
+      { "path": "category", "operator": "equals", "value": "subscriptions" },
+      { "path": "category", "operator": "equals", "value": "groceries" }
+    ]
+  },
+  {
+    "id": "B-hafen-liegeplatz",
+    "source": "konstruiert; der echte Fehlgriff war eine vierstellige Zahlung an den Hafen in Lauterbach",
+    "note": "Im ersten Probelauf als misc eingeordnet, weil der Lieferantenname nicht im Prompt stand. Ein Hafenbetrieb ist am Namen nicht als Boot erkennbar — die Lieferanten stehen deshalb ausdrücklich in den Instruktionen.",
+    "input": "Buchungstext: Beispielhafen Betriebs GmbH und Co. KG GENODEF1XXX DE00000000000000000000 Rg 2026-0042 Liegeplatz Sommersaison\nBetrag: -3200.00 EUR\nDatum: 31.03.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "boat" }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "misc" },
+      { "path": "category", "operator": "equals", "value": "housing" }
+    ]
+  },
+  {
+    "id": "C-elektronikkauf-ist-kein-ki-abo",
+    "source": "konstruiert; im echten Lauf wurde ein Ladenkauf über 1.746 EUR als ai_stack eingeordnet",
+    "note": "Ein Rechner ist Hardware, kein KI-Dienst. Die Kategorie ai_stack soll wiederkehrende Dienste fassen, nicht jedes Gerät, mit dem man sie benutzt — sonst wird die Frage 'was kostet mein KI-Setup' unbeantwortbar.",
+    "input": "Buchungstext: BEISPIEL ELEKTRONIK STORE R443, BERLIN, DEU\nBetrag: -1746.00 EUR\nDatum: 22.03.2026\nKonto: mastercard-classic\nGegenüber laut Bank: BEISPIEL ELEKTRONIK STORE R443",
+    "expected": [
+      { "path": "recurring", "operator": "equals", "value": false }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "ai_stack" },
+      { "path": "category", "operator": "equals", "value": "subscriptions" }
+    ]
+  },
+  {
+    "id": "D-eigene-umbuchung",
+    "source": "konstruiert; im echten Lauf liefen 4.600 EUR an den Kontoinhaber selbst als Ausgabe durch",
+    "note": "Eine Überweisung auf ein eigenes Konto ist keine Ausgabe. Erkennbar daran, dass der Empfängername der des Kontoinhabers ist.",
+    "input": "Buchungstext: M. Mustermann BEISPIELBANK DE00000000000000000000 Uebertrag Haushaltskasse\nBetrag: -1200.00 EUR\nDatum: 02.02.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "transfer" }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "family" },
+      { "path": "category", "operator": "equals", "value": "misc" }
+    ]
+  },
+  {
+    "id": "E-gutschrift-ist-keine-einnahme",
+    "source": "konstruiert nach dem Muster einer Rückerstattung",
+    "note": "Ein positiver Betrag ist nicht automatisch Einkommen. Eine Erstattung ist die Rücknahme einer Ausgabe; als Einnahme gezählt schönt sie die Bilanz.",
+    "input": "Buchungstext: BEISPIEL MIETWAGEN GMBH Erstattung Kaution Vorgang 4711\nBetrag: 241.36 EUR\nDatum: 14.02.2026\nKonto: girokonto",
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "income" }
+    ]
+  },
+  {
+    "id": "F-supermarkt-ist-kein-essengehen",
+    "source": "konstruiert",
+    "note": "Die häufigste Grenze im Alltag: Einkauf gegen Restaurant. Beide Kategorien stehen in seiner Mappe und werden getrennt geplant.",
+    "input": "Buchungstext: BEISPIELMARKT SAGT DANKE 1234567, BERLIN, DEU\nBetrag: -64.12 EUR\nDatum: 08.03.2026\nKonto: mastercard-gold\nKategorie laut Bank: Lebenshaltung",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "groceries" }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "food_out" }
+    ]
+  },
+  {
+    "id": "G-lieferdienst-ist-essengehen",
+    "source": "konstruiert",
+    "note": "Die Gegenprobe zu F. Ein Lieferdienst ist zubereitetes Essen, auch wenn es nach Hause kommt.",
+    "input": "Buchungstext: Beispiel Lieferdienst Berlin, DE\nBetrag: -37.90 EUR\nDatum: 09.03.2026\nKonto: haushaltskasse\nGegenüber laut Bank: Beispiel Lieferdienst",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "food_out" }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "groceries" }
+    ]
+  },
+  {
+    "id": "H-ki-dienst",
+    "source": "konstruiert nach der Form der echten Kartenzeilen",
+    "note": "Der Kern der Frage 'was kostet mein KI-Setup'. Ein Modellanbieter in den USA, monatlich abgebucht.",
+    "input": "Buchungstext: BEISPIEL AI LABS, SAN FRANCISCO  US Karte Nr. 0000 00XX XXXX 0000\nBetrag: -513.94 EUR\nDatum: 23.02.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "ai_stack" },
+      { "path": "recurring", "operator": "equals", "value": true }
+    ]
+  },
+  {
+    "id": "I-lotto-ist-ein-abo",
+    "source": "konstruiert; Lotto ist in seiner Planungsmappe eine eigene Zeile unter Kleinstausgaben",
+    "note": "Er will ausdrücklich wissen, wie viel fürs Lotto draufgeht. Das Vokabular bildet das über subscriptions ab, weil seine Mappe es dort führt — nicht über eine erfundene Kategorie 'Glücksspiel'.",
+    "input": "Buchungstext: BEISPIEL LOTTERIE AG Spielauftrag 6aus49 Kundennr 1234567\nBetrag: -22.50 EUR\nDatum: 19.03.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "subscriptions" },
+      { "path": "recurring", "operator": "equals", "value": true }
+    ]
+  },
+  {
+    "id": "J-unterhalt",
+    "source": "konstruiert",
+    "note": "Unterhalt an eine Person ist family, nicht misc. In seiner Mappe stehen drei Namen unter Unterhalt.",
+    "input": "Buchungstext: ERIKA BEISPIEL BELADEBEXXX DE00000000000000000000 UNTERHALT MAERZ 2026\nBetrag: -1918.00 EUR\nDatum: 01.04.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "family" },
+      { "path": "recurring", "operator": "equals", "value": true }
+    ],
+    "forbidden": [
+      { "path": "category", "operator": "equals", "value": "misc" }
+    ]
+  },
+  {
+    "id": "K-leasingrate",
+    "source": "konstruiert",
+    "note": "Fahrzeugfinanzierung gehört zu cars, nicht zu debt — seine Mappe führt die Autos zusammen, nicht die Kredite.",
+    "input": "Buchungstext: BEISPIEL FINANCIAL SERVICES SE Leasingrate Vertrag 0000000 Fahrzeug\nBetrag: -1782.64 EUR\nDatum: 01.03.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "category", "operator": "equals", "value": "cars" },
+      { "path": "recurring", "operator": "equals", "value": true }
+    ]
+  },
+  {
+    "id": "L-unklarer-fall-muss-sich-melden",
+    "source": "konstruiert",
+    "note": "Der Fall, der die Konfidenz misst statt die Kategorie. Im echten Lauf lagen 665 von 669 Buchungen bei 0,9 oder darüber und keine einzige unter 0,8 — eine Skala, die nie ausschlägt, misst nichts. Hier ist bewusst nichts zu erkennen: kein Empfänger, kein Zweck, kein Betragsmuster.",
+    "input": "Buchungstext: ZAHLUNGSVERKEHR 000000000 REF 4711\nBetrag: -87.00 EUR\nDatum: 11.02.2026\nKonto: girokonto",
+    "expected": [
+      { "path": "confidence", "operator": "less_than", "value": 0.8 }
+    ]
+  }
+]

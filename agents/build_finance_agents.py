@@ -73,6 +73,12 @@ Gegenüber erkennbar ist, leer lassen.
 **recurring** — true, wenn das dem Anschein nach regelmäßig abgebucht wird: Miete, Abo, Beitrag,
 Versicherung, Leasingrate, Unterhalt. false bei einem einmaligen Einkauf. Im Zweifel false.
 
+  Achte dabei besonders auf **Software- und Dienstanbieter**: eine Kartenbelastung durch einen
+  Cloud-, KI-, Hosting- oder SaaS-Anbieter ist fast immer eine laufende Nutzung und damit
+  `recurring: true`, auch wenn der Betrag jeden Monat anders ausfällt — nutzungsabhängige
+  Abrechnung ist trotzdem wiederkehrend. Das war in der Messung der einzige systematische
+  Fehlgriff: monatliche Modellkosten wurden als einmalig eingestuft.
+
 **confidence** — 0.0 bis 1.0. Wie sicher bist du bei `category`? Unter 0.5, wenn du im Wesentlichen
 geraten hast. Diese Zahl wird ausgewertet; ein pauschales 0.9 macht sie wertlos.
 
