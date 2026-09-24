@@ -17,8 +17,10 @@ from workflows.inbox.cleanup import (
     cleanup_plan,
     cleanup_summary,
 )
-from workflows.inbox import config
-from workflows.inbox.models import InboxReview, ReviewItem
+from pathlib import Path
+
+from workflows.inbox import apply, config, render
+from workflows.inbox.models import CleanupResult, InboxReview, InboxScanReport, ReviewItem
 
 
 def review_item(thread_id: str = "t1", **kwargs: object) -> ReviewItem:
@@ -93,3 +95,59 @@ def test_cleanup_summary_counts_honestly() -> None:
 def test_empty_plan() -> None:
     assert cleanup_plan([]) == []
     assert cleanup_summary([], config.LABELS) == "nichts zu tun"
+
+
+# ---------------------------------------------------------------------------
+# The receipt — what an unattended run changed
+# ---------------------------------------------------------------------------
+
+
+class TestReceipt:
+    """The nightly round changes the mailbox while nobody watches.
+
+    The morning after brings two questions — what came in, and what did it
+    touch. An unattended job that answers only the first is one you stop
+    trusting, so the receipt goes into the dossier next to the report.
+    """
+
+    def test_an_error_is_named_and_nothing_else_is_claimed(self) -> None:
+        text = render.receipt(
+            CleanupResult(skipped=12, errors=["Gmail: Invalid label name"])
+        )
+        assert text == "Aufräumen fehlgeschlagen: Gmail: Invalid label name"
+
+    def test_a_quiet_run_says_so_instead_of_staying_empty(self) -> None:
+        assert render.receipt(CleanupResult()) == "nichts verändert"
+
+    def test_every_action_appears_with_its_configured_label(self) -> None:
+        text = render.receipt(
+            CleanupResult(archived=7, labelled_finance=2, labelled_reply=1, mailto_drafts=1)
+        )
+        assert "7 archiviert" in text
+        assert config.LABELS["finance"] in text
+        assert config.LABELS["needs_reply"] in text
+        assert "Abmeldungs-Entwurf" in text
+
+    def test_the_dossier_carries_it_only_when_a_run_cleaned_up(self) -> None:
+        report = InboxScanReport(
+            window_days=1, inbox_found=0, skipped_no_messages=0,
+            own_replies=0, pages=1,
+        )
+        assert "Was der Lauf verändert hat" not in render.dossier(report, "2026-09-23")
+        with_receipt = render.dossier(report, "2026-09-23", cleaned=CleanupResult(archived=3))
+        assert "Was der Lauf verändert hat" in with_receipt
+        assert "3 archiviert" in with_receipt
+
+
+class TestApplyModes:
+    """``full`` archives, ``label_only`` must not — the whole point of the switch."""
+
+    def test_label_only_never_archives(self) -> None:
+        assert apply.LABEL_ONLY != apply.FULL
+        # The archive flag is derived from the mode and from nothing else.
+        assert "archive = mode == FULL" in (
+            Path(apply.__file__).read_text(encoding="utf-8")
+        )
+
+    def test_the_configured_mode_is_one_the_code_knows(self) -> None:
+        assert config.SCHEDULE_CLEANUP in {apply.FULL, apply.LABEL_ONLY, apply.NOTHING}

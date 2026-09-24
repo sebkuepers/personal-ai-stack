@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from workflows.inbox.models import InboxScanReport
+from workflows.inbox.config import LABELS
+from workflows.inbox.models import CleanupResult, InboxScanReport
 
 # The dossier is read again in three weeks. "today" is then a lie, and the
 # whole point of keeping one document per day is a history that still reads
@@ -140,7 +141,25 @@ def report_as_markdown(r: InboxScanReport) -> str:
     return "\n".join(lines)
 
 
-def dossier(r: InboxScanReport, as_of: str) -> str:
+def receipt(c: CleanupResult) -> str:
+    """What a run changed, in one line — German, the author reads it."""
+    if c.errors:
+        return f"Aufräumen fehlgeschlagen: {c.errors[0]}"
+    parts = []
+    if c.archived:
+        parts.append(f"{c.archived} archiviert und gelesen gesetzt")
+    if c.labelled_finance:
+        parts.append(f"{c.labelled_finance}× {LABELS['finance']}")
+    if c.labelled_reply:
+        parts.append(f"{c.labelled_reply}× {LABELS['needs_reply']}")
+    if c.mailto_drafts:
+        parts.append(f"{c.mailto_drafts} Abmeldungs-Entwurf/-Entwürfe")
+    if c.skipped:
+        parts.append(f"{c.skipped} unangetastet")
+    return ", ".join(parts) if parts else "nichts verändert"
+
+
+def dossier(r: InboxScanReport, as_of: str, cleaned: CleanupResult | None = None) -> str:
     """The context dossier for the library — cut for Vibe.
 
     Not a copy of the report: Vibe needs what influences a working session —
@@ -178,4 +197,9 @@ def dossier(r: InboxScanReport, as_of: str) -> str:
         lines.append(f"- An {', '.join(s.to)}: *{s.subject}* ({s.received_on})")
     if not r.sent:
         lines.append("_(nichts gesendet)_")
+
+    if cleaned is not None:
+        # The morning after, "what did it touch" is the first question — and the
+        # answer must not live only in the execution history.
+        lines += ["", "## Was der Lauf verändert hat", "", receipt(cleaned)]
     return "\n".join(lines)

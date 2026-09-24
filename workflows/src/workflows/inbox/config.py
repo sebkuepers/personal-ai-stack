@@ -57,6 +57,8 @@ GMAIL_TOOLS: dict[str, str] = _entries(_CFG["connector_tools"]["gmail"])
 # workflow is trigger-only.
 # --------------------------------------------------------------------------- #
 SCHEDULE_DEPLOYMENT: str = _CFG["schedule"]["deployment"]
+# full | label_only | nothing — see apply.py and the comment in shared/inbox.json.
+SCHEDULE_CLEANUP: str = _CFG["schedule"]["cleanup"]
 DAILY_CRON: str = _CFG["schedule"]["daily_cron"]
 SCHEDULE_TIME_ZONE: str = _CFG["schedule"]["time_zone"]
 

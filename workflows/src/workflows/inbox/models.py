@@ -264,3 +264,15 @@ class CleanupResult(BaseModel):
     mailto_drafts: int = 0
     errors: list[str] = Field(default_factory=list)
     skipped: int = 0
+
+
+class DailyResult(BaseModel):
+    """What the nightly round did — the report AND the receipt.
+
+    Two things, because the morning after brings two questions: what came in,
+    and what did it touch. Answering only the first is how an unattended job
+    becomes something one stops trusting.
+    """
+
+    report: InboxScanReport
+    cleaned: CleanupResult

@@ -39,6 +39,8 @@
   "schedule": {
     "_comment": "Which deployment owns the nightly schedule. A worker registers a workflow's schedules under ITS OWN deployment name, so without this the laptop and the Cloudflare container would each register one and the job would run twice — or, worse, only the laptop would, and only while it happens to be awake. The name has to match DEPLOYMENT_NAME of the container (worker-host/wrangler.jsonc).",
     "deployment": "cloudflare",
+    "cleanup": "full",
+    "_cleanup_comment": "What the nightly round is allowed to do: full (archive noise + mark read, label finance and replies, draft mailto unsubscribes), label_only (label everything, archive nothing) or nothing (read-only). It started as 'nothing' on the argument that level 2 of the safety ladder needs an approval per session — but the nightly round IS the norm, and the approval was guarding something that does not hurt: archiving is removing the INBOX label, marking read is removing UNREAD, both reversible in Gmail with one click. Sending remains impossible: the connector has no tool for it.",
     "daily_cron": "0 6 * * *",
     "time_zone": "Europe/Berlin"
   },

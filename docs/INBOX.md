@@ -45,11 +45,22 @@ envelopes — is gitignored. The repo is public; correspondents' addresses are n
 
 ## The daily round, and why it can run unattended
 
-`inbox-daily` triages **yesterday, the complete calendar day**, and writes the
-dossier into the library. It changes nothing in the mailbox — no label, no draft,
-no archive. Level 2 of the safety ladder needs an approval per session, and a
-scheduled run has nobody to ask, so it stays on level 1 permanently. That is not
-a gap to be closed later; it is the reason it is allowed to run at all.
+`inbox-daily` triages **yesterday, the complete calendar day**, applies the
+cleanup plan and writes the dossier — receipt included — into the library.
+
+It was read-only at first, on the argument that level 2 of the safety ladder
+needs an approval per session and a scheduled run has nobody to ask. That was
+the wrong way round: **the nightly round is the norm**, and the approval was
+guarding something that does not hurt. Archiving is removing the `INBOX` label,
+marking read is removing `UNREAD`; both are one click to undo. What is genuinely
+irreversible stays impossible — the connector has no tool to send, so the worst
+case of an unattended run is a draft nobody asked for.
+
+`shared/inbox.json` → `schedule.cleanup` says what it may do (`full`,
+`label_only`, `nothing`), so it can be dialled back without touching code. The
+plan itself runs through `inbox/apply.py`, the same code the conversation uses:
+if the night and the chat handled a thread differently, the mailbox would stop
+being something one can reason about.
 
 Three things had to be right before it could exist:
 
@@ -97,8 +108,9 @@ triage run.
 Three levels, and nothing skips one:
 
 1. **Read.** `inbox-scan` changes nothing. It reads, classifies, condenses.
-2. **Label and mark read.** Only inside `inbox-review`, only after an explicit approval per
-   session, and only with the labels from `shared/inbox.json`.
+2. **Label and mark read.** Through `inbox/apply.py` and nowhere else, only with the labels from
+   `shared/inbox.json` — inside `inbox-review` after an explicit approval, and inside
+   `inbox-daily` because that run *is* the approval, given once in `schedule.cleanup`.
 3. **Draft.** Mailto unsubscribes become drafts. The Gmail connector **cannot send** — which is
    the property that makes any of this acceptable.
 

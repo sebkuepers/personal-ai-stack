@@ -7,13 +7,23 @@ shows, it waits for an approval before it touches anything. This one is the
 opposite — it runs while nobody is there, and therefore it does exactly two
 things and nothing else:
 
-  1. triage YESTERDAY, the complete calendar day (``include_today=False``), and
-  2. write the dossier into the library.
+  1. triage YESTERDAY, the complete calendar day (``include_today=False``),
+  2. apply the cleanup plan — archive the noise, label what wants a reply and
+     what involves money, prepare mailto unsubscribes as drafts, and
+  3. write the dossier into the library, receipt included.
 
-**It changes nothing in the mailbox.** No label, no draft, no archive. Level 2
-of the safety ladder needs an approval per session, and a scheduled run has
-nobody to ask — so it stays on level 1 permanently. That is not a limitation
-to be lifted later; it is the reason this is allowed to run unattended.
+It was read-only at first, on the argument that level 2 of the safety ladder
+needs an approval per session and a scheduled run has nobody to ask. That was
+the wrong way round: **the nightly round is the norm**, and the approval was
+guarding something that does not hurt. Archiving is removing the ``INBOX``
+label, marking read is removing ``UNREAD`` — both reversible in Gmail with one
+click. What is genuinely irreversible stays impossible: the connector has no
+tool to send, so the worst case is a draft nobody asked for.
+
+What it does is in ``shared/inbox.json`` (``schedule.cleanup``), so it can be
+dialled back to ``label_only`` or ``nothing`` without touching code. The plan
+itself runs through ``inbox/apply.py`` — the same code the conversation uses,
+so the night and the chat can never handle a thread differently.
 
 Why the window is a calendar day and not ``newer_than:1d``: consecutive runs
 have to tile the calendar without gap or overlap, or a daily job cannot be
@@ -42,16 +52,20 @@ from mistralai.workflows.plugins.mistralai.connectors import uses_connectors
 
 with workflow.unsafe.imports_passed_through():
     from workflows.crm.agent_tools import get_today
+    from workflows.inbox.apply import apply_cleanup
     from workflows.inbox.library import store_dossier
 
 from workflows.inbox import config  # noqa: E402
 from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox.models import (  # noqa: E402
+    DailyResult,
     InboxScanInput,
     InboxScanReport,
 )
+from workflows.inbox.cleanup import cleanup_plan  # noqa: E402
 from workflows.inbox.render import dossier  # noqa: E402
 from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
+from workflows.inbox.unsubscribe import is_mailto  # noqa: E402
 
 # 06:00 Europe/Berlin — before the working day, after the night's mail has
 # landed. The window is the day BEFORE that, complete. Time and zone come from
@@ -90,7 +104,7 @@ _MAX_THREADS = 200
 @uses_connectors(gmail_connector)
 class InboxDailyWorkflow:
     @workflows.workflow.entrypoint
-    async def run(self) -> InboxScanReport:
+    async def run(self) -> DailyResult:
         report: InboxScanReport = await workflows.execute_workflow(
             InboxScanWorkflow,
             params=InboxScanInput(
@@ -99,12 +113,24 @@ class InboxDailyWorkflow:
                 max_threads=_MAX_THREADS,
             ),
         )
+
+        # Tidy up. The plan is deterministic (cleanup.py) and the execution is
+        # shared with the conversation (apply.py) — nothing here decides
+        # anything of its own.
+        cleaned = await apply_cleanup(
+            cleanup_plan(report.reviews),
+            [u for u in report.unsub_links if is_mailto(u.url)],
+            mode=config.SCHEDULE_CLEANUP,
+        )
+
         # The dossier is named after the day it describes, not after the day it
         # was written: a re-run replaces its predecessor instead of doubling it,
-        # and the library reads as a history rather than as a pile.
+        # and the library reads as a history rather than as a pile. The receipt
+        # goes in with it — the morning after, "what did it touch" is the first
+        # question, and the answer must not be only in the event history.
         day = report.window_start or date.fromisoformat(await get_today())
         await store_dossier(
             name=f"inbox-context-{day.isoformat()}.md",
-            text=dossier(report, day.isoformat()),
+            text=dossier(report, day.isoformat(), cleaned=cleaned),
         )
-        return report
+        return DailyResult(report=report, cleaned=cleaned)

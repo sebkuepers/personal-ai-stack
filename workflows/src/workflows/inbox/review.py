@@ -41,11 +41,7 @@ from mistralai.workflows.plugins.mistralai.conversational_ui_components import (
 with workflow.unsafe.imports_passed_through():
     import mistralai.workflows.conversational as wf_chat
     from workflows.crm.agent_tools import get_today
-    from workflows.inbox.gmail import (
-        gmail_draft,
-        gmail_ensure_label,
-        gmail_process_thread,
-    )
+    from workflows.inbox.apply import FULL, LABEL_ONLY, apply_cleanup
     from workflows.inbox.library import store_dossier
 
 from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # noqa: E402
@@ -53,9 +49,6 @@ from mistralai.workflows.plugins.mistralai.connectors import uses_connectors  # 
 from workflows.inbox.connectors import gmail_connector  # noqa: E402
 from workflows.inbox import config  # noqa: E402
 from workflows.inbox.cleanup import (  # noqa: E402
-    FINANCE,
-    KEEP,
-    NOISE,
     cleanup_plan,
     cleanup_summary,
 )
@@ -92,28 +85,6 @@ SECOND_REVIEW = [
     ("Schnell — ein Durchgang", "Schnell — ein Durchgang, ungeprüft"),
 ]
 LIMITS = [("25 Mails", "25 Mails"), ("50 Mails", "50 Mails"), ("100 Mails", "100 Mails")]
-
-
-def _root_reason(exc: BaseException) -> str:
-    """The innermost message of an exception chain, shortened.
-
-    Temporal wraps an activity failure in ActivityError, whose str() is the
-    useless "Activity task failed". The cause carries what actually happened.
-    """
-    current: BaseException = exc
-    while current.__cause__ is not None:
-        current = current.__cause__
-    text = str(current).strip() or type(current).__name__
-    # Temporal carries the connector's own answer in ``details``, not in the
-    # message: the label failure said "connector tool call failed" while the
-    # details held Gmail's 400 "Invalid label name". Without this the screen
-    # names a wrapper and the actual reason is only in the event history.
-    for detail in getattr(current, "details", None) or ():
-        extra = str(detail).strip()
-        if extra and extra not in text:
-            text = f"{text} — {extra}"
-            break
-    return " ".join(text.split())[:300]
 
 
 def _days(choice: str) -> int:
@@ -351,60 +322,21 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
         if mode == "nothing":
             return CleanupResult(skipped=len(plan))
 
-        archive = mode == "clean"
-        # The names come from shared/inbox.json, not from here (golden rule 2) —
-        # otherwise the plan runs against different labels than the report claims.
-        #
-        # If labelling fails the session must not die — the report and the
-        # dossier are the valuable part and they are already done. What goes on
-        # screen is the ACTUAL message, never a guessed cause: the last time this
-        # failed the screen said "missing permission" and it was a stale OAuth
-        # grant. Temporal wraps the real error, so unwrap the cause chain.
-        try:
-            label_processed = await gmail_ensure_label(name=config.LABELS["processed"])
-            label_finance = await gmail_ensure_label(name=config.LABELS["finance"])
-            label_reply = await gmail_ensure_label(name=config.LABELS["needs_reply"])
-        except Exception as exc:  # noqa: BLE001 — the reason belongs on screen, not in a trace
-            reason = _root_reason(exc)
+        # The plan runs through inbox/apply.py — the ONE place that changes the
+        # mailbox, shared with the nightly round. If the conversation and the
+        # night handled a thread differently, the mailbox would stop being
+        # something one can reason about.
+        result = await apply_cleanup(
+            plan, mailto, mode=FULL if mode == "clean" else LABEL_ONLY
+        )
+        if result.errors:
+            # The ACTUAL reason, never a guessed cause: the last two times this
+            # failed the screen named a missing permission and it was, once, a
+            # stale grant and, once, a label name Gmail reserves.
             await wf_mistral.send_assistant_message(
-                f"Labeln ist fehlgeschlagen: {reason} — nichts wurde verändert. "
-                "Der Report und das Dossier stehen davon unberührt. Wenn das bleibt: "
-                "prüfen, ob die Gmail-Freigabe aktuell ist (neu autorisieren)."
+                f"Aufräumen ist fehlgeschlagen: {result.errors[0]} — nichts wurde "
+                "verändert. Der Report und das Dossier stehen davon unberührt."
             )
-            return CleanupResult(skipped=len(plan), errors=[reason])
-
-        result = CleanupResult()
-        for action in plan:
-            if action.action == KEEP or not action.thread_id:
-                result.skipped += 1
-                continue
-            if action.action == NOISE:
-                await gmail_process_thread(
-                    thread_id=action.thread_id, label_id=label_processed,
-                    archive=archive, mark_read=archive,
-                )
-                result.archived += 1 if archive else 0
-                result.marked_read += 1 if archive else 0
-            elif action.action == FINANCE:
-                await gmail_process_thread(
-                    thread_id=action.thread_id, label_id=label_finance,
-                    archive=False, mark_read=False,
-                )
-                result.labelled_finance += 1
-            else:  # NEEDS_REPLY
-                await gmail_process_thread(
-                    thread_id=action.thread_id, label_id=label_reply,
-                    archive=False, mark_read=False,
-                )
-                result.labelled_reply += 1
-
-        for u in mailto:
-            await gmail_draft(
-                to=u.url[7:],  # strip "mailto:"
-                subject="Abmeldung",
-                body="Bitte nehmen Sie diese Adresse von allen Verteilern.",
-            )
-            result.mailto_drafts += 1
         return result
 
     async def _unsub_view(self, report: InboxScanReport) -> None:
