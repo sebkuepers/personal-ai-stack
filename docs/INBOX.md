@@ -108,24 +108,26 @@ mails. The remaining two are reported by sender, for manual handling.
 The last two cost a day: with the expected names the lookup never found an existing label and the
 creation failed schema validation — the entire cleanup step was dead, silently.
 
-**And then the connector turned out not to allow labelling at all.** Measured on 2026-09-24
-against the live account:
+**A stale grant looks exactly like a missing feature.** On the first real cleanup run every label
+tool failed — `create_label`, `label_thread`, `unlabel_thread` — for any input, including a plain
+name with no slash. Reading worked. `create_draft` worked. And the credential reported
+`status: valid`, so it did not look like an authentication problem at all.
 
-| | |
-|---|---|
-| `search_threads`, `get_thread`, `list_labels`, `list_drafts` | work |
-| `create_draft` | works |
-| `create_label`, `label_thread`, `unlabel_thread` | **fail for any input** |
+It was one. The connector *does* request `gmail.modify`; the grant on this account simply predated
+it. Re-authorising fixed all of it in one click. The cheap check that settles it:
 
-The credential reports `status: valid`, so this is not an expired token — Mistral's Gmail
-connector does not hold the label scope. **Level 2 of the safety ladder is therefore unavailable**
-until it does. Reading, the report, the dossier and drafts are unaffected, and those carry most of
-the value.
+```python
+beta.connectors.get_auth_url(connector_id_or_name="gmail")   # the URL carries the scopes
+```
 
-One thing this cost: the connector reports a failed tool as *plain text*
+Worth a minute before suspecting the code — the alternative on the table was building a Gmail MCP
+server with its own OAuth client, which would have been a day of work for nothing.
+
+One real bug did come out of it: the connector reports a failed tool as *plain text*
 (`Error calling tool 'create_label'`), not as an error field. `json.loads` then raised, the
 activity failed, and all Le Chat showed was "Activity task failed" — no tool name, no reason.
-`_tool_json` now recognises that text and raises `GmailToolError` with the tool named.
+`_tool_json` now recognises that text and raises `GmailToolError` with the tool named, and the
+cleanup step reports it on screen instead of taking the session down.
 
 ---
 

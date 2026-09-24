@@ -27,7 +27,7 @@
       "list_labels": "list_labels",
       "create_label": "create_label"
     },
-    "_comment": "MEASURED LIMIT, 2026-09-24: on this account the Gmail connector answers reading tools and create_draft, but EVERY label tool (create_label, label_thread, unlabel_thread) fails for any input with a plain-text 'Error calling tool ...'. The credential reports status: valid, so it is not an expired token — the connector does not hold the label scope. Level 2 of the safety ladder (label, mark read, archive) is therefore unavailable until Mistral's connector requests it. Reading, the report, the dossier and drafts are unaffected."
+    "_comment": "All twelve tools verified live on 2026-09-24, reading and writing. One thing cost an hour: every label tool failed with a plain-text 'Error calling tool ...' while the credential reported status: valid. It was not a missing scope in the connector — it asks for gmail.modify — but an OLDER grant that predated it. Re-authorising fixed it. If a write tool ever refuses again, check the grant before suspecting the code: beta.connectors.get_auth_url(connector_id_or_name='gmail') prints the requested scopes."
   },
   "labels": {
     "processed": "inbox/processed",
