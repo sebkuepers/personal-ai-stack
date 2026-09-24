@@ -77,7 +77,7 @@ crm-ingest:
 # ============================================================================
 # FINANCE — private finances, LOCAL ONLY (no Cloudflare, no schedule)
 # ============================================================================
-.PHONY: finance-tidy finance-tidy-undo finance-overview finance-ingest finance-categorise finance-report finance-eval
+.PHONY: finance-tidy finance-tidy-undo finance-overview finance-ingest finance-categorise finance-report finance-eval finance-review
 
 finance-tidy:  ## Collect everything private-financial into one place — preview; apply=1 for real
 	uv run python -m financecli.tidy $(if $(apply),--apply)
@@ -96,6 +96,11 @@ finance-categorise:  ## Ledger → categories via the agent — preview; apply=1
 
 finance-report:  ## The figures — write=1 builds the workbook, upload=1 puts the summaries in the library
 	uv run python -m financecli.report $(if $(write),--write) $(if $(upload),--upload)
+
+finance-review:  ## The conversation about the numbers — in the terminal, as in Le Chat
+	uv run python -m mistralai.workflows.scripts.dev_interactive_workflow_cli finance-review \
+		--base-url $${SERVER_URL:-https://api.mistral.ai} \
+		--deployment $${DEPLOYMENT_NAME:-default} --input '{}'
 
 finance-eval:  ## Measure the categorisation agent against the constructed cases
 	uv run python -m evalkit --agent finance-categorise --cases shared/finance/eval-categorise.json \

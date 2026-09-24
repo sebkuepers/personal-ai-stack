@@ -342,6 +342,24 @@ in the examples.
     <class 'str'>`, which reads like a schema problem and is a calling
     convention. Measured 2026-09-24.
 
+23. **The TodoList ITEMS are the context managers, not the list.** Build the
+    items yourself, hand them to the list, and enter each item:
+
+    ```python
+    step = {"read": wf_chat.TodoListItem(title=…, description=…), …}
+    async with wf_chat.TodoList(items=list(step.values())):
+        async with step["read"]:
+            …
+    ```
+
+    `async with wf_chat.TodoList(...) as step` raises
+    `'TodoList' object is not subscriptable`, inside a workflow task, where the
+    chat shows nothing at all.
+
+24. **`Badge(variant=…)` takes `default | primary | success | warning | error`.**
+    Not `destructive` — that is the shadcn name and it fails validation at
+    render time, i.e. after the run has already done its work.
+
 ---
 
 ## 6. Connector & agent patterns
