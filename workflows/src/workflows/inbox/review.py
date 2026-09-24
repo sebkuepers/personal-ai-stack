@@ -63,6 +63,7 @@ from workflows.inbox.models import (  # noqa: E402
     InboxScanInput,
     InboxScanReport,
     SenderStats,
+    SenderStatsInput,
 )
 from workflows.inbox.render import dossier, headline, report_as_markdown  # noqa: E402
 from workflows.inbox.scan import InboxScanWorkflow  # noqa: E402
@@ -377,7 +378,9 @@ class InboxReviewWorkflow(workflows.InteractiveWorkflow):
         """The 90-day sender statistic as a child workflow — pure arithmetic."""
         raw = await workflows.workflow.execute_workflow(
             InboxSendersWorkflow,
-            params={"window_days": 90, "max_threads": 4000},
+            # A Pydantic model, not a dict: the SDK serialises params with
+            # .model_dump_json(), so a dict dies with AttributeError.
+            params=SenderStatsInput(window_days=90, max_threads=4000),
             execution_timeout=timedelta(minutes=15),
         )
         stats = SenderStats.model_validate(

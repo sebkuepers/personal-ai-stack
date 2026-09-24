@@ -148,3 +148,23 @@ def test_todolistitem_has_a_description(path: Path):
                 f"{path.name}:{node.lineno}: TodoListItem without a description — "
                 "the SDK requires it and the workflow dies at construction."
             )
+
+
+@pytest.mark.parametrize("path", _workflow_modules(), ids=lambda p: p.stem)
+def test_child_workflow_params_are_a_model(path: Path):
+    """``execute_workflow(params=…)`` takes a Pydantic model, never a dict.
+
+    The SDK serialises it with ``.model_dump_json()``; a dict dies with
+    "'dict' object has no attribute 'model_dump_json'" — at runtime, inside the
+    conversation, after the user already made a choice.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "execute_workflow"):
+            continue
+        for kw in node.keywords:
+            if kw.arg == "params":
+                assert not isinstance(kw.value, ast.Dict), (
+                    f"{path.name}:{node.lineno}: execute_workflow(params=…) got a dict — "
+                    "the SDK calls .model_dump_json() on it."
+                )
