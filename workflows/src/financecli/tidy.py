@@ -83,11 +83,22 @@ def is_open(path: Path) -> bool:
     return len(lines) > 1
 
 
+def _case_only_rename(source: Path, target: Path) -> bool:
+    """Same path, different spelling.
+
+    macOS is case-insensitive: ``Konten/Girokonto`` and ``Konten/girokonto`` are
+    one directory. Renaming one to the other is not a conflict even though the
+    target "exists" — it is the same thing, and it needs a detour over a
+    temporary name to happen at all.
+    """
+    return source != target and str(source).lower() == str(target).lower()
+
+
 def _blocked_reason(source: Path, target: Path) -> str:
     """Why this move must not happen — empty string when it may."""
     if not source.exists():
         return "Quelle gibt es nicht (mehr)"
-    if target.exists():
+    if target.exists() and not _case_only_rename(source, target):
         return f"Ziel existiert bereits: {target}"
     if is_open(source):
         return "in einer Anwendung geöffnet"
@@ -109,10 +120,14 @@ def _account_for(name: str) -> str | None:
     The prefixes are IBAN fragments, so the map lives in the gitignored
     ``paths.json`` rather than in the checked-in domain config.
     """
+    lowered = name.lower()
     for prefix, account in c.paths().get("accounts_from_filename", {}).items():
         if prefix.startswith("_"):
             continue
-        if name.startswith(prefix):
+        # Substring, not startswith: the bunq export carries its IBAN in the
+        # MIDDLE of the name (2026-01-01_2026-04-13_NL65BUNQ…_export.csv), so a
+        # prefix match silently left that account unsorted.
+        if prefix.lower() in lowered:
             return account
     return None
 
@@ -141,9 +156,14 @@ def plan() -> list[Move]:
         if not source.exists():
             continue
         target = root / folder_name
-        if source.is_dir() and target.exists():
-            # The target folder is already there — move the CONTENTS, so the
-            # statements land in Konten/ rather than in Konten/Kontoauszüge/.
+        # A standard folder belongs to us and is created on --apply, so the
+        # source always contributes its CONTENTS — the statements land in
+        # Konten/, not in Konten/Kontoauszüge/. Deciding this by target.exists()
+        # made the plan depend on WHEN it was built: main() creates the folders
+        # after planning, so the first real run planned a whole-folder move and
+        # then blocked itself on the folder it had just created.
+        merge = source.is_dir() and (folder_name in c.TIDY["folders"] or target.exists())
+        if merge:
             for child in sorted(source.iterdir()):
                 if child.name in IGNORED_NAMES:
                     continue
@@ -157,10 +177,34 @@ def plan() -> list[Move]:
         if source.is_dir() or source.name in IGNORED_NAMES:
             continue
         account = _account_for(source.name)
-        if account and source.parent.name != account:
+        # Case-insensitively: macOS treats Konten/Girokonto and Konten/girokonto
+        # as the same directory, so a case-only difference is not a move — it
+        # only looks like one, and then fails as "target already exists".
+        if account and source.parent.name.lower() != account.lower():
             moves.append(
                 _plan_move(source, konten / account / source.name, f"Konto {account}")
             )
+
+    # 3b. An account folder has to be named exactly like its account id — on a
+    #     case-insensitive file system "Girokonto" and "girokonto" are the same
+    #     directory, so the difference survives a move and only shows up later
+    #     as a mismatch between the folder and the config.
+    ids = {a["id"] for a in c.accounts()}
+    for folder_path in sorted(konten.iterdir()) if konten.exists() else []:
+        if not folder_path.is_dir():
+            continue
+        match = next((i for i in ids if i.lower() == folder_path.name.lower()), None)
+        if match and folder_path.name != match:
+            moves.append(_plan_move(folder_path, konten / match, "Schreibweise angleichen"))
+
+    # 3c. Anything lying directly in Konten/ that belongs to no account is not a
+    #     statement — old scripts, a stray summary. It goes to the archive
+    #     rather than sitting between the accounts.
+    for stray in sorted(konten.iterdir()) if konten.exists() else []:
+        if stray.is_dir() or stray.name in IGNORED_NAMES:
+            continue
+        if not _account_for(stray.name):
+            moves.append(_plan_move(stray, root / "Archiv" / stray.name, "kein Kontoauszug"))
 
     # 4. Superseded material into the archive.
     for source_str in paths.get("archive", {}).get("paths", []):
@@ -252,7 +296,12 @@ def apply(moves: list[Move]) -> tuple[int, int]:
             skipped += 1
             continue
         move.target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(move.source), str(move.target))
+        if _case_only_rename(move.source, move.target):
+            detour = move.source.with_name(f"{move.source.name}.tidy-tmp")
+            move.source.rename(detour)
+            detour.rename(move.target)
+        else:
+            shutil.move(str(move.source), str(move.target))
         done.append(
             {
                 "batch": batch,
@@ -295,6 +344,37 @@ def undo() -> int:
         back += 1
     _log([{**e, "batch": f"{last}-undo", "ts": datetime.now(UTC).isoformat()} for e in batch])
     return back
+
+
+def prune_empty(moves: list[Move]) -> int:
+    """Remove source folders that this run emptied.
+
+    Only folders we actually moved out of, and only when nothing but Finder
+    noise is left — otherwise tidying would delete something it never looked
+    at. Deepest first, so a nest of empty folders collapses in one pass.
+    """
+    root = c.root()
+    keep = {root / name for name in c.TIDY["folders"]} | {root, Path.home()}
+    candidates = {m.source.parent for m in moves} | {m.source for m in moves if m.source.is_dir()}
+    # Plus whatever is left over inside the root: a source folder emptied in an
+    # EARLIER run is still empty now, and leaving it makes "one place" a lie.
+    candidates |= {p for p in root.rglob("*") if p.is_dir()}
+    # Also the folders we collected FROM: emptying ~/Documents/Telsche and then
+    # leaving the husk behind would make "one place" only half true.
+    candidates |= {expand(src) for src in c.paths().get("collect_from", {}) if not src.startswith("_")}
+    removed = 0
+    for folder in sorted(candidates, key=lambda p: len(p.parts), reverse=True):
+        if not folder.is_dir() or folder in keep:
+            continue
+        rest = [p for p in folder.iterdir() if p.name not in IGNORED_NAMES]
+        if rest:
+            continue
+        for noise in folder.iterdir():
+            noise.unlink()
+        folder.rmdir()
+        print(f"  leer    {folder}")
+        removed += 1
+    return removed
 
 
 def show(moves: list[Move], root: Path) -> None:
@@ -349,7 +429,10 @@ def main(argv: list[str] | None = None) -> int:
     for name in c.TIDY["folders"]:
         (root / name).mkdir(parents=True, exist_ok=True)
     moved, skipped = apply(moves)
+    emptied = prune_empty(moves)
     print(f"\n{moved} verschoben, {skipped} übersprungen. Rückgängig: --undo")
+    if emptied:
+        print(f"{emptied} leer gewordene(r) Quellordner entfernt.")
     return 0
 
 
