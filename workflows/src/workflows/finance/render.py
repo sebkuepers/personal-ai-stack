@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import date
 
 from workflows.finance.models import PlanningContext, Position
+from workflows.finance.report import Report, subscriptions
 
 
 def euro(cents: int) -> str:
@@ -133,4 +134,102 @@ def overview(ctx: PlanningContext, positions: list[Position], as_of: date) -> st
     lines += _subscriptions(ctx)
     lines += _goals(ctx)
     lines += _depot(positions)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+# --------------------------------------------------------------------------- #
+# The monthly summary — aggregates for the library, never a single booking
+# --------------------------------------------------------------------------- #
+
+
+def _delta(actual: int, plan: int) -> str:
+    """Actual against plan, in the reader's terms."""
+    if not plan:
+        return "kein Plan"
+    diff = abs(actual) - plan
+    word = "über" if diff > 0 else "unter"
+    return f"{euro(abs(diff))} {word} Plan"
+
+
+def month_summary(report: Report, label: str) -> str:
+    """What the month cost, per category and per merchant. No dated booking."""
+    lines = [
+        f"# Finanzen · {label}",
+        "",
+        f"Zeitraum {report.start:%d.%m.%Y} – {report.end:%d.%m.%Y} "
+        f"({report.months:.1f} Monate). Umbuchungen zwischen eigenen Konten und "
+        "Kreditkarten-Sammelbelastungen sind herausgerechnet — sie sind dasselbe Geld, "
+        "zweimal gesehen.",
+        "",
+        "## Bilanz",
+        "",
+        f"- Einnahmen **{euro(report.income_cents)}** ({euro(report.per_month(report.income_cents))} im Monat)",
+        f"- Ausgaben **{euro(report.spent_cents)}** ({euro(report.per_month(report.spent_cents))} im Monat)",
+        f"- **Saldo {euro(report.balance_cents)}** ({euro(report.monthly_balance_cents)} im Monat)",
+        "",
+        "## Wofür",
+        "",
+        "| Kategorie | Ausgaben | pro Monat | Plan | Abweichung |",
+        "|---|---:|---:|---:|---|",
+    ]
+    for total in report.categories:
+        plan = euro(total.plan_cents) if total.plan_cents else "—"
+        lines.append(
+            f"| {total.label} | {euro(total.spent_cents)} | "
+            f"{euro(report.per_month(total.spent_cents))} | {plan} | "
+            f"{_delta(report.per_month(total.spent_cents), total.plan_cents)} |"
+        )
+
+    lines += ["", "## Die zwanzig größten Empfänger", ""]
+    for merchant in report.merchants[:20]:
+        mark = " · wiederkehrend" if merchant.recurring else ""
+        lines.append(f"- {merchant.merchant} — {euro(merchant.spent_cents)} ({merchant.count}×){mark}")
+
+    if report.uncategorised:
+        lines += ["", f"_{report.uncategorised} Buchungen ohne Kategorie._"]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def subscription_summary(report: Report, context: PlanningContext | None = None) -> str:
+    """What is actually charged month after month — against what he planned."""
+    found = subscriptions(report)
+    lines = [
+        "# Finanzen · Abos",
+        "",
+        "Was tatsächlich in mindestens drei verschiedenen Monaten abgebucht wurde. "
+        "Das ist Arithmetik über das Ledger, nicht die Einschätzung eines Modells — "
+        "wo beides auseinandergeht, lohnt das Hinsehen.",
+        "",
+        f"**{len(found)} Empfänger**, zusammen "
+        f"{euro(sum(m.spent_cents for m in found))} im Zeitraum "
+        f"({euro(report.per_month(sum(m.spent_cents for m in found)))} im Monat).",
+        "",
+    ]
+    for merchant in found:
+        per_month = int(merchant.spent_cents / max(len(merchant.months), 1))
+        lines.append(
+            f"- **{merchant.merchant}** — {euro(per_month)}/Monat, "
+            f"{merchant.count}× in {len(merchant.months)} Monaten"
+        )
+
+    if context and context.subscriptions:
+        planned = {s.label.lower() for s in context.subscriptions}
+        seen = {m.merchant.lower() for m in found}
+        missing = sorted(s.label for s in context.subscriptions if s.label.lower() not in
+                         {x for x in seen for _ in [0]} and not any(s.label.lower() in x for x in seen))
+        lines += [
+            "",
+            "## In der Planung, aber nicht im Kontoauszug",
+            "",
+            "Entweder über ein anderes Konto bezahlt, oder nicht mehr aktiv.",
+            "",
+        ]
+        lines += [f"- {name}" for name in missing] or ["_(alles wiedergefunden)_"]
+        extra = sorted(m.merchant for m in found if not any(p in m.merchant.lower() for p in planned))
+        lines += [
+            "",
+            "## Im Kontoauszug, aber nicht in der Planung",
+            "",
+        ]
+        lines += [f"- {name}" for name in extra[:30]] or ["_(nichts Zusätzliches)_"]
     return "\n".join(lines).rstrip() + "\n"

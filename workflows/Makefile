@@ -77,7 +77,7 @@ crm-ingest:
 # ============================================================================
 # FINANCE — private finances, LOCAL ONLY (no Cloudflare, no schedule)
 # ============================================================================
-.PHONY: finance-tidy finance-tidy-undo finance-overview finance-ingest finance-categorise
+.PHONY: finance-tidy finance-tidy-undo finance-overview finance-ingest finance-categorise finance-report
 
 finance-tidy:  ## Collect everything private-financial into one place — preview; apply=1 for real
 	uv run python -m financecli.tidy $(if $(apply),--apply)
@@ -93,6 +93,9 @@ finance-ingest:  ## Statements → ledger — preview; apply=1 writes it
 
 finance-categorise:  ## Ledger → categories via the agent — preview; apply=1 asks; all=1 re-asks everything
 	uv run python -m financecli.categorise $(if $(apply),--apply) $(if $(all),--all) $(if $(limit),--limit $(limit))
+
+finance-report:  ## The figures — write=1 builds the workbook, upload=1 puts the summaries in the library
+	uv run python -m financecli.report $(if $(write),--write) $(if $(upload),--upload)
 
 .PHONY: inbox-scan inbox-daily inbox-senders inbox-review inbox-eval inbox-eval-cascade
 
