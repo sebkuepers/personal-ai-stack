@@ -9,8 +9,7 @@ number, no balance** — which is why it is the one part of this domain that is
 harmless in a library, and why it can exist before a single statement has been
 read.
 
-Both sources are opened read-only. ``finanzen_privat_project55.xlsx`` is his and
-stays his.
+Both sources are opened read-only. The planning workbook is his and stays his.
 """
 
 from __future__ import annotations

@@ -53,7 +53,7 @@ from mistralai.workflows.plugins.mistralai.conversational_ui_components import (
 VIEWS = [
     ("Wofür geht es hin?", "Wofür geht es hin? — alle Kategorien gegen den Plan"),
     ("Abos", "Abos — was monatlich abgebucht wird"),
-    ("Das Boot", "Das Boot — was Telsche kostet"),
+    ("Das Boot", "Das Boot — was es kostet"),
     ("Das KI-Setup", "Das KI-Setup — was die Modelle kosten"),
     ("Die größten Posten", "Die größten Posten — wohin die vierstelligen Beträge gehen"),
     ("Fertig", "Fertig"),

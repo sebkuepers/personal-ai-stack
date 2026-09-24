@@ -4,12 +4,12 @@
     python -m financecli.report --write    # write Berichte/Finanzbericht.xlsx
     python -m financecli.report --upload   # and put the summaries in the library
 
-**The workbook is generated, never edited.** His own two workbooks —
-``finanzen_privat_project55.xlsx`` and ``Telsche_Ausgaben.xlsx`` — are read and
-never written; this one is thrown away and rebuilt on every run, which is why it
-cannot be damaged and why he should not maintain anything inside it.
+**The workbook is generated, never edited.** His own two workbooks — the
+planning one and the boat one — are read and never written; this one is thrown
+away and rebuilt on every run, which is why it cannot be damaged and why he
+should not maintain anything inside it.
 
-Its shape follows his Telsche workbook, because that one works: an overview, the
+Its shape follows his boat workbook, because that one works: an overview, the
 running costs, the individual items, plan against actual, the subscriptions.
 """
 

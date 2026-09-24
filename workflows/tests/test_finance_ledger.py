@@ -120,7 +120,7 @@ class TestCategorisePrompt:
     def test_the_answer_survives_a_fenced_code_block(self) -> None:
         from workflows.finance.categorise import parse
 
-        fenced = '```json\n{"category":"boat","merchant":"im-jaich","recurring":false,' \
+        fenced = '```json\n{"category":"boat","merchant":"Beispielhafen","recurring":false,' \
                  '"confidence":0.9,"reasoning":"Hafen"}\n```'
         assert parse(fenced).category == "boat"
 
@@ -136,9 +136,13 @@ class TestCategorisePrompt:
         # trail; without it a wrong category cannot be argued with.
         import json as _json
 
-        schema = _json.loads(
-            (REPO / "agents" / "finance-categorise.json").read_text(encoding="utf-8")
-        )["completion_args"]["response_format"]["json_schema"]
+        path = REPO / "agents" / "finance-categorise.json"
+        if not path.is_file():
+            # Gitignored: the generated prompt embeds his vocabulary. On a fresh
+            # checkout there is nothing to check until the generator has run.
+            pytest.skip("agents/finance-categorise.json fehlt (gitignored)")
+        schema = _json.loads(path.read_text(encoding="utf-8"))[
+            "completion_args"]["response_format"]["json_schema"]
         assert schema["strict"] is True
         assert "reasoning" in schema["schema"]["required"]
         assert "confidence" in schema["schema"]["required"]

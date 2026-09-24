@@ -1,0 +1,36 @@
+{
+  "_comment": "Template for shared/finance/vocabulary.json (gitignored). Everything below is INVENTED — fill in your own.",
+  "rows": {
+    "housing": [
+      "Miete",
+      "Strom"
+    ],
+    "subscriptions": [
+      "Beispieldienst",
+      "Beispielabo"
+    ]
+  },
+  "merchant_hints": {
+    "boat": {
+      "_comment": "Your own suppliers — the model cannot guess them.",
+      "names": [
+        "Beispielhafen",
+        "Beispiel Yachtservice"
+      ],
+      "generic": [
+        "Marina",
+        "Liegeplatz",
+        "Winterlager"
+      ]
+    },
+    "ai_stack": {
+      "names": [
+        "Beispiel AI Labs"
+      ],
+      "generic": [
+        "Hosting",
+        "API"
+      ]
+    }
+  }
+}

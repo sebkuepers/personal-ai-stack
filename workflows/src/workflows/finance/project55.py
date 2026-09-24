@@ -1,12 +1,12 @@
 """Reading the author's planning workbook — **read only, always**.
 
-``finanzen_privat_project55.xlsx`` is his top-level planning document and the
-one artefact in this domain that is genuinely maintained by hand. Nothing here
+The planning workbook is his top-level document and the one artefact in this
+domain that is genuinely maintained by hand. Nothing here
 writes to it; a test holds that.
 
 What it supplies, and what this module therefore does not have to invent:
-the category structure, the subscriptions one by one, what he plans to spend per
-month, his savings rate, his emergency-fund target and where he sees room to cut.
+the category structure, the subscriptions one by one, what he plans to spend per month,
+his savings rate, his emergency-fund target and where he sees room to cut.
 
 **Not** the target portfolio. Sheet ``Tabelle2`` carries an old one, and he said
 plainly that it is outdated — the live depot export is what represents where the
@@ -23,10 +23,9 @@ produce a plan that is quietly wrong, and a plan that is quietly wrong is worse
 than no plan.
 
 **What this module deliberately does not do: infer more hierarchy than the
-header rule gives.** In his sheet ``Sonstige`` sits two blank rows below the
-``Sparen`` block and is in fact a roll-up of the whole middle column, while
-``Höheres Einkommen`` sits two blank rows below its siblings and does belong to
-its section. The two are indistinguishable from the file, so no gap heuristic
+header rule gives.** In his sheet one line sits two blank rows below the
+block above it and is in fact a roll-up of the whole middle column, while another
+sits two blank rows below its siblings and does belong to its section. The two are indistinguishable from the file, so no gap heuristic
 can separate them. Every figure that matters is therefore taken from HIS total
 cells, never summed up by me — a computed section total is shown as computed and
 nowhere used as a claim about his plan.
@@ -103,8 +102,7 @@ def read(path: Path) -> PlanningContext:
             item = PlanItem(label=label, monthly_cents=amount)
             if current is not None:
                 current.items.append(item)
-            # The middle block IS his subscription list — Discord, Audible,
-            # Lotto, Mistral, Garmin … each with what it costs per month.
+            # The middle block IS his subscription list —             # Lotto, Mistral, Garmin … each with what it costs per month.
             if index == 1:
                 subscriptions.append(item)
 

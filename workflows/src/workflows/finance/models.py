@@ -76,7 +76,7 @@ class FinanceCategory(BaseModel):
 
     category: str
     subcategory: str = ""  # optional on purpose: often there is nothing finer to say
-    merchant: str = Field(description="The counterparty in plain words, e.g. 'Lotto24'")
+    merchant: str = Field(description="The counterparty in plain words, without reference numbers")
     recurring: bool
     confidence: float
     # No default. A field with one drops out of the schema's "required" list and

@@ -8,6 +8,10 @@ production.
 The instructions are German because the material is: German bank statements,
 German merchant names, German categories out of his own planning workbook.
 
+**The generated file is gitignored.** It embeds his vocabulary — the suppliers
+that name a harbour, the subscriptions that make a profile. The GENERATOR is the
+domain and is checked in; the generated agent with his data is the work.
+
     uv run --project workflows python agents/build_finance_agents.py
     cd workflows && make sync-agents-dry && make sync-agents
 """
@@ -27,19 +31,34 @@ from workflows.schema import response_format  # noqa: E402
 
 
 def _vocabulary() -> str:
-    """The category list, rendered from shared/finance.json.
+    """The category list, rendered from the config.
 
-    Written out of the config rather than typed here: the categories come from
-    his planning workbook, and a second copy in a prompt is a second thing to
-    keep in step.
+    The KEYS come from ``shared/finance.json``, which is checked in. WHICH rows
+    of his planning workbook each key stands for comes from the gitignored
+    ``shared/finance/vocabulary.json`` — those names are his, not the domain's.
+    Without that file the prompt still works, just without the hints.
     """
     lines = []
     for key, entry in c.CATEGORIES.items():
-        rows = entry.get("rows") or []
+        rows = c.rows_for(key)
         hint = f" — in seiner Mappe: {', '.join(rows)}" if rows else ""
-        note = f" {entry['note']}" if entry.get("note") else ""
-        lines.append(f"- `{key}` ({entry['label']}){hint}{note}")
+        lines.append(f"- `{key}` ({entry['label']}){hint}")
     return "\n".join(lines)
+
+
+def _merchants(category: str, fallback: str) -> str:
+    """Supplier hints for one category, out of the gitignored vocabulary."""
+    hints = c.vocabulary().get("merchant_hints", {}).get(category, {})
+    names = hints.get("names") or []
+    generic = hints.get("generic") or []
+    if not names and not generic:
+        return fallback
+    parts = []
+    if names:
+        parts.append("Diese kommen tatsächlich vor: **" + "**, **".join(names) + "**.")
+    if generic:
+        parts.append("Dazu allgemein: " + ", ".join(generic) + ".")
+    return " ".join(parts)
 
 
 KATEGORISIEREN = f"""\
@@ -92,16 +111,13 @@ geraten hast. Diese Zahl wird ausgewertet; ein pauschales 0.9 macht sie wertlos.
 - **Kreditkartenabrechnungen sind `transfer`, nicht `misc`.** Eine Belastung „Commerzbank AG Karte
   Nr. …" auf dem Girokonto ist die Sammelbuchung der Karte; die Einzelposten stehen separat im
   Kartenauszug. Als Ausgabe gezählt wäre alles doppelt.
-- **`boat` erkennst du an den Lieferanten**, nicht am Wort Boot. Diese kommen tatsächlich vor —
-  sie stammen aus seinem eigenen Rechnungsordner: **im-jaich** (Hafen/Liegeplatz Lauterbach),
-  **SVB** (Bootszubehör), **Toplicht**, **Victron** (Bordelektrik), **Segelwerkstatt**,
-  **Yachtservice**, **FLIN**. Dazu allgemein: Marina, Liegeplatz, Winterlager, Antifouling,
-  Yachtbatterie, Slippen, Kranen.
-  Ein vierstelliger Betrag an einen dieser Namen ist fast immer `boat` — im ersten Probelauf
-  wurde eine Zahlung von 3.500 € an im-jaich als `misc` eingeordnet, weil der Name im Prompt
-  fehlte.
-- **`ai_stack` ist der PRIVATE Anteil**: Mistral, Anthropic, OpenAI, Hosting, Domains, APIs, sofern
-  privat bezahlt. Läuft es über eine Firmenkarte, taucht es hier gar nicht erst auf.
+- **`boat` erkennst du an den Lieferanten**, nicht am Wort Boot.
+  {_merchants("boat", "Hafenbetriebe, Yachtservice, Segelmacher, Liegeplatz, Winterlager.")}
+  Ein vierstelliger Betrag an einen dieser Namen ist fast immer `boat` — in der Messung wurde eine
+  solche Zahlung als `misc` eingeordnet, solange die Namen im Prompt fehlten.
+- **`ai_stack` ist der PRIVATE Anteil.**
+  {_merchants("ai_stack", "Modellanbieter, Hosting, Domains, APIs.")}
+  Läuft es über eine Firmenkarte, taucht es hier gar nicht erst auf.
 - **`food_out` ist Essengehen und Lieferdienst**, `groceries` der Einkauf. Ein Supermarkt ist
   `groceries`, auch wenn dort ein Kaffee dabei war.
 - Die Kategorie, die die Bank mitliefert, ist ein Hinweis und keine Vorgabe. Sie kennt weder das

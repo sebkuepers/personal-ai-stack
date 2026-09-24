@@ -51,8 +51,12 @@ shared/inbox/*.md
 # None of that belongs in a public repo. Only the template and the CONSTRUCTED
 # eval cases (invented merchants, invented amounts) are released.
 shared/finance/*.json
+# The generated agent embeds his vocabulary — the GENERATOR is the domain,
+# the generated file with his suppliers and subscriptions is the work.
+agents/finance-categorise.json
 shared/finance/*.md
 !shared/finance/paths.example.json
+!shared/finance/vocabulary.example.json
 !shared/finance/eval-categorise.json
 
 # Tooling caches

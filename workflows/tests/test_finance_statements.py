@@ -41,7 +41,7 @@ CARD = (
 )
 BUNQ = (
     '"Date","Interest Date","Amount","Account","Counterparty","Name","Description"\n'
-    '"2026-01-02","2026-02-01","-37.46","NL00BANK0000000000","","Beispiel Apotheke",'
+    '"2026-01-02","2026-02-01","-37.46","NL00000000000000000000","","Beispiel Apotheke",'
     '"Beispiel Apotheke Berlin, DE"\n'
 )
 

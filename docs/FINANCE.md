@@ -24,17 +24,18 @@ Measured on 2026-09-24, before anything was built:
 | | |
 |---|---|
 | Bank statements | 4 CSVs, **669 bookings**, 02.01.–13.04.2026, ~290 distinct texts |
-| Accounts | Commerzbank Giro · 2× Mastercard · bunq Haushaltskasse |
-| Depot | 19 positions, 4.891,40 € — exported the same day |
-| His planning workbook | `finanzen_privat_project55.xlsx`, sheet *Ausgaben*, last changed 22.07.2026 |
-| His boat workbook | `Telsche_Ausgaben.xlsx`, 7 sheets, 39 invoices, last changed 27.07.2026 |
+| Accounts | one current account, two credit cards, one household account — three CSV dialects |
+| Depot | 19 positions — exported the same day |
+| His planning workbook | one sheet of expenses, maintained by hand, last changed two months earlier |
+| His boat workbook | 7 sheets, invoices sorted by supplier, last changed 27.07.2026 |
 | Spread over | 7 places, the most important one on the Desktop with an Excel lock file beside it |
 
-**The categories were not invented here.** His workbook already names them — Miete, Wasser, Gas,
-Autos, Max & Paul, Essengehen, Haushaltskasse — plus fifteen subscriptions one by one, a savings
-rate and an emergency-fund target. `shared/finance.json` says for each category which of his rows it
-stands for, and a test holds that claim. Only two categories are additions: `boat` and `ai_stack`,
-because they run across his rows and he asked to see them separately.
+**The categories were not invented here.** His workbook already names them — rent, utilities, cars,
+maintenance, eating out, housekeeping — plus every subscription one by one, a savings rate and an
+emergency-fund target. `shared/finance.json` holds the category keys; which of his rows each one
+stands for lives in the gitignored vocabulary, because those rows name his family, his creditors and
+his subscriptions. Only two categories are additions, `boat` and `ai_stack`, because they run across
+his rows and he asked to see them separately.
 
 ---
 
@@ -44,8 +45,9 @@ because they run across his rows and he asked to see them separately.
 |---|---|
 | `shared/finance.json` | **Domain configuration** — categories with their derivation, models with the numbers that justify them, tidy rules, library settings. Checked in; contains no path under `~/Documents` and no IBAN fragment, enforced by test. |
 | `shared/finance/paths.json` | **Machine-local** — where the statements live, which accounts exist, which workbooks are read. Gitignored; `paths.example.json` is the template. |
+| `shared/finance/vocabulary.json` | **The personal half of the vocabulary** — which workbook rows a category stands for, which suppliers name a boat or an AI provider. Gitignored: a marina names the harbour a boat lies in, and a subscription list is a profile. `vocabulary.example.json` is the template. |
 | `shared/finance/eval-categorise.json` | The constructed eval cases. In the repo because every merchant and amount is invented. |
-| `agents/finance-categorise.json` | The Studio agent, **generated** by `agents/build_finance_agents.py`. |
+| `agents/finance-categorise.json` | The Studio agent — **gitignored**, because the generated prompt embeds that vocabulary. The generator is the domain and is checked in. |
 | `workflows/src/workflows/finance/` | Domain code: parser, ledger, planning reader, report, renderer, library. |
 | `workflows/src/financecli/` | Everything that touches the file system. |
 | `workflows/data/finance/` | The ledger and the move log. Gitignored. |
@@ -67,7 +69,8 @@ against aggregates**:
 | One booking text + amount, for categorisation | — | transient, `store=False` |
 | Category totals, subscriptions, depot positions | — | library |
 
-Merchant names have to go up — "how much on Lotto?" cannot be answered without the word Lotto24.
+Merchant names have to go up — a question about one kind of spending cannot be answered without
+naming the merchants it consists of.
 Account identifiers do not, and `library.check` refuses them at the one door out: IBAN, card number,
 masked card number. An ISIN is explicitly allowed, because it looks like an IBAN and the portfolio
 section is impossible without it. A test runs the real renderers through that check.
@@ -80,7 +83,7 @@ section is impossible without it. A test runs the real renderers through that ch
 
 | Document | Content | Rebuilt |
 |---|---|---|
-| `finance-overview.md` | The standing frame from his workbook: plan, 15 subscriptions, goals, plus the live depot. **Not one booking.** | when the workbook changes |
+| `finance-overview.md` | The standing frame from his workbook: plan, subscriptions, goals, plus the live depot. **Not one booking.** | when the workbook changes |
 | `finance-<YYYY-MM>.md` | Balance, per category against plan, the twenty largest recipients. | per report run |
 | `finance-subscriptions.md` | What is actually charged in three or more separate months, held against his planned list. | per report run |
 
@@ -122,10 +125,10 @@ Every one of these was invisible until the actual data ran through:
   position and the total never quite matches the broker's. Rounded, half up, through `Decimal`.
 * **`Anzahl` is a count, not an amount.** Read through the money parser, 1,128 shares became 1,12
   and the unrealised gain was four euros wrong on a position of a hundred and fifty.
-* **The Commerzbank statement carries the value date `30.02.2026`.** Not a defect — German banks book
+* **A bank statement can carry the value date `30.02.2026`.** Not a defect — German banks book
   value dates on a 30/360 basis. It is clamped to the last day the month has, and **only** the value
   date: clamping a booking date would silently move a booking into the wrong month.
-* **bunq writes thousands as `1,200.00`.** With the comma left in, `Decimal` refused the value — and
+* **One export writes thousands as `1,200.00`** while the others use the German notation. With the comma left in, `Decimal` refused the value — and
   only on the four-figure bookings, so a smaller sample would have passed.
 * **macOS is case-insensitive.** `Konten/Girokonto` and `Konten/girokonto` are one directory; the
   rename looked like a conflict and needed a detour over a temporary name.

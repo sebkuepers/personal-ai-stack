@@ -101,13 +101,16 @@ class TestPlanningWorkbook:
 class TestLeakGuard:
     """Nothing that identifies an account may reach the library."""
 
+    # Every identifier below is INVENTED. The first version of this file used
+    # the real ones out of the statements — in a test whose whole point is that
+    # such things must not end up anywhere public.
     @pytest.mark.parametrize(
         "text",
         [
-            "Überweisung an DE60120400000975392200 vom 10.04.",
-            "Karte 5232 2412 3456 0793",
-            "Belastete Kreditkarte 5232 24XX XXXX 0793",
-            "Konto NL65BUNQ2034204131",
+            "Überweisung an DE00000000000000000000 vom 10.04.",
+            "Karte 0000 0000 0000 0000",
+            "Belastete Kreditkarte 0000 00XX XXXX 0000",
+            "Konto NL00000000000000000000",
         ],
     )
     def test_an_account_identifier_is_refused(self, text: str) -> None:
@@ -115,9 +118,9 @@ class TestLeakGuard:
             library.check(text)
 
     def test_amounts_and_merchants_are_fine(self) -> None:
-        # Without merchant names the whole point is gone: "how much on Lotto?"
-        # cannot be answered without the word Lotto24.
-        library.check("Lotto24 10,00 € · Mistral 14,99 € · Summe 498,58 €")
+        # Without merchant names the whole point is gone: a question about one
+        # kind of spending needs the merchants it consists of.
+        library.check("Beispielladen 10,00 € · Beispieldienst 14,99 € · Summe 498,58 €")
 
     def test_the_real_overview_passes_the_door(self) -> None:
         ctx = PlanningContext(

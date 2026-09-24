@@ -145,6 +145,29 @@ def latest_depot() -> Path | None:
     return max(files, key=lambda f: f.stat().st_mtime) if files else None
 
 
+@cache
+def vocabulary() -> dict[str, Any]:
+    """The personal half of the vocabulary — gitignored, and optional.
+
+    Which of his workbook rows a category stands for, and which suppliers name
+    a boat or an AI provider. Those names identify a person: a marina names the
+    harbour a boat lies in, and a subscription list is a profile. So the keys
+    live in the checked-in config and the mapping lives here.
+
+    Missing is a valid state — the agent then works without the hints, measurably
+    worse on exactly the cases the hints exist for.
+    """
+    try:
+        return load_shared("finance/vocabulary.json")
+    except FileNotFoundError:
+        return {"rows": {}, "merchant_hints": {}}
+
+
+def rows_for(category: str) -> list[str]:
+    """The workbook rows this category stands for, if they are configured."""
+    return list(_entries(vocabulary().get("rows", {})).get(category, []))
+
+
 def accounts() -> list[dict[str, str]]:
     """The configured accounts — id, label, parser dialect. No IBAN in code."""
     return list(paths().get("accounts", []))

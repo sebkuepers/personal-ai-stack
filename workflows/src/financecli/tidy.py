@@ -13,8 +13,8 @@ candidates were in Downloads and on the Desktop. Nothing can be built on that.
 
 1. **Preview is the default.** ``--apply`` moves; without it only shows.
 2. **Nothing is renamed, nothing merged, no sub-structure flattened.** A folder
-   that arrives here keeps its shape exactly — ``Telsche/Rechnungen/Victron/``
-   stays ``Telsche/Rechnungen/Victron/``.
+   that arrives here keeps its shape exactly — ``Boot/Rechnungen/Lieferant/``
+   stays ``Boot/Rechnungen/Lieferant/``.
 3. **Never overwrite.** If the target exists, the move is skipped and named.
    Not "renamed to (1)", not merged — skipped, so the author decides.
 4. **Never move an open file.** Checked with ``lsof``. Excel holds a lock on
@@ -367,7 +367,7 @@ def prune_empty(moves: list[Move]) -> int:
     # Plus whatever is left over inside the root: a source folder emptied in an
     # EARLIER run is still empty now, and leaving it makes "one place" a lie.
     candidates |= {p for p in root.rglob("*") if p.is_dir()}
-    # Also the folders we collected FROM: emptying ~/Documents/Telsche and then
+    # Also the folders we collected FROM: emptying a source folder and then
     # leaving the husk behind would make "one place" only half true.
     candidates |= {expand(src) for src in c.paths().get("collect_from", {}) if not src.startswith("_")}
     removed = 0
