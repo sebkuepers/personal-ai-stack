@@ -154,12 +154,25 @@ def _markdown_message(content: str) -> list:
 class InboxReviewWorkflow(workflows.InteractiveWorkflow):
     @workflows.workflow.entrypoint
     async def run(self) -> wf_mistral.ChatAssistantWorkflowOutput:
+        # description is REQUIRED on TodoListItem (the SDK takes both positionally).
+        # Without it the workflow dies at construction with a TypeError — before
+        # the first form, so all Le Chat shows is "Workflow failed".
         step = {
-            "configure": wf_chat.TodoListItem(title="Konfiguration"),
-            "scan": wf_chat.TodoListItem(title="Sichtung laufen lassen"),
-            "result": wf_chat.TodoListItem(title="Ergebnis & Ansichten"),
-            "cleanup": wf_chat.TodoListItem(title="Aufräumen (mit Freigabe)"),
-            "finish": wf_chat.TodoListItem(title="Dossier in die Library"),
+            "configure": wf_chat.TodoListItem(
+                title="Konfiguration", description="Fenster, Kaskade, Obergrenze"
+            ),
+            "scan": wf_chat.TodoListItem(
+                title="Sichtung laufen lassen", description="inbox-scan als Kindworkflow"
+            ),
+            "result": wf_chat.TodoListItem(
+                title="Ergebnis & Ansichten", description="Report, Abos, Absender-Statistik"
+            ),
+            "cleanup": wf_chat.TodoListItem(
+                title="Aufräumen (mit Freigabe)", description="Labeln, archivieren, Entwürfe"
+            ),
+            "finish": wf_chat.TodoListItem(
+                title="Dossier in die Library", description="Kontext für Vibe ablegen"
+            ),
         }
         # Gotcha 12: the TodoList wraps the WHOLE session, waiting times for
         # input included — otherwise it is gone before anyone looks.

@@ -126,3 +126,25 @@ def test_agent_schema_matches_its_mirror(agent: str, module: str, model: str):
         f"only in the schema: {sorted(properties - fields)}, "
         f"only in the model: {sorted(fields - properties)}"
     )
+
+
+@pytest.mark.parametrize("path", _workflow_modules(), ids=lambda p: p.stem)
+def test_todolistitem_has_a_description(path: Path):
+    """``TodoListItem(title=…)`` without ``description`` raises at construction.
+
+    The SDK takes both positionally and required. Missing it kills the workflow
+    before the first form, and all Le Chat shows is "Workflow failed" — the
+    error never reaches the person who could act on it.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "TodoListItem"
+        ):
+            supplied = {kw.arg for kw in node.keywords} | {f"#{i}" for i in range(len(node.args))}
+            assert "description" in supplied or "#1" in supplied, (
+                f"{path.name}:{node.lineno}: TodoListItem without a description — "
+                "the SDK requires it and the workflow dies at construction."
+            )
