@@ -187,7 +187,8 @@ book-eval:
 eval:
 	uv run python -m evalkit --agent $(agent) --faelle $(faelle) $(if $(laeufe),--laeufe $(laeufe),) $(if $(nur),--nur $(nur),) $(if $(zaehlpfad),--zaehlpfad "$(zaehlpfad)",)
 
-## STUDIO — archive registrations the repo no longer defines (preview; apply=1 for real)
+## STUDIO — clean up what the repo no longer defines (preview; apply=1 for real)
+## Archives orphaned workflows, deletes orphaned agents. keep="<name>" spares one.
 .PHONY: archive-stale
 archive-stale:
-	uv run python -m entrypoints.archive $(if $(apply),--apply)
+	uv run python -m entrypoints.archive $(if $(apply),--apply) $(if $(keep),--keep "$(keep)")

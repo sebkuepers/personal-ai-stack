@@ -212,14 +212,19 @@ in the examples.
 
 14. **`strict: true` enforces enums, but not numeric types.** A `list[int]` in
     the schema does not stop the model from delivering strings. And a field with
-16. **A rename leaves its predecessor registered.** Studio keeps a workflow
-    registration until someone removes it, so after renaming `buch-korrektorat`
-    to `book-copyedit` both sit in the list and the old one is indistinguishable
-    from a live one. There is **no delete** — only `archive_workflow` /
-    `bulk_archive_workflows` (reversible via `unarchive_workflow`).
-    `make archive-stale` compares the registrations against
-    `discover_workflows()` and archives whatever the repo no longer defines;
-    preview is the default.
+16. **A rename leaves its predecessor behind — in two places.** Studio keeps a
+    workflow registration until someone removes it, so after renaming
+    `buch-korrektorat` to `book-copyedit` both sit in the list and the old one
+    is indistinguishable from a live one. The same for agents: `Buch · Judge`
+    outlived the design it belonged to by weeks. Workflows have **no delete**,
+    only `archive_workflow` / `bulk_archive_workflows` (reversible via
+    `unarchive_workflow`); agents have **only delete**, which is not. Also note
+    that `workflow_display_name` is set at *registration* — after changing it,
+    Studio shows the old one until the worker restarts, or you push it with
+    `workflows.update_workflow(display_name=…)`.
+    `make archive-stale` compares both against the repo — workflows against
+    `discover_workflows()`, agents against the `name` fields in `agents/*.json`
+    — and cleans up whatever it no longer defines. Preview is the default.
 
 17. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
