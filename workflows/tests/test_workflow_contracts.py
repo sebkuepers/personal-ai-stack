@@ -64,8 +64,8 @@ def test_wait_for_input_requires_interactive_workflow(path: Path):
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for cls in _classes_calling(tree, "wait_for_input"):
         assert "InteractiveWorkflow" in _base_names(cls), (
-            f"{path.name}: {cls.name} ruft self.wait_for_input(), erbt aber nicht von "
-            "InteractiveWorkflow — der Aufruf schlägt zur Laufzeit fehl."
+            f"{path.name}: {cls.name} calls self.wait_for_input() but does not inherit "
+            "InteractiveWorkflow — the call fails at runtime."
         )
 
 
@@ -81,7 +81,7 @@ def test_field_names_are_ascii(path: Path):
     for node in ast.walk(tree):
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             name = node.target.id
-            assert name.isascii(), f"{path.name}: Feldname {name!r} ist nicht ASCII."
+            assert name.isascii(), f"{path.name}: field name {name!r} is not ASCII."
 
 
 # ---------------------------------------------------------------------------
