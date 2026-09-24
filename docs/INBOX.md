@@ -96,6 +96,13 @@ On a seven-day window that threw away 272 of 322 threads without a word.
 and the headline says *"abgeschnitten bei N — das Fenster trägt mehr"*. A cap
 that cannot report that it bit is not a limit.
 
+**A day cannot be re-run cleanly once it has been tidied.** That is the price of the cleanup:
+the run archives what it triaged, the next scan asks `in:inbox`, and the archived mails are no
+longer in it. A second run of the same day therefore sees only the remainder — and would write
+that as the day's record. `store_dossier` keeps the longer of the two texts and the run says so
+in its receipt. Crude, but it fails in the safe direction, and the case it guards is exactly
+"shorter than what is already there".
+
 **The backlog stays out of it.** 2,094 machine mails from 334 senders will not be
 worked off one mail at a time by a model — 61 % of the volume comes from twenty
 senders at four opens in total. That is `inbox-senders` and an unsubscribe, not a

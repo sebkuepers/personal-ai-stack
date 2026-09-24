@@ -129,8 +129,16 @@ class InboxDailyWorkflow:
         # goes in with it — the morning after, "what did it touch" is the first
         # question, and the answer must not be only in the event history.
         day = report.window_start or date.fromisoformat(await get_today())
-        await store_dossier(
+        stored = await store_dossier(
             name=f"inbox-context-{day.isoformat()}.md",
             text=dossier(report, day.isoformat(), cleaned=cleaned),
         )
+        if stored.get("kept"):
+            # Not an error, but not silence either: this run's findings are in
+            # the execution, not in the library, and the reason matters.
+            cleaned.errors.append(
+                "Dossier NICHT ersetzt — das vorhandene ist ausführlicher. "
+                "Ein zweiter Lauf desselben Tages sieht nur noch, was nach dem "
+                "Aufräumen im Posteingang übrig war."
+            )
         return DailyResult(report=report, cleaned=cleaned)
