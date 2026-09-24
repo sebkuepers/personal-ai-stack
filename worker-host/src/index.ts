@@ -105,6 +105,7 @@ export default {
     }
 
     if (pathname === "/") {
+      if (!authorized) return new Response("unauthorized\n", { status: 401 });
       const anzahl = await runningRuns(env);
       return new Response(
         `deployment "${env.DEPLOYMENT_NAME}": ${anzahl} execution(s) running` +

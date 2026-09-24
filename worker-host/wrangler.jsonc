@@ -9,9 +9,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
-  // No public URL: the metronome is woken by the cron, not by a request, and
-  // GET / would otherwise answer to anyone who finds the workers.dev address.
-  "workers_dev": false,
+  // The workers.dev URL stays on, and every route on it requires the API key.
+  // It is the BOOTSTRAP path: the metronome only wakes the container when work
+  // is already waiting for the "cloudflare" deployment — and nothing ever waits
+  // for it until the container has run once and registered itself. Turning the
+  // URL off removes the only way to break that circle.
   "preview_urls": false,
 
   // The Mistral Workflows worker runs in a scale-to-zero container.
