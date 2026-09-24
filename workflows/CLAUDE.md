@@ -226,7 +226,14 @@ in the examples.
     `discover_workflows()`, agents against the `name` fields in `agents/*.json`
     — and cleans up whatever it no longer defines. Preview is the default.
 
-17. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
+17. **Never edit a workflow while one of its sessions is open.** A conversational
+    workflow is replayed from its event history on every input. `make start-worker`
+    watches files and reloads, so an edit mid-session makes the replay diverge:
+    `determinism error: No command scheduled for event …`. In the chat nothing
+    happens at all — the Send button simply does nothing, with no error. The
+    session is unrecoverable; start a new one. During a test run, stop editing.
+
+18. **Scaffold bug:** `pyproject.toml` shipped `[tool.uv] exclude-newer = "7 days"`
    which uv rejects (wants an RFC3339 date). Removed; deps are pinned in
    `uv.lock`.
 
