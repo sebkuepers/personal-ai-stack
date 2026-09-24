@@ -17,7 +17,7 @@
     "backup": "~/Werk/buch/mein-buch/backup"
   },
   "mistral": {
-    "library_name": "buch/mein-buch",
+    "library_name": "book/mein-buch",
     "library_id": null,
     "vibe_project": "Buch · Mein Buch"
   },
