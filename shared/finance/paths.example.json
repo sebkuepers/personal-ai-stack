@@ -1,0 +1,62 @@
+{
+  "_comment": "Template for shared/finance/paths.json — copy it, fill in your own paths, and note that the real file is gitignored. This repo is public: the DOMAIN (code, categories, rules) is shared, the WORK (where your statements live, which accounts you have) stays on your machine.",
+
+  "root": "~/Documents/02_PRIVATE/Finance",
+
+  "planning_workbook": {
+    "_comment": "The top-level planning document. READ ONLY — nothing in this repo ever writes to it. It supplies the categories, the subscription list, the savings rate and the target portfolio.",
+    "path": "~/Documents/02_PRIVATE/Finance/finanzen_privat_project55.xlsx",
+    "expenses_sheet": "Ausgaben",
+    "portfolio_sheet": "Zielportfolio"
+  },
+
+  "boat_workbook": {
+    "_comment": "Also READ ONLY, and also the best available touchstone: the boat total from the ledger has to match this workbook. If it does not, the parser or the categorisation is wrong — not the bookkeeping.",
+    "path": "~/Documents/02_PRIVATE/Finance/Telsche/Rechnungen/Telsche_Ausgaben.xlsx"
+  },
+
+  "collect_from": {
+    "_comment": "Folders tidy pulls into root, keeping their sub-structure exactly as it is. Left is the source, right the folder name under root.",
+    "~/Documents/Telsche": "Telsche",
+    "~/Documents/02_PRIVATE/Finance/Finanzen/Kontoauszüge": "Konten"
+  },
+
+  "archive": {
+    "_comment": "Superseded material. Moved, not deleted — it may still answer a question later.",
+    "paths": [
+      "~/Documents/02_PRIVATE/Finance/Finanzen_Privat_2025.xlsx",
+      "~/Documents/02_PRIVATE/Finance/Finanzen/scripts"
+    ]
+  },
+
+  "context": {
+    "_comment": "Prose the author wrote himself: goals, investment strategy, his own summaries. Read as context, never rewritten.",
+    "paths": [
+      "~/Documents/02_PRIVATE/Finance/Finanzen/overview.md",
+      "~/Documents/02_PRIVATE/Finance/Finanzen/bank_summary.md"
+    ]
+  },
+
+  "accounts_from_filename": {
+    "_comment": "Statement files are sorted into Konten/<account> by what their file name starts with. These prefixes are IBAN fragments and card names, which is why they live here and not in the checked-in domain config.",
+    "Mastercard_Gold": "mastercard-gold",
+    "DE60": "girokonto"
+  },
+
+  "out_of_scope_targets": {
+    "_comment": "Where tidy proposes to move the work folders named in shared/finance.json → tidy.out_of_scope.names. It never touches their contents, and ingest never reads from there.",
+    "Belege Juli": "~/Documents/01_WORK/Belege"
+  },
+
+  "accounts": [
+    {
+      "id": "girokonto",
+      "label": "Commerzbank Girokonto",
+      "dialect": "commerzbank_giro",
+      "_comment": "dialect names the parser in workflows/finance/statements.py. Never put the IBAN in a file that is not gitignored."
+    },
+    { "id": "mastercard-gold", "label": "Mastercard Gold", "dialect": "commerzbank_card" },
+    { "id": "mastercard-classic", "label": "Mastercard Classic", "dialect": "commerzbank_card" },
+    { "id": "haushaltskasse", "label": "bunq Haushaltskasse", "dialect": "bunq" }
+  ]
+}

@@ -45,6 +45,16 @@ shared/inbox/*.json
 shared/inbox/*.md
 !shared/inbox/eval-review.json
 
+# The finance domain is the strictest of the three: shared/finance/ holds the
+# paths to the author's statements, his account names and his IBANs, and
+# workflows/data/finance/ holds the ledger itself — every booking he ever made.
+# None of that belongs in a public repo. Only the template and the CONSTRUCTED
+# eval cases (invented merchants, invented amounts) are released.
+shared/finance/*.json
+shared/finance/*.md
+!shared/finance/paths.example.json
+!shared/finance/eval-categorise.json
+
 # Tooling caches
 .mypy_cache/
 .ruff_cache/

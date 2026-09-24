@@ -74,6 +74,17 @@ crm-ingest:
 # Inbox / triage  (domain "inbox" — the daily round over the mailbox)
 # ===========================================================================
 
+# ============================================================================
+# FINANCE — private finances, LOCAL ONLY (no Cloudflare, no schedule)
+# ============================================================================
+.PHONY: finance-tidy finance-tidy-undo
+
+finance-tidy:  ## Collect everything private-financial into one place — preview; apply=1 for real
+	uv run python -m financecli.tidy $(if $(apply),--apply)
+
+finance-tidy-undo:  ## Take the last tidy run back
+	uv run python -m financecli.tidy --undo
+
 .PHONY: inbox-scan inbox-daily inbox-senders inbox-review inbox-eval inbox-eval-cascade
 
 ## SCAN — triage inbox + sent: newsletters, finance, replies owed (dry run, Gmail; OAuth)

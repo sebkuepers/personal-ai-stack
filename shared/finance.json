@@ -1,0 +1,75 @@
+{
+  "_comment": "Domain configuration for the finance domain — the single source of truth for categories, models and the tidy rules. This domain runs LOCALLY ONLY: no Cloudflare container, no deployment gating, no schedule block. The worker on the MacBook may therefore read the file system from inside an activity (the same exception docs/BOOK.md describes for the book domain), but writing still happens only in financecli, never in a workflow. Personal paths are NOT here — they live in the gitignored shared/finance/paths.json, because this repo is public.",
+
+  "categories": {
+    "_comment": "Derived from the author's own planning workbook (finanzen_privat_project55.xlsx, sheet 'Ausgaben', measured 2026-09-24), NOT invented here. Each entry names the rows it stands for so the mapping stays checkable. 'source': 'project55' means the category exists as a line in his sheet; 'cross_cut' means it runs across several of his rows and exists because he asked to see it separately.",
+    "housing":       { "label": "Wohnen",        "source": "project55", "rows": ["Miete", "Haus", "Unterhalt"] },
+    "utilities":     { "label": "Nebenkosten",   "source": "project55", "rows": ["Strom", "Wasser", "Gas"] },
+    "cars":          { "label": "Autos",         "source": "project55", "rows": ["Autos", "Porsche", "Renault", "Reifen"] },
+    "family":        { "label": "Familie",       "source": "project55", "rows": ["Max & Paul", "Anna", "Jenni"] },
+    "food_out":      { "label": "Essengehen",    "source": "project55", "rows": ["Essengehen", "Verpflegung"] },
+    "groceries":     { "label": "Haushalt",      "source": "project55", "rows": ["Haushaltskasse", "Laden", "Kleinstausgaben"] },
+    "fitness":       { "label": "Fitness",       "source": "project55", "rows": ["Fitness"] },
+    "subscriptions": { "label": "Abos",          "source": "project55", "rows": ["Discord", "Geniuslink", "Audible", "Lotto", "Asservato", "TheVerge", "Mistral", "Patreon", "Garmin", "Disney", "Buffer"] },
+    "insurance":     { "label": "Versicherungen","source": "project55", "rows": ["Risikoleben", "Recht", "Konto", "Axa", "Handy", "Versicherung"] },
+    "debt":          { "label": "Kredite",       "source": "project55", "rows": ["Commerzbank", "Postbank", "Ing Diba", "Schufa"] },
+    "savings":       { "label": "Sparen",        "source": "project55", "rows": ["Tagesgeld", "Aktien", "Privat", "Sparrate", "Notgroschen"] },
+    "income":        { "label": "Einnahmen",     "source": "project55", "rows": [] },
+    "transfer":      { "label": "Umbuchung",     "source": "cross_cut", "rows": [], "note": "Between his own accounts — never counts towards any spending total." },
+    "boat":          { "label": "Telsche",       "source": "cross_cut", "rows": [], "note": "Cuts across several of his rows; his own Telsche_Ausgaben.xlsx is the touchstone." },
+    "ai_stack":      { "label": "KI-Setup",      "source": "cross_cut", "rows": [], "note": "The PRIVATE share only. Part of it runs on the company credit card and is deliberately absent here — the report says so rather than implying a complete figure." },
+    "misc":          { "label": "Sonstige",      "source": "project55", "rows": ["Sonstige", "Strafzettel", "Greifi"] }
+  },
+
+  "library": {
+    "_comment": "The summaries are a goal of this domain, not a by-product: without them Vibe has no context and the conversation is worthless. Three documents, no more. finance-overview.md carries NO transaction at all — it is pure planning context out of Project 55 and therefore the harmless one that makes Vibe useful first. Set enabled to false and everything stays on the machine; the local conversational workflow and the generated workbook keep working.",
+    "enabled": true,
+    "name": "Finanzen",
+    "id": null,
+    "documents": {
+      "overview": "finance-overview.md",
+      "month": "finance-{month}.md",
+      "subscriptions": "finance-subscriptions.md"
+    }
+  },
+
+  "tidy": {
+    "_comment": "Phase 0: one place for everything private-financial. The rules are data, not code, so a wrong target is a JSON edit rather than a patch. Preview is the default; every move is logged to workflows/data/finance/moves.jsonl and reversible. Nothing is renamed, nothing merged, no sub-structure flattened.",
+    "folders": ["Konten", "Telsche", "Depot", "Kontext", "Berichte", "Archiv", "Unsortiert"],
+    "_accounts_comment": "Statement files are sorted into Konten/<account> by what their file name starts with. The prefixes are IBAN fragments and card names, so the map itself lives in the gitignored shared/finance/paths.json under accounts_from_filename — not here.",
+    "out_of_scope": {
+      "_comment": "Folder names that are WORK material and must never enter the private ledger — these are receipts for the company credit card. Only the names live here; where they should go is a personal path and therefore sits in shared/finance/paths.json under out_of_scope_targets.",
+      "names": ["Belege Juli"]
+    },
+    "scatter_target": "Unsortiert",
+    "_scatter_comment": "A holding pen, deliberately not Belege/. The patterns match a FILE NAME and nothing has looked inside — and the first real preview (2026-09-24) showed why that matters: 54 of 57 hits were work material (vendor invoices, company-card summaries), not private. Collecting them into one place is still worth it, because that is what the author asked for; pretending they are private bookkeeping is not. Nothing ever reads the ledger from here.",
+    "scatter_sources": ["~/Downloads", "~/Desktop"],
+    "scatter_patterns": ["rechnung", "beleg", "invoice", "kontoauszug", "abrechnung", "depot", "wertpapier"]
+  },
+
+  "models": {
+    "_comment": "Not yet measured for this domain — these are the starting points, and make finance-eval replaces them with numbers. 190 bookings a month make small the obvious first try: the cost question does not exist at that volume, so what gets measured is accuracy and consistency, not price.",
+    "categorise": "mistral-small-latest",
+    "briefing": "mistral-medium-latest"
+  },
+
+  "agent": {
+    "_comment": "IDs are written back by agents/sync.py. Do not edit by hand.",
+    "finance_categorise_agent_id": null,
+    "finance_briefing_agent_id": null
+  },
+
+  "limits": {
+    "_comment": "max_batch is how many bookings go into one categorisation run; concurrency mirrors the inbox domain's figure of 10, which sat comfortably under the rate limit there.",
+    "max_batch": 500,
+    "concurrency": 10
+  },
+
+  "measurement": {
+    "_comment": "Filled by make finance-eval and by the first real runs. Numbers live next to the setting they justify (repo rule 6).",
+    "bookings_measured": 669,
+    "bookings_period": "2026-01-01 to 2026-04-13",
+    "distinct_texts": 293,
+    "measured_on": "2026-09-24"
+  }
+}
